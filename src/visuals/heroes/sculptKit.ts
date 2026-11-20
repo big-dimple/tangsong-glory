@@ -1,0 +1,829 @@
+/**
+ * sculptKit.ts — 《唐宋荣耀》国风工笔 3D 英雄核心雕刻工坊
+ *
+ * 彻底摆脱原版 qh 卤蛋球与 Cm 塑料帽：
+ * 1. 自研骨相级东方头颅 buildSculptedTangSongHead（鹅蛋/瓜子下颌 vs 剑眉棱角男颜 + 工笔丹凤眸 + 立体鼻唇 + 分缕蓬松乌发）；
+ * 2. 唐宋多褶大广袖、层叠交错垂地长裙、破损撕裂感披风飘带；
+ * 3. 三维立体雕塑鎏金吞口狮头兽面、带刺玄铁流星大锤、梅花金步摇、凤冠珠钗、双节醉翁酒葫芦、竹简与狼毫毛笔。
+ */
+
+import {
+  clamp01,
+  mixVal,
+  type FullHeroEngineApi,
+  type HeadObj,
+  type HeroModelApi,
+} from './types';
+
+export interface SculptedHeadOpts {
+  skin: number;
+  skinShade?: number;
+  hair: number;
+  hairHi: number;
+  iris: number;
+  lip: number;
+  headScale: number;
+  female?: boolean;
+  jawSharp?: number;
+  huadian?: number;
+  eyeSlant?: number;
+  browAngle?: number;
+  smile?: number;
+  beard?: 'none' | 'stubble' | 'general';
+  bangStyle?: 'swept' | 'parted' | 'wild' | 'noble';
+  sideLockLen?: number;
+}
+
+/**
+ * 自研骨相级东方头颅 + 工笔丹凤五官 + 分层蓬松发底
+ * lathe 角度约定：ang = π/2 为正脸 (+Z)，ang = 0/+π 为左右耳，ang = 3π/2 为后脑 (-Z)
+ */
+export function buildSculptedTangSongHead(
+  api: FullHeroEngineApi,
+  m: HeroModelApi['m'],
+  h: ReturnType<FullHeroEngineApi['Gh']>,
+  opts: SculptedHeadOpts,
+): HeadObj {
+  const { K, En, pt, bt } = api;
+  const s = opts.headScale;
+  const female = !!opts.female;
+  const cy = h.d.headY + 0.2 * s;
+  const headBone = h.J.head;
+
+  // 骨相纵剖面 [dy, rx, rz, cz]（精致短下颌东方鹅蛋/剑眉俊颜，拒绝拉长马脸与对称卤蛋）
+  const profile: [number, number, number, number][] = female
+    ? [
+        [-0.222, 0.03, 0.034, 0.062], // 娇巧下巴尖
+        [-0.185, 0.088, 0.094, 0.048], // 柔和下颌收束
+        [-0.12, 0.146, 0.15, 0.025], // 柔美下颊
+        [-0.04, 0.188, 0.19, 0.008], // 苹果肌/颧骨
+        [0.042, 0.198, 0.204, -0.002], // 眼眶太阳穴
+        [0.125, 0.194, 0.21, -0.014], // 额头与颅骨
+        [0.192, 0.166, 0.184, -0.022], // 颅顶过渡
+        [0.238, 0.104, 0.116, -0.025],
+        [0.258, 0.02, 0.022, -0.024],
+      ]
+    : [
+        [-0.228, 0.046, 0.045, 0.064], // 硬朗精悍下巴
+        [-0.188, 0.108, 0.108, 0.048], // 下颌角棱角
+        [-0.118, 0.16, 0.16, 0.024], // 坚毅脸颊
+        [-0.036, 0.196, 0.198, 0.008], // 颧骨线
+        [0.046, 0.206, 0.212, -0.002], // 眉弓
+        [0.13, 0.202, 0.216, -0.014], // 额颞
+        [0.196, 0.172, 0.19, -0.022],
+        [0.242, 0.108, 0.12, -0.025],
+        [0.262, 0.022, 0.024, -0.024],
+      ];
+
+  const ring = (offsetY: number): [number, number, number] => {
+    const dy = offsetY / s;
+    if (dy <= profile[0][0]) {
+      return [profile[0][1] * s, profile[0][2] * s, profile[0][3] * s];
+    }
+    for (let idx = 1; idx < profile.length; idx++) {
+      if (dy <= profile[idx][0]) {
+        const t = (dy - profile[idx - 1][0]) / (profile[idx][0] - profile[idx - 1][0]);
+        return [
+          bt(profile[idx - 1][1], profile[idx][1], t) * s,
+          bt(profile[idx - 1][2], profile[idx][2], t) * s,
+          bt(profile[idx - 1][3], profile[idx][3], t) * s,
+        ];
+      }
+    }
+    const last = profile[profile.length - 1];
+    return [last[1] * s, last[2] * s, last[3] * s];
+  };
+
+  // 非对称东方骨相塑形：正脸微收颊、下巴前挺、后脑饱满
+  const faceShape = (ang: number, idx: number): number => {
+    const front = Math.sin(ang); // +1 正脸, -1 后脑
+    const side = Math.abs(Math.cos(ang)); // +1 左右耳侧
+    const dy = profile[idx][0];
+    let k = 1.0;
+    // 下颌区：女性瓜子脸收颊，男性微显下颌骨棱角
+    if (dy < -0.06) {
+      const low = clamp01((-0.06 - dy) / 0.19);
+      if (female) {
+        k -= low * side * 0.085;
+        if (front > 0) k += low * Math.pow(front, 2) * 0.045;
+      } else {
+        k -= low * side * 0.035;
+        if (front > 0) k += low * Math.pow(front, 2) * 0.055;
+      }
+    }
+    // 太阳穴略收、后脑微饱
+    if (dy > 0.0 && dy < 0.16) {
+      k -= side * 0.035;
+      if (front < 0) k += -front * 0.05;
+    }
+    return k;
+  };
+
+  const surf = (x: number, y: number): number => {
+    const r = ring(y - cy);
+    const ratio = Math.min(0.99, Math.abs(x) / Math.max(0.001, r[0]));
+    return r[2] + r[1] * Math.sqrt(Math.max(0, 1 - ratio * ratio));
+  };
+
+  const skinShade = opts.skinShade ?? (female ? 0xe5b296 : 0xc28664);
+
+  m.bone(headBone);
+  m.paint(opts.skin, {
+    c2: skinShade,
+    ao: 0.86,
+    ao2: 1.0,
+    glow: 0.05,
+    mat: K.skin,
+    line: 0.42,
+    by: (_x: number, yVal: number, _z: number, _r: number, _nx: number, ny: number) =>
+      clamp01(0.45 - ny * 0.42 + (cy - yVal) * 0.6),
+  });
+  m.lathe(
+    profile.map(([dy, rx, rz, cz]) => [cy + dy * s, rx * s, rz * s, 0, cz * s]),
+    { seg: 20, crease: 180, shape: faceShape },
+  );
+
+  // 精致贴合双耳（含耳廓内影）
+  m.sym(() => {
+    const ey = cy - 0.02 * s;
+    const earX = ring(-0.02 * s)[0] * 0.97;
+    m.paint(opts.skin, { c2: skinShade, ao: 0.82, mat: K.skin, line: 0.35 });
+    m.g(pt(earX, ey, -0.015 * s, 0, -18, 6), () => {
+      m.ball(0, 0, 0, 0.02 * s, 0.048 * s, 0.028 * s, 1, 180);
+    });
+  });
+
+  // ── 丹凤明眸与剑眉 / 柳叶眉（完全 line: 0，放大灵动比例，呈现国风工笔神韵） ──
+  const eyeY = cy - 0.004 * s;
+  const eyeX = (female ? 0.075 : 0.08) * s;
+  const eyeRing = ring(eyeY - cy);
+  const eyeZ =
+    eyeRing[2] +
+    eyeRing[1] * Math.sqrt(Math.max(0, 1 - (eyeX / Math.max(0.001, eyeRing[0])) ** 2));
+  const eyeYaw =
+    Math.atan2(
+      eyeX / (eyeRing[0] * eyeRing[0]),
+      (eyeZ - eyeRing[2]) / (eyeRing[1] * eyeRing[1]),
+    ) *
+    (180 / Math.PI);
+  const ew = (female ? 0.044 : 0.04) * s;
+  const eh = (female ? 0.025 : 0.018) * s;
+  const slant = opts.eyeSlant ?? (female ? 7 : 5);
+
+  m.sym(() => {
+    m.g(pt(eyeX, eyeY, eyeZ - 0.004 * s, 0, eyeYaw * 0.7, slant), () => {
+      // 柔和象牙白睛
+      m.paint(0xfcf7f0, { c2: 0xe6dcd2, line: 0, glow: 0.05 });
+      m.ball(0, 0, 0.002 * s, ew, eh, 0.009 * s, 1);
+      // 温润深邃大瞳眸（水灵明亮）
+      m.paint(opts.iris, { c2: 0x160f0e, glow: 0.14, line: 0 });
+      m.ball(0, eh * 0.02, 0.008 * s, eh * 0.82, eh * 0.88, 0.0055 * s, 1);
+      // 瞳孔
+      m.paint(0x110c0c, { line: 0 });
+      m.ball(0, 0, 0.0112 * s, eh * 0.42, eh * 0.44, 0.0038 * s, 1);
+      // 双眼神高光点
+      m.paint(0xffffff, { glow: 0.72, line: 0 });
+      m.ball(ew * 0.14, eh * 0.3, 0.0138 * s, eh * 0.2, eh * 0.2, 0.0024 * s, 0);
+      m.ball(-ew * 0.14, -eh * 0.24, 0.0132 * s, eh * 0.11, eh * 0.11, 0.002 * s, 0);
+      // 上睫毛墨线 + 凤尾轻扬
+      m.paint(0x1a1416, { line: 0 });
+      m.tube(
+        [
+          [-ew * 1.02, -eh * 0.05, 0.008 * s, 0.003 * s],
+          [-ew * 0.28, eh * 0.9, 0.0112 * s, 0.0044 * s],
+          [ew * 0.56, eh * 0.8, 0.0104 * s, 0.004 * s],
+          [ew * 1.08, eh * 0.36, 0.0084 * s, 0.0032 * s],
+          [ew * 1.32, eh * 0.62, 0.004 * s, 0.0018 * s],
+        ],
+        { seg: 5, up: [0, 0, 1] },
+      );
+      // 女角眼尾丹霞淡红晕染
+      if (female) {
+        m.paint(0xd6686e, { c2: opts.skin, line: 0, glow: 0.08 });
+        m.ball(ew * 1.08, eh * 0.14, 0.0055 * s, 0.016 * s, 0.007 * s, 0.003 * s, 0);
+      }
+    });
+
+    // 剑眉 / 柳叶黛眉
+    const browY = eyeY + eh + (female ? 0.02 : 0.018) * s;
+    const browZ = surf(eyeX, browY) + 0.002 * s;
+    const bAng = opts.browAngle ?? (female ? 4 : 11);
+    m.paint(opts.hair, { c2: opts.hairHi, line: 0 });
+    m.g(pt(eyeX * 0.94, browY, browZ, -6, eyeYaw * 0.62, bAng), () => {
+      const thick = (female ? 0.0038 : 0.0062) * s;
+      m.tube(
+        [
+          [-ew * 1.04, -0.003 * s, 0, thick * 0.9, thick * 0.65],
+          [0, 0.006 * s, 0.002 * s, thick, thick * 0.72],
+          [ew * 1.1, female ? -0.004 * s : 0.008 * s, -0.003 * s, thick * 0.44, thick * 0.44],
+        ],
+        { seg: 4 },
+      );
+    });
+
+    // 女性淡胭脂颊彩
+    if (female) {
+      const cheekY = eyeY - 0.044 * s;
+      const cheekX = eyeX * 1.06;
+      m.paint(0xe5928c, { c2: opts.skin, line: 0, ao: 0.95 });
+      m.ball(cheekX, cheekY, surf(cheekX, cheekY) - 0.002 * s, 0.028 * s, 0.015 * s, 0.006 * s, 0);
+    }
+  });
+
+  // ── 立体清秀鼻梁与鼻尖 ──
+  const noseTopY = eyeY + 0.006 * s;
+  const noseMidY = eyeY - 0.032 * s;
+  const noseTipY = eyeY - 0.052 * s;
+  m.paint(opts.skin, { c2: skinShade, ao: 0.9, mat: K.skin, line: 0 });
+  m.tube(
+    [
+      [0, noseTopY, surf(0, noseTopY) - 0.002 * s, 0.007 * s, 0.006 * s],
+      [0, noseMidY, surf(0, noseMidY) + 0.01 * s, 0.0085 * s, 0.009 * s],
+      [0, noseTipY, surf(0, noseTipY) + 0.015 * s, 0.0105 * s, 0.0105 * s],
+      [0, noseTipY - 0.009 * s, surf(0, noseTipY - 0.009 * s) + 0.002 * s, 0.0065 * s, 0.006 * s],
+    ],
+    { seg: 5, up: [1, 0, 0], crease: 180 },
+  );
+
+  // ── 饱满点绛樱桃唇 / 俊朗薄唇 ──
+  const lipY = cy - 0.106 * s;
+  const lipZ = surf(0, lipY) + 0.003 * s;
+  const mw = (female ? 0.027 : 0.034) * s;
+  const smile = opts.smile ?? (female ? 0.005 : 0.002);
+  m.paint(opts.lip, { c2: skinShade, line: 0 });
+  m.tube(
+    [
+      [-mw, lipY + smile * s, lipZ - 0.004 * s, 0.0025 * s],
+      [-mw * 0.42, lipY + 0.004 * s, lipZ + 0.002 * s, (female ? 0.0062 : 0.005) * s],
+      [0, lipY + 0.0025 * s, lipZ + 0.0035 * s, (female ? 0.0055 : 0.0045) * s],
+      [mw * 0.42, lipY + 0.004 * s, lipZ + 0.002 * s, (female ? 0.0062 : 0.005) * s],
+      [mw, lipY + smile * s, lipZ - 0.004 * s, 0.0025 * s],
+    ],
+    { seg: 4, up: [0, 1, 0] },
+  );
+  m.ball(0, lipY - 0.005 * s, lipZ + 0.001 * s, mw * 0.74, (female ? 0.0068 : 0.0054) * s, 0.007 * s, 0);
+
+  // ── 唐宋额间精细红金花钿（多瓣花形，零黑边） ──
+  if (opts.huadian) {
+    const hY = cy + 0.068 * s;
+    const hZ = surf(0, hY) + 0.0045 * s;
+    m.paint(opts.huadian, { c2: 0xffd584, glow: 0.28, line: 0 });
+    m.g(pt(0, hY, hZ, -12, 0, 0), () => {
+      m.ball(0, 0, 0, 0.0075 * s, 0.012 * s, 0.003 * s, 0);
+      m.ball(0.01 * s, 0.004 * s, -0.001 * s, 0.0055 * s, 0.0075 * s, 0.0025 * s, 0);
+      m.ball(-0.01 * s, 0.004 * s, -0.001 * s, 0.0055 * s, 0.0075 * s, 0.0025 * s, 0);
+      m.ball(0, 0.015 * s, -0.001 * s, 0.0045 * s, 0.0065 * s, 0.0025 * s, 0);
+    });
+  }
+
+  // ── 秦琼专属猛将络腮短颌须（贴合短下颌骨线，英武阳刚） ──
+  if (opts.beard === 'general') {
+    m.paint(opts.hair, { c2: opts.hairHi, mat: K.fur, pattern: En.fur, patternScale: 10, patternAmt: 0.35, line: 0 });
+    m.sym(() => {
+      m.tube(
+        [
+          [0.005 * s, lipY + 0.015 * s, surf(0.008 * s, lipY + 0.015 * s) + 0.005 * s, 0.0058 * s],
+          [0.036 * s, lipY + 0.008 * s, surf(0.036 * s, lipY + 0.008 * s) + 0.004 * s, 0.006 * s],
+          [0.056 * s, lipY - 0.02 * s, surf(0.056 * s, lipY - 0.02 * s) + 0.003 * s, 0.0044 * s],
+          [0.04 * s, lipY - 0.056 * s, surf(0.04 * s, lipY - 0.056 * s) + 0.003 * s, 0.0038 * s],
+        ],
+        { seg: 4 },
+      );
+      m.tube(
+        [
+          [0.145 * s, cy - 0.03 * s, 0.02 * s, 0.011 * s],
+          [0.12 * s, cy - 0.125 * s, 0.062 * s, 0.012 * s],
+          [0.055 * s, cy - 0.19 * s, 0.092 * s, 0.012 * s],
+          [0, cy - 0.215 * s, 0.096 * s, 0.014 * s],
+        ],
+        { seg: 5 },
+      );
+    });
+    m.ball(0, cy - 0.188 * s, surf(0, cy - 0.188 * s) + 0.006 * s, 0.046 * s, 0.034 * s, 0.022 * s, 1);
+  }
+
+  // ── 丰盈发底颅罩（前额发际线顺柔下压，彻底告别方帽高发际线！） ──
+  const hairThick = (female ? 0.034 : 0.03) * s;
+  const hairRows = [-0.19, -0.12, -0.05, 0.02, 0.085, 0.14, 0.195, 0.238, 0.262];
+  const hairPts = hairRows.map((dy) => {
+    const r = ring(dy * s);
+    const crownBoost = dy > 0.15 ? hairThick * 0.95 : 0;
+    const topCap = dy > 0.25 ? 0.35 : 1.0;
+    return [cy + dy * s + crownBoost, r[0] + hairThick * topCap, r[1] + hairThick * topCap, 0, r[2] - hairThick * 0.3];
+  });
+  m.paint(opts.hair, {
+    c2: opts.hairHi,
+    gloss: 0.22,
+    mat: K.fur,
+    pattern: En.fur,
+    patternScale: 12,
+    patternAmt: 0.32,
+    line: 0.45,
+  });
+  m.lathe(hairPts, {
+    seg: 22,
+    crease: 180,
+    cap0: false,
+    shape: (ang: number, idx: number) => {
+      let dFront = Math.abs(ang - Math.PI / 2);
+      if (dFront > Math.PI) dFront = Math.PI * 2 - dFront;
+      const dy = hairRows[idx];
+      const hairline =
+        dFront < 0.72
+          ? 0.115 - 0.028 * Math.cos((dFront / 0.72) * Math.PI * 0.5)
+          : dFront < 1.36
+            ? bt(0.087, -0.12, (dFront - 0.72) / 0.64)
+            : -0.22;
+      return dy >= hairline ? 1.0 + (dFront > 1.35 ? 0.06 : 0) : 0.76;
+    },
+  });
+
+  // ── 蓬松自然分缕刘海与鬓角碎发（流畅大缕弧线，彻底告别额前条形码细杠！） ──
+  const bang = opts.bangStyle ?? (female ? 'noble' : 'swept');
+  const sideLen = opts.sideLockLen ?? (female ? 0.19 : 0.12);
+  m.paint(opts.hair, {
+    c2: opts.hairHi,
+    gloss: 0.24,
+    mat: K.fur,
+    pattern: En.fur,
+    patternScale: 14,
+    patternAmt: 0.28,
+    line: 0,
+  });
+
+  // 两侧丰盈蓬松垂鬓碎发（柔化脸廓，修饰瓜子/剑眉骨相）
+  m.sym(() => {
+    const rMid = ring(0.02 * s);
+    const fx = rMid[0] * 0.96;
+    m.tube(
+      [
+        [fx * 0.7, cy + 0.14 * s, 0.12 * s, 0.032 * s, 0.02 * s],
+        [fx * 1.02, cy + 0.045 * s, 0.07 * s, 0.026 * s, 0.018 * s],
+        [fx * 1.06, cy - 0.06 * s, 0.025 * s, 0.018 * s, 0.014 * s],
+        [fx * 0.96, cy - sideLen * s, -0.02 * s, 0.006 * s, 0.005 * s],
+      ],
+      { seg: 6, crease: 180 },
+    );
+    // 两侧丰盈弧形八字偏分刘海（饱满自然，修饰额角）
+    m.tube(
+      [
+        [0.012 * s, cy + 0.175 * s, surf(0.012 * s, cy + 0.175 * s) + 0.016 * s, 0.032 * s, 0.016 * s],
+        [0.088 * s, cy + 0.128 * s, surf(0.088 * s, cy + 0.128 * s) + 0.018 * s, 0.028 * s, 0.015 * s],
+        [0.148 * s, cy + 0.055 * s, surf(0.148 * s, cy + 0.055 * s) + 0.014 * s, 0.02 * s, 0.012 * s],
+        [0.168 * s, cy - 0.03 * s, 0.035 * s, 0.008 * s, 0.006 * s],
+      ],
+      { seg: 6, crease: 180 },
+    );
+  });
+
+  // 男角豪放偏分大缕斜扫刘海（不居中遮额，改自然斜扫左右眉梢，飒爽帅气！）
+  if (bang === 'swept' || bang === 'wild') {
+    const sweepStrands: [number, number, number, number][] =
+      bang === 'wild'
+        ? [
+            [-0.02, 0.11, 0.055, 0.028],
+            [-0.08, -0.15, 0.02, 0.026],
+            [0.06, 0.15, 0.015, 0.024],
+          ]
+        : [
+            [-0.01, 0.12, 0.06, 0.026],
+            [-0.07, -0.14, 0.03, 0.024],
+          ];
+    for (const [x0, x1, yEnd, r0] of sweepStrands) {
+      const xm = mixVal(x0, x1, 0.55);
+      const yTop = cy + 0.175 * s;
+      const yMid = cy + 0.115 * s;
+      const yLow = cy + yEnd * s;
+      m.tube(
+        [
+          [x0 * s, yTop, surf(x0 * s, yTop) + 0.016 * s, r0 * s, r0 * 0.55 * s],
+          [xm * s, yMid, surf(xm * s, yMid) + 0.02 * s, r0 * 0.85 * s, r0 * 0.5 * s],
+          [x1 * s, yLow, surf(x1 * s, yLow) + 0.014 * s, 0.006 * s, 0.004 * s],
+        ],
+        { seg: 5, crease: 180 },
+      );
+    }
+  }
+
+  return { cy, s, ring, surf };
+}
+
+/**
+ * 立体三维雕塑【鎏金吞口狮头兽面浮雕】（秦琼双肩、护心、腰扣、护膝核心特征）
+ */
+export function buildLionMedallion(
+  api: HeroModelApi,
+  m: HeroModelApi['m'],
+  gold: number,
+  goldHi: number,
+  goldDark: number,
+  scale = 1,
+): void {
+  const { K, pt } = api;
+  const u = scale;
+
+  // 外圈环绕怒张金狮卷鬣毛（10 簇立体发卷）
+  m.paint(goldDark, { c2: gold, gloss: 0.95, mat: K.metal, line: 0.25 });
+  for (let i = 0; i < 10; i++) {
+    const ang = (i / 10) * Math.PI * 2;
+    const rx = Math.cos(ang) * 0.062 * u;
+    const ry = Math.sin(ang) * 0.056 * u;
+    m.g(pt(rx, ry, 0.006 * u, 0, 0, (ang * 180) / Math.PI), () => {
+      m.ball(0, 0, 0, 0.025 * u, 0.019 * u, 0.018 * u, 0);
+    });
+  }
+
+  // 狮头饱满主颅与双颊
+  m.paint(gold, { c2: goldHi, gloss: 1, glow: 0.14, mat: K.metal, line: 0.2 });
+  m.ball(0, 0.006 * u, 0.024 * u, 0.052 * u, 0.048 * u, 0.032 * u, 1);
+  // 怒眉脊
+  m.g(pt(-0.02 * u, 0.024 * u, 0.045 * u, 0, 0, -24), () => m.box(0, 0, 0, 0.032 * u, 0.012 * u, 0.014 * u, 0.003 * u));
+  m.g(pt(0.02 * u, 0.024 * u, 0.045 * u, 0, 0, 24), () => m.box(0, 0, 0, 0.032 * u, 0.012 * u, 0.014 * u, 0.003 * u));
+  // 宽狮鼻梁与狮鼻头
+  m.ball(0, 0.002 * u, 0.052 * u, 0.02 * u, 0.016 * u, 0.016 * u, 0);
+  // 双腮鼓吻
+  m.ball(-0.022 * u, -0.016 * u, 0.046 * u, 0.018 * u, 0.014 * u, 0.015 * u, 0);
+  m.ball(0.022 * u, -0.016 * u, 0.046 * u, 0.018 * u, 0.014 * u, 0.015 * u, 0);
+  // 咆哮阔口与微露獠牙
+  m.paint(0x28120c, { line: 0 });
+  m.ball(0, -0.028 * u, 0.042 * u, 0.022 * u, 0.013 * u, 0.012 * u, 0);
+  m.paint(0xfff4d4, { glow: 0.35, line: 0 });
+  m.ball(-0.013 * u, -0.024 * u, 0.05 * u, 0.0045 * u, 0.008 * u, 0.004 * u, 0);
+  m.ball(0.013 * u, -0.024 * u, 0.05 * u, 0.0045 * u, 0.008 * u, 0.004 * u, 0);
+  // 威严炽金双目
+  m.paint(0xffe17d, { c2: 0xffffff, glow: 0.55, line: 0 });
+  m.ball(-0.02 * u, 0.012 * u, 0.05 * u, 0.008 * u, 0.007 * u, 0.006 * u, 0);
+  m.ball(0.02 * u, 0.012 * u, 0.05 * u, 0.008 * u, 0.007 * u, 0.006 * u, 0);
+}
+
+/**
+ * 立绘同款【带刺玄铁鎏金流星骨朵大锤】（秦琼双手重锤）
+ * 默认沿 +Z 延伸（握柄在 z∈[-0.22, 0.14]，巨型玄铁球锤在 z=0.40）
+ */
+export function buildSpikedIronMace(
+  api: HeroModelApi,
+  m: HeroModelApi['m'],
+  pal: Record<string, number>,
+  scale = 1,
+): void {
+  const { K, En, pt } = api;
+  const u = scale;
+
+  // 缠革粗握柄 + 底部鎏金锤尾箍
+  m.paint(pal.leatherDark ?? 0x261a14, { c2: pal.leather ?? 0x473024, mat: K.leather, line: 0.45 });
+  m.tube(
+    [
+      [0, 0, -0.28 * u, 0.024 * u],
+      [0, 0, 0.18 * u, 0.028 * u],
+    ],
+    { seg: 8 },
+  );
+  m.paint(pal.bronze ?? 0xdca944, { c2: pal.amber ?? 0xffe08a, gloss: 1, mat: K.metal, line: 0.35 });
+  // 握柄尾座金箍
+  m.tube(
+    [
+      [0, 0, -0.34 * u, 0.018 * u],
+      [0, 0, -0.3 * u, 0.042 * u],
+      [0, 0, -0.25 * u, 0.032 * u],
+    ],
+    { seg: 10, crease: 30 },
+  );
+  // 锤颈鎏金护环与莲托
+  m.tube(
+    [
+      [0, 0, 0.14 * u, 0.032 * u],
+      [0, 0, 0.18 * u, 0.054 * u],
+      [0, 0, 0.23 * u, 0.092 * u],
+    ],
+    { seg: 12, crease: 26 },
+  );
+
+  // 巨型玄铁陨铁纹球形锤头
+  const cz = 0.42 * u;
+  const r = 0.21 * u;
+  m.paint(pal.ironDark ?? 0x232730, {
+    c2: pal.ironLight ?? 0x525a68,
+    gloss: 0.78,
+    mat: K.metal,
+    pattern: En?.meteor ?? 8,
+    patternScale: 9,
+    patternAmt: 0.38,
+    line: 0.72,
+  });
+  m.ball(0, 0, cz, r, r, r, 2, 180);
+
+  // 锤头底/顶两枚浮雕鎏金兽面莲瓣托
+  m.paint(pal.bronze ?? 0xdca944, { c2: pal.amber ?? 0xffe08a, gloss: 1, glow: 0.14, mat: K.metal, line: 0.2 });
+  m.g(pt(0, 0, cz - r * 0.92, -90, 0, 0), () => m.lathe([[0, 0.088 * u], [0.022 * u, 0.072 * u], [0.032 * u, 0.02 * u]], { seg: 10 }));
+  m.g(pt(0, 0, cz + r * 0.92, 90, 0, 0), () => m.lathe([[0, 0.088 * u], [0.022 * u, 0.072 * u], [0.035 * u, 0.015 * u]], { seg: 10 }));
+
+  // 20 枚环绕放射状玄铁尖刺（赤道 8 枚 + 上下两环各 6 枚）
+  m.paint(pal.steelDark ?? 0x626b7a, { c2: pal.steel ?? 0xdde4ed, gloss: 0.92, mat: K.metal, line: 0 });
+  const spikeRings: [number, number][] = [
+    [0, 8],
+    [38, 6],
+    [-38, 6],
+  ];
+  for (const [latDeg, count] of spikeRings) {
+    const lat = (latDeg * Math.PI) / 180;
+    const cosL = Math.cos(lat);
+    const sinL = Math.sin(lat);
+    for (let k = 0; k < count; k++) {
+      const lon = ((k + (latDeg !== 0 ? 0.5 : 0)) / count) * Math.PI * 2;
+      const dx = cosL * Math.cos(lon);
+      const dy = cosL * Math.sin(lon);
+      const dz = sinL;
+      const bx = dx * (r * 0.92);
+      const by = dy * (r * 0.92);
+      const bz = cz + dz * (r * 0.92);
+      const tx = dx * (r + 0.068 * u);
+      const ty = dy * (r + 0.068 * u);
+      const tz = cz + dz * (r + 0.068 * u);
+      m.tube(
+        [
+          [bx, by, bz, 0.024 * u],
+          [tx, ty, tz, 0.003 * u],
+        ],
+        { seg: 5, crease: 15 },
+      );
+    }
+  }
+}
+
+/**
+ * 破损撕裂感国风血红/水墨飘带披风（带锯齿破口尾缘与横向波澜）
+ */
+export function buildTatteredCape(
+  api: FullHeroEngineApi,
+  m: HeroModelApi['m'],
+  pts: number[][],
+  opts: {
+    widthFn: (v: number) => number;
+    axis?: [number, number, number];
+    bow?: [number, number, number];
+    nu?: number;
+    nv?: number;
+    tatterAmp?: number;
+    seed?: number;
+    wave?: number;
+  },
+): void {
+  const { Li } = api;
+  const nu = opts.nu ?? 8;
+  const nv = opts.nv ?? 12;
+  const axis = opts.axis ?? [1, 0, 0];
+  const bow = opts.bow ?? [0, 0, -0.06];
+  const tatterAmp = opts.tatterAmp ?? 0.22;
+  const seed = opts.seed ?? 1.7;
+  const wave = opts.wave ?? 0.22;
+
+  const last = pts[pts.length - 1];
+  const prev = pts[pts.length - 2];
+  let tx = last[0] - prev[0];
+  let ty = last[1] - prev[1];
+  let tz = last[2] - prev[2];
+  const tLen = Math.hypot(tx, ty, tz) || 1;
+  tx /= tLen;
+  ty /= tLen;
+  tz /= tLen;
+
+  m.sheet(
+    nu,
+    nv,
+    (u, v) => {
+      const p = Li(pts, v);
+      const xNorm = (u - 0.5) * 2; // [-1, 1]
+      const w = opts.widthFn(v);
+      const arch = 1 - xNorm * xNorm;
+      const ripple = wave * Math.sin(v * 8.5 + xNorm * 2.2 + seed) * v;
+      // 尾缘参差破损裂口（多频正弦叠加）
+      let tailExt = 0;
+      if (v > 0.68) {
+        const tv = (v - 0.68) / 0.32;
+        const jag =
+          0.5 +
+          0.32 * Math.sin(u * Math.PI * 5 + seed) +
+          0.22 * Math.cos(u * Math.PI * 9 - seed * 1.3);
+        tailExt = tv * tv * (jag - 0.45) * tatterAmp;
+      }
+      return [
+        p[0] + axis[0] * xNorm * w + bow[0] * (arch + ripple) + tx * tailExt,
+        p[1] + axis[1] * xNorm * w + bow[1] * (arch + ripple) + ty * tailExt,
+        p[2] + axis[2] * xNorm * w + bow[2] * (arch + ripple) + tz * tailExt,
+      ];
+    },
+    true,
+    180,
+  );
+}
+
+/**
+ * 唐宋华美大广袖构建器（宽大垂坠袖袋 + 滚金锦边 + 露白内袖，sym 内单侧正坐标调用）
+ */
+export function buildWideSleeve(
+  api: FullHeroEngineApi,
+  m: HeroModelApi['m'],
+  h: ReturnType<FullHeroEngineApi['Gh']>,
+  side: number,
+  opts: {
+    outer: number;
+    outerDark: number;
+    trim: number;
+    trimHi: number;
+    inner: number;
+    innerShade: number;
+    flare?: number;
+    drop?: number;
+    pattern?: number;
+    trimWidth?: number;
+  },
+): void {
+  const { K, En } = api;
+  const s = h.d;
+  const e = h.J;
+  const sx = s.shoulderX;
+  const armBone = side > 0 ? e.armL : e.armR;
+  const foreBone = side > 0 ? e.foreL : e.foreR;
+  const flare = opts.flare ?? 0.145;
+  const drop = opts.drop ?? 0.085;
+  const pat = opts.pattern ?? En.weave;
+  const trimW = opts.trimWidth ?? 0.045;
+
+  // 顺滑溜肩过渡罩（柔和衔接胸肩至上臂，彻底消除方肩断层感！）
+  const clavBone = side > 0 ? e.clavL : e.clavR;
+  m.bone(clavBone).paint(opts.outer, {
+    c2: opts.outerDark,
+    mat: K.cloth,
+    pattern: pat,
+    patternScale: 10,
+    patternAmt: 0.28,
+    line: 0.5,
+  });
+  m.tube(
+    [
+      [sx * 0.42, s.shoulderY + 0.055, 0, 0.072, 0.088],
+      [sx * 0.78, s.shoulderY + 0.025, 0, 0.082, 0.094],
+      [sx, s.shoulderY - 0.02, 0, 0.084, 0.092],
+    ],
+    { seg: 12, up: [0, 1, 0], crease: 180 },
+  );
+
+  // 上臂宽松广袖（柔顺收顶进溜肩）
+  m.bone(armBone).paint(opts.outer, {
+    c2: opts.outerDark,
+    mat: K.cloth,
+    pattern: pat,
+    patternScale: 10,
+    patternAmt: 0.28,
+    line: 0.55,
+  });
+  m.ball(sx, s.shoulderY - 0.01, 0, 0.084, 0.082, 0.088, 1);
+  m.lathe(
+    [
+      [s.elbowY - 0.03, 0.104, 0.118, sx, -0.015],
+      [mixVal(s.elbowY, s.shoulderY, 0.5), 0.092, 0.1, sx, -0.008],
+      [s.shoulderY + 0.005, 0.078, 0.082, sx * 0.96, 0],
+    ],
+    { seg: 14, cap0: false, cap1: false },
+  );
+
+  // 前臂大幅垂坠广袖袖袋（-Z 后下方大幅垂摆，还原唐宋长袖飘逸廓形）
+  m.bone(foreBone).paint(opts.outer, {
+    c2: opts.outerDark,
+    mat: K.cloth,
+    pattern: pat,
+    patternScale: 10,
+    patternAmt: 0.3,
+    line: 0.6,
+  });
+  m.lathe(
+    [
+      [s.wristY - drop, flare, flare * 1.32, sx + 0.012, -drop * 0.52],
+      [s.wristY + 0.02, flare * 0.88, flare * 1.12, sx + 0.008, -drop * 0.35],
+      [s.elbowY + 0.03, 0.088, 0.102, sx, -0.01],
+    ],
+    {
+      seg: 16,
+      cap0: false,
+      shape: (ang: number, idx: number) =>
+        1 + (idx === 0 ? 0.07 * Math.sin(ang * 5) : 0.03 * Math.sin(ang * 5)),
+    },
+  );
+
+  // 袖口厚重织金/朱红宽锦边
+  m.paint(opts.trim, {
+    c2: opts.trimHi,
+    mat: K.cloth,
+    pattern: En.weave,
+    patternScale: 14,
+    patternAmt: 0.38,
+    line: 0.35,
+  });
+  m.lathe(
+    [
+      [s.wristY - drop - 0.006, flare * 1.03, flare * 1.35, sx + 0.012, -drop * 0.52],
+      [s.wristY - drop + trimW, flare * 0.99, flare * 1.28, sx + 0.011, -drop * 0.46],
+    ],
+    {
+      seg: 16,
+      cap0: false,
+      cap1: false,
+      shape: (ang: number) => 1 + 0.07 * Math.sin(ang * 5),
+    },
+  );
+
+  // 袖筒内露出的象牙白里袖
+  m.paint(opts.inner, { c2: opts.innerShade, mat: K.cloth, line: 0.25 });
+  m.lathe(
+    [
+      [s.wristY - drop * 0.62, flare * 0.72, flare * 0.88, sx + 0.005, -drop * 0.28],
+      [s.wristY + 0.04, 0.062, 0.068, sx, 0],
+    ],
+    { seg: 12, cap0: false, cap1: false },
+  );
+}
+
+/**
+ * 盛唐/北宋立体花簇金步摇（梅花/海棠/凤冠珠花）
+ */
+export function buildBlossomHairpin(
+  api: HeroModelApi,
+  m: HeroModelApi['m'],
+  petalCol: number,
+  petalHi: number,
+  gold: number,
+  scale = 1,
+): void {
+  const { K, pt } = api;
+  const u = scale;
+  // 五瓣立体花朵
+  m.paint(petalCol, { c2: petalHi, glow: 0.25, mat: K.cloth, line: 0 });
+  for (let p = 0; p < 5; p++) {
+    const a = (p / 5) * Math.PI * 2;
+    m.g(pt(Math.cos(a) * 0.022 * u, Math.sin(a) * 0.022 * u, 0, 0, 0, (a * 180) / Math.PI), () => {
+      m.ball(0, 0, 0, 0.018 * u, 0.014 * u, 0.008 * u, 0);
+    });
+  }
+  // 鎏金花蕊
+  m.paint(gold, { c2: 0xfff0b0, gloss: 1, glow: 0.22, mat: K.metal, line: 0 });
+  m.ball(0, 0, 0.007 * u, 0.011 * u, 0.011 * u, 0.008 * u, 0);
+}
+
+/**
+ * 长垂耳坠（绿松石/朱红珠 + 金丝，sym 内单侧正坐标调用）
+ */
+export function buildDropEarring(
+  api: HeroModelApi,
+  m: HeroModelApi['m'],
+  x: number,
+  y: number,
+  z: number,
+  gemHex: number,
+  goldHex: number,
+  scale = 1,
+): void {
+  const { K } = api;
+  const u = scale;
+  m.paint(goldHex, { c2: 0xfff0b0, gloss: 1, mat: K.metal, line: 0 });
+  m.tube([[x, y, z, 0.003 * u], [x, y - 0.048 * u, z + 0.004 * u, 0.0025 * u]], { seg: 4 });
+  m.ball(x, y - 0.016 * u, z + 0.002 * u, 0.007 * u, 0.007 * u, 0.007 * u, 0);
+  m.paint(gemHex, { c2: 0xffffff, glow: 0.3, gloss: 0.9, mat: K.crystal, line: 0 });
+  m.ball(x, y - 0.036 * u, z + 0.003 * u, 0.009 * u, 0.013 * u, 0.009 * u, 0);
+  m.paint(goldHex, { c2: 0xffe49c, gloss: 1, mat: K.metal, line: 0 });
+  m.ball(x, y - 0.056 * u, z + 0.004 * u, 0.006 * u, 0.01 * u, 0.006 * u, 0);
+}
+
+/**
+ * 精美双节醉翁酒葫芦 + 朱红穗（苏轼腰间标志性挂件）
+ */
+export function buildWineGourd(
+  api: HeroModelApi,
+  m: HeroModelApi['m'],
+  scale = 1,
+): void {
+  const { K, En } = api;
+  const u = scale;
+  m.paint(0x8c5a32, { c2: 0xc9965c, gloss: 0.52, mat: K.leather, pattern: En?.vein ?? 7, patternScale: 8, patternAmt: 0.2, line: 0.4 });
+  m.lathe(
+    [
+      [-0.125 * u, 0.018 * u],
+      [-0.105 * u, 0.056 * u],
+      [-0.068 * u, 0.068 * u],
+      [-0.025 * u, 0.042 * u],
+      [0.0, 0.024 * u],
+      [0.032 * u, 0.044 * u],
+      [0.065 * u, 0.038 * u],
+      [0.09 * u, 0.016 * u],
+      [0.108 * u, 0.012 * u],
+    ],
+    { seg: 12, crease: 180 },
+  );
+  // 葫芦塞
+  m.paint(0x4a2614, { mat: K.leather, line: 0 });
+  m.ball(0, 0.114 * u, 0, 0.014 * u, 0.012 * u, 0.014 * u, 0);
+  // 腰绳与橙红流苏穗
+  m.paint(0xc94228, { c2: 0xeb7844, mat: K.cloth, line: 0.2 });
+  m.torus(0.028 * u, 0.008 * u, 0.008 * u, 10, 4);
+  m.tube([[0.026 * u, 0, 0.01 * u, 0.006 * u], [0.042 * u, -0.095 * u, 0.025 * u, 0.005 * u]], { seg: 4 });
+  m.tube([[0.042 * u, -0.095 * u, 0.025 * u, 0.015 * u], [0.052 * u, -0.175 * u, 0.032 * u, 0.026 * u]], { seg: 6 });
+}
