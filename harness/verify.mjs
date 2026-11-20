@@ -260,9 +260,17 @@ async function run() {
     // ── 2. 大厅、新国风资源 HTTP 200、音频切换、数值零偏差与 6 英雄 3D 演武 ──
     await page.goto(`${baseUrl}/`, { waitUntil: 'load', timeout: 60_000 });
     await waitForCondition(page, () => !!window.__moba && window.__moba.phase === 'menu');
-    // 模拟点击以解锁 WebAudio 并触发一次音效
+    // 模拟点击以解锁 WebAudio 并等待程序化乐曲首拍调度生效后再做状态采样
     await page.mouse.click(10, 10);
-    await wait(900);
+    await waitForCondition(
+      page,
+      () => {
+        const s = window.__moba?.audio?.debug?.stats?.();
+        return !!s && s.state === 'running' && s.notes > 0;
+      },
+      15_000,
+    );
+    await wait(250);
 
     const lobbyChecks = await page.evaluate(async () => {
       const moba = window.__moba;
@@ -1056,9 +1064,31 @@ async function run() {
             me.skills.s1.level = 2;
             me.skills.s1.cd = 0;
             world.grid.rebuild(state.units);
+            const quatDelta = (a, b) => {
+              const dot = Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]);
+              return 1 - dot + Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]) * 0.5;
+            };
+            const puppet = renderer.getUnitPuppet(me.id);
+            const thighIdx = puppet?.def?.rig?.names?.indexOf('thighL') ?? -1;
             const kiteDir = { x: -0.9239, y: 0.3827 };
             world.command(me.id, { type: 'move', dir: kiteDir });
-            for (let i = 0; i < 4; i++) stepRender();
+            // 对齐至迈步中段高速摆动相位，避免固定帧数恰好落在正弦波峰导致 8 帧摆幅统计偶发偏低
+            let prevWarmThigh = null;
+            for (let w = 0; w < 20; w++) {
+              stepRender();
+              if (puppet && thighIdx >= 0) {
+                const q = puppet.pose.q;
+                const cur = [q[thighIdx * 4], q[thighIdx * 4 + 1], q[thighIdx * 4 + 2], q[thighIdx * 4 + 3]];
+                if (w >= 3 && prevWarmThigh && quatDelta(prevWarmThigh, cur) >= 0.03) break;
+                prevWarmThigh = cur;
+              } else if (w >= 3) {
+                break;
+              }
+            }
+            me.pos.x = -18;
+            me.pos.y = 18;
+            me.prevPos.x = -18;
+            me.prevPos.y = 18;
             const sx = me.pos.x;
             const sy = me.pos.y;
             world.command(me.id, {
@@ -1070,12 +1100,10 @@ async function run() {
             });
             world.command(me.id, { type: 'move', dir: kiteDir });
 
-            const puppet = renderer.getUnitPuppet(me.id);
-            const thighIdx = puppet?.def?.rig?.names?.indexOf('thighL') ?? -1;
             let maxMoveBlend = 0;
             let maxAbsTwist = 0;
             let maxThighDelta = 0;
-            let firstThigh = null;
+            const thighSamples = [];
             for (let i = 0; i < 8; i++) {
               stepRender();
               if (puppet) {
@@ -1084,15 +1112,10 @@ async function run() {
                 if (thighIdx >= 0) {
                   const q = puppet.pose.q;
                   const cur = [q[thighIdx * 4], q[thighIdx * 4 + 1], q[thighIdx * 4 + 2], q[thighIdx * 4 + 3]];
-                  if (!firstThigh) firstThigh = cur;
-                  else {
-                    const dot = Math.abs(
-                      firstThigh[0] * cur[0] + firstThigh[1] * cur[1] + firstThigh[2] * cur[2] + firstThigh[3] * cur[3],
-                    );
-                    maxThighDelta = Math.max(maxThighDelta, 1 - dot + Math.hypot(
-                      firstThigh[0] - cur[0], firstThigh[1] - cur[1], firstThigh[2] - cur[2], firstThigh[3] - cur[3],
-                    ) * 0.5);
+                  for (const prev of thighSamples) {
+                    maxThighDelta = Math.max(maxThighDelta, quatDelta(prev, cur));
                   }
+                  thighSamples.push(cur);
                 }
               }
             }

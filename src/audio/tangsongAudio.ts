@@ -530,7 +530,10 @@ abstract class TangSongScore {
 
   schedule(now: number, lookahead: number): void {
     const dur = this.stepDur();
-    if (this.nextT < now - 0.12) {
+    if (this.step === 0 && this.nextT < now - 0.12) {
+      // 首次开播若因 AudioContext 解锁异步延迟，对齐起点确保第 0 拍主和弦与铺底不被跳过
+      this.nextT = now + 0.02;
+    } else if (this.nextT < now - 0.12) {
       const skip = Math.ceil((now - this.nextT) / dur);
       this.step += skip;
       this.nextT += skip * dur;
