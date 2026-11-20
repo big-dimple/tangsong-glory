@@ -1,4 +1,4 @@
-# 《唐宋荣耀》 (Tang-Song Glory v5.0)
+# 《唐宋荣耀》 (Tang-Song Glory v5.1)
 
 唐风宋韵 5v5 网页 MOBA 游戏，使用 TypeScript、Three.js WebGL2、程序化 WebAudio 与 Vite 构建，在线游玩地址：<https://t.hp666.cc/>。
 
@@ -7,6 +7,7 @@
 - **六位唐宋名士与伴生灵宠**：秦琼（`qinqiong`）、辛弃疾（`xinqiji`）、苏轼（`sushi`）、文成公主（`wencheng`）、花蕊夫人（`huarui`）、刘娥（`liue`），各自具备独立 3D 建模骨骼、古风肖像原画与专属灵宠。
 - **宋代青绿山水战场**：基于 Three.js 自定义着色器与程序化砖石/水墨地表纹理构建汴京演武场，包含木桥河道、城门、亭台防御塔、唐宋阵营兵线、野怪与野生动物生态。
 - **纯程序化五声调式音效与配乐**：`src/audio/tangsongAudio.ts` 通过 WebAudio 实时合成大厅古琴配乐、战斗鼓点与技能打击音效，零外置音频包依赖。
+- **手绘描金技能与行动图标**：24 枚英雄专属技能图标与 4 枚召唤师/普攻图标统一采用矿彩鎏金古风绘卷切图（`.webp`），搭配 `TangSongBrush` / `TangSongSerif` 与去伪粗体的清晰局内小号角标。
 - **手卷式开场大厅与字体**：融合宣纸水墨主题（`src/ui/tangsongLobby.ts`、`src/styles/tangsong-theme.css`）与 `TangSongBrush` / `TangSongSerif` 子集化字体。
 - **可审计的 CI 与发布管线**：每次推送至 `main` 均通过域校验、单元测试、WebGL2 无头浏览器冒烟与构建产物签名校验，生成不可变 GitHub Release 后由边缘发布节点零构建拉取部署。
 

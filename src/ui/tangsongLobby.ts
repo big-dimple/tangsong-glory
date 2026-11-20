@@ -191,7 +191,7 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     'div',
     'ts-lobby__copy',
     el('h2', 'ts-lobby__dock-title', '择一唐宋名士，共赴汴京演武'),
-    el('p', 'ts-lobby__meta', '1 名玩家 + 9 名 AI · 实时 5v5 推塔对决 · v5.0'),
+    el('p', 'ts-lobby__meta', '1 名玩家 + 9 名 AI · 实时 5v5 推塔对决 · v5.1'),
     guideBtn,
   );
 

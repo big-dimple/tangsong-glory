@@ -20,7 +20,7 @@ export function collectBuildInfo(cwd: string, builtAt: string, runner: GitRunner
     }
   };
   return makeBuildInfo(
-    { version: 'v5.0', builtAt },
+    { version: 'v5.1', builtAt },
     read(['rev-parse', '--verify', 'HEAD']),
     read(['status', '--porcelain=v1', '-z', '--untracked-files=no']),
   );

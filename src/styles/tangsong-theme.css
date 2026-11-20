@@ -87,6 +87,7 @@ body .sf-root {
   --sf-grad-cyan: linear-gradient(90deg, #163a57, #4a92c4 58%, #d9eefc);
   --sf-font-num: var(--ts-font-num);
   font-family: var(--ts-font-serif);
+  font-synthesis: none;
 }
 
 body .sf-root .sf-title,
@@ -1123,4 +1124,68 @@ body.ts-in-match #sf-ver {
   opacity: 0.34;
   right: auto;
   left: max(10px, env(safe-area-inset-left));
+}
+
+/* ── 10. 小号角标去伪粗体（修复「回城」糊字）与彩绘技能图标适配 ── */
+body .sf-root .sf-hud__sk-name,
+body .sf-root .sf-hud__sk-tag,
+body .sf-root .sf-hud__key,
+body .sf-root .sf-skill__tag {
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-weight: 600;
+  font-synthesis: none;
+}
+body .sf-root .sf-hud__sk-name {
+  font-size: max(11px, calc(var(--d) * 0.25));
+  padding: 0.22em 0.52em;
+  letter-spacing: 0.04em;
+  color: #fff6e0;
+  background: rgba(18, 11, 8, 0.94);
+  box-shadow: 0 0 0 1px rgba(240, 198, 120, 0.72), 0 2px 4px rgba(0, 0, 0, 0.75);
+}
+
+body .sf-root .sf-hud__atk-face {
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(38, 23, 15, 0.95),
+    0 0 0 max(2.5px, calc(var(--d) * 0.045)) rgba(235, 192, 112, 0.88),
+    0 calc(var(--d) * 0.06) calc(var(--d) * 0.18) rgba(0, 0, 0, 0.65);
+}
+body .sf-root .sf-hud__atk-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 240, 200, 0.28), inset 0 calc(var(--d) * -0.14) calc(var(--d) * 0.2) rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+}
+
+body .sf-root .sf-hud__sk-face > img,
+body .sf-root .sf-hud__atk-face > img,
+body .sf-root .sf-slot > img,
+body .sf-root .sf-ico.ts-ico-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.15s linear;
+}
+body .sf-root .sf-hud__sk.is-cd .sf-hud__sk-face > img {
+  filter: saturate(0.55) brightness(0.8);
+}
+body .sf-root .sf-hud__sk.is-locked .sf-hud__sk-face > img {
+  filter: grayscale(1) brightness(0.55);
+}
+body .sf-root .sf-hud__sk.is-nomana .sf-hud__sk-face > img {
+  filter: grayscale(0.9) brightness(0.72);
+}
+body .sf-root .sf-hud__sk.is-forbid .sf-hud__sk-face > img,
+body .sf-root .sf-hud__sk.is-atk.is-forbid .sf-hud__atk-face > img {
+  filter: grayscale(0.7) brightness(0.65);
+}
+body .sf-root .sf-hud__sk.is-atk.is-down .sf-hud__atk-face > img {
+  filter: brightness(1.18) saturate(1.15);
 }

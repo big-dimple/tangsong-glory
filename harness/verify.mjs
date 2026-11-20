@@ -112,7 +112,7 @@ function checkMotherAndBundle() {
   const buildInfoPath = path.join(DIST_DIR, 'build-info.json');
   assert(fs.existsSync(buildInfoPath), 'dist/build-info.json 缺失');
   const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, 'utf8'));
-  assert(typeof buildInfo.version === 'string' && buildInfo.version.length > 0, 'dist/build-info.json 缺少 version');
+  assert.equal(buildInfo.version, 'v5.1', `dist/build-info.json version 应为 v5.1，实际 ${buildInfo.version}`);
 
   const textFiles = walkFiles(DIST_DIR).filter((f) => /\.(html|js|css)$/i.test(f));
   assert(textFiles.length >= 3, 'dist/ 缺少构建产物');
@@ -284,6 +284,10 @@ async function run() {
         '/assets/fonts/tangsong-brush.woff2',
         '/assets/fonts/tangsong-serif.woff2',
         '/assets/fonts/tangsongpai-score-numbers.woff',
+        ...['qinqiong', 'xinqiji', 'sushi', 'wencheng', 'huarui', 'liue'].flatMap((h) =>
+          ['passive', 's1', 's2', 'ult'].map((s) => `/assets/icons/skills/${h}-${s}.webp`),
+        ),
+        ...['recall', 'heal', 'flash', 'attack'].map((k) => `/assets/icons/summoner/${k}.webp`),
       ];
       const fetched = {};
       for (const u of urls) {
@@ -357,7 +361,7 @@ async function run() {
     });
 
     assert.equal(lobbyChecks.title, '唐宋荣耀');
-    assert(lobbyChecks.ver.includes('v5.0'), `版本戳未升级 v5.0: ${lobbyChecks.ver}`);
+    assert(lobbyChecks.ver.includes('v5.1'), `版本戳未升级 v5.1: ${lobbyChecks.ver}`);
     assert.equal(lobbyChecks.lobbyRootOk, true, '新版唐宋手卷开场大厅 .ts-lobby 未挂载');
     assert.equal(lobbyChecks.deckCardCount, 4, `大厅右侧宣纸名士画卷应为 4 张，实际 ${lobbyChecks.deckCardCount}`);
     for (const [hId, hInfo] of Object.entries(lobbyChecks.heroModels)) {
@@ -389,9 +393,18 @@ async function run() {
       'procedural-tangsong',
       `r1 SFX 未切换纯程序化唐宋音色: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
     );
+    assert.equal(
+      lobbyChecks.proceduralAudioInfo?.unpatchedCount,
+      0,
+      `存在未覆写的旧作 r1 SFX: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
+    );
+    assert(
+      (lobbyChecks.proceduralAudioInfo?.patchedSfxCount ?? 0) >= 154,
+      `覆写 r1 SFX 数量异常偏少: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
+    );
     for (const [u, info] of Object.entries(lobbyChecks.fetched)) {
       assert.equal(info.status, 200, `资源 ${u} HTTP 状态异常: ${info.status}`);
-      assert(info.bytes > 100, `资源 ${u} 字节为空`);
+      assert(info.bytes > (u.startsWith('/assets/icons/') ? 500 : 100), `资源 ${u} 字节异常偏小: ${info.bytes}`);
     }
     for (const term of FORBIDDEN_TEXT) {
       assert(!lobbyChecks.bodyText.includes(term), `大厅 DOM 出现旧文案: ${term}`);
@@ -1273,8 +1286,70 @@ async function run() {
           );
           await wait(200);
           await page.screenshot({ path: path.join(SHOT_DIR, 'v5_monsters_showcase_1280x720.png') });
+
+          // v5.1 野怪近距特写检验（4 只中小野怪 + 2 只史诗神兽分两组 near 预设拉近拍）
+          await page.evaluate(() => {
+            const { world, state, renderer, setCameraPreset } = window.__moba;
+            const types = ['mossback', 'glimwing', 'frost_golem', 'ember_golem', 'abyss_drake', 'star_colossus'];
+            const picked = {};
+            for (const t of types) {
+              picked[t] = state.units.find((u) => u.kind === 'monster' && u.alive && u.monsterType === t);
+            }
+            const park = (u, x, y, f) => {
+              if (!u) return;
+              u.pos.x = x;
+              u.pos.y = y;
+              u.prevPos.x = x;
+              u.prevPos.y = y;
+              u.facing = f;
+              u.aimFacing = f;
+            };
+            park(picked.abyss_drake, 48, -48, 0);
+            park(picked.star_colossus, 48, -48, 0);
+            park(picked.mossback, -42.4, 39.8, Math.PI * 0.48);
+            park(picked.glimwing, -40.3, 39.8, Math.PI * 0.48);
+            park(picked.frost_golem, -38.3, 39.7, Math.PI * 0.48);
+            park(picked.ember_golem, -36.2, 39.6, Math.PI * 0.48);
+            const me = state.heroes.find((h) => h.id === state.playerId);
+            if (me) park(me, -39.4, 37.8, Math.PI * 0.5);
+            world.grid.rebuild(state.units);
+            setCameraPreset('near');
+            renderer.snapCamera();
+            for (let f = 0; f < 40; f++) renderer.render(state, 1, 0.05);
+          });
+          await wait(200);
+          await page.screenshot({ path: path.join(SHOT_DIR, 'v6_monsters_closeup_small.png') });
+
+          await page.evaluate(() => {
+            const { world, state, renderer } = window.__moba;
+            const types = ['mossback', 'glimwing', 'frost_golem', 'ember_golem', 'abyss_drake', 'star_colossus'];
+            const picked = {};
+            for (const t of types) {
+              picked[t] = state.units.find((u) => u.kind === 'monster' && u.alive && u.monsterType === t);
+            }
+            const park = (u, x, y, f) => {
+              if (!u) return;
+              u.pos.x = x;
+              u.pos.y = y;
+              u.prevPos.x = x;
+              u.prevPos.y = y;
+              u.facing = f;
+              u.aimFacing = f;
+            };
+            for (const s of ['mossback', 'glimwing', 'frost_golem', 'ember_golem']) park(picked[s], 48, -48, 0);
+            park(picked.abyss_drake, -41.6, 39.5, Math.PI * 0.48);
+            park(picked.star_colossus, -37.0, 39.4, Math.PI * 0.48);
+            const me = state.heroes.find((h) => h.id === state.playerId);
+            if (me) park(me, -39.3, 38.0, Math.PI * 0.5);
+            world.grid.rebuild(state.units);
+            renderer.snapCamera();
+            for (let f = 0; f < 40; f++) renderer.render(state, 1, 0.05);
+          });
+          await wait(200);
+          await page.screenshot({ path: path.join(SHOT_DIR, 'v6_monsters_closeup_epics.png') });
+
           await page.evaluate(() => window.__moba?.setCameraPreset?.('standard'));
-          console.log('[v5.0 wildlife + 6 monsters showcase]', JSON.stringify(monsterInfo));
+          console.log('[v5.1 wildlife + 6 monsters showcase & closeups]', JSON.stringify(monsterInfo));
         } finally {
           await page.evaluate(() => window.__moba?.session?.loop?.start?.());
         }

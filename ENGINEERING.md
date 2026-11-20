@@ -6,7 +6,7 @@
 
 | 层级 | 关键模块 | 职责说明 |
 |---|---|---|
-| 配置层 | `src/config/brand.ts`、`camera.ts`、`combatFeel.ts`、`heroes.ts` | 品牌版本戳（`v5.0`）、近/中/远三档视角参数、跑打出手容错手感、6 位唐宋英雄完整配置与技能资源映射 |
+| 配置层 | `src/config/brand.ts`、`camera.ts`、`combatFeel.ts`、`heroes.ts` | 品牌版本戳（`v5.1`）、近/中/远三档视角参数、跑打出手容错手感、6 位唐宋英雄完整配置与技能资源映射 |
 | 视觉与着色器层 | `src/visuals/tangsong*.ts` | 英雄 3D 模型与伴生灵宠、兵线与野怪建模、地图地貌/河流木栏杆/防御塔、青绿山水材质纹理与技能特效着色器 |
 | 界面层 | `src/ui/tangsongLobby.ts`、`src/styles/tangsong-theme.css` | 宣纸画卷大厅、选将亭、大招眼神特写 Cut-in（`triggerEyesCutin`）与游戏 HUD 主题样式 |
 | 音频层 | `src/audio/tangsongAudio.ts` | WebAudio 实时合成五声音阶背景乐与战斗打击音效 |

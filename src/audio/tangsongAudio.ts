@@ -1012,7 +1012,7 @@ export function attachTangSongSfx(
   if (!mixer || mixer.__tsSfxAttached || !mixer.ctx) return;
   mixer.__tsSfxAttached = true;
 
-  let patchedSfxCount = 0;
+  const patchedKeys = new Set<string>();
   let uiStep = 0;
 
   const patch = (key: string, fn: (p: SynthPatchLike, v?: number) => void, meta?: Partial<SfxEntryLike>) => {
@@ -1021,7 +1021,24 @@ export function attachTangSongSfx(
     if (!entry) return;
     entry.fn = fn;
     if (meta) Object.assign(entry, meta);
-    patchedSfxCount++;
+    patchedKeys.add(key);
+  };
+
+  /** 唐宋礼乐连奏辅助（用于击杀/升级/多杀等国风器乐短句） */
+  const playPentatonicPhrase = (
+    p: SynthPatchLike,
+    notes: number[],
+    stepSec: number,
+    dur: number,
+    vel: number,
+    instrument: 'guzheng' | 'pipa' | 'bianzhong',
+  ) => {
+    notes.forEach((m, idx) => {
+      const t = idx * stepSec;
+      if (instrument === 'guzheng') playGuzheng(p, midi(m), t, dur, vel);
+      else if (instrument === 'pipa') playPipa(p, midi(m), t, dur, vel);
+      else playBianzhong(p, midi(m), t, dur, vel);
+    });
   };
 
   if (r1) {
@@ -1090,9 +1107,37 @@ export function attachTangSongSfx(
       playGongCrash(p, 0.08, 0.82, 0.95);
       playTangHorn(p, midi(50), 0.04, 0.48, 0.85);
     });
+    patch('fx_panyue_passive_hit', (p) => {
+      playWarDrum(p, 0, 0.58, 1.18);
+      p.ring(620, [1, 1.48], { a: 0.001, d: 0.22, g: 0.24 });
+    });
+    patch('fx_panyue_s1_dash', (p) => {
+      playWarDrum(p, 0, 0.52, 1.08);
+      p.noise({ k: 'brown', flt: 'bandpass', fc: 380, fc1: 860, q: 1.0, a: 0.015, d: 0.18, g: 0.34 });
+    });
+    patch('fx_panyue_s1_impact', (p) => {
+      playWarDrum(p, 0, 0.88, 0.86);
+      p.ring(390, [1, 1.54, 2.3], { a: 0.002, d: 0.32, g: 0.26 });
+    });
+    patch('fx_panyue_s2_cast', (p) => {
+      p.ring(520, [1, 1.49, 2.12], { a: 0.002, d: 0.34, g: 0.22 });
+      playBianzhong(p, midi(62), 0, 0.3, 0.52);
+    });
+    patch('fx_panyue_ult_leap', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 280, fc1: 1120, q: 0.9, a: 0.02, d: 0.26, g: 0.38 });
+      playTangHorn(p, midi(57), 0, 0.28, 0.62);
+    });
     patch('fx_panyue_ult_land', (p) => {
       playWarDrum(p, 0, 1.0, 0.65);
       playGongCrash(p, 0.02, 0.75, 1.0);
+    });
+    patch('area_panyue_aura', (p) => {
+      playBianzhong(p, midi(50), 0, 0.48, 0.45);
+      p.ring(415, [1, 1.48], { t: 0.02, a: 0.02, d: 0.45, g: 0.15 });
+    });
+    patch('area_panyue_fissure', (p) => {
+      playWarDrum(p, 0, 0.9, 0.72);
+      p.noise({ k: 'brown', flt: 'lowpass', fc: 780, fc1: 180, a: 0.005, d: 0.55, g: 0.42 });
     });
 
     // ── 花蕊夫人 (chijin)：凌风细剑清吟 + 丝绸飘带 + 梅瓣轻铃 ──
@@ -1116,13 +1161,33 @@ export function attachTangSongSfx(
       playPipa(p, midi(81), 0.06, 0.18, 0.72);
     });
     patch('cast_chijin_ult', (p) => {
-      [74, 79, 81, 86].forEach((m, idx) => playGuzheng(p, midi(m), idx * 0.045, 0.34, 0.72));
+      playPentatonicPhrase(p, [74, 79, 81, 86], 0.045, 0.34, 0.72, 'guzheng');
       p.ring(1760, [1, 1.48, 2.15], { t: 0.04, a: 0.004, d: 0.48, g: 0.22 });
       p.noise({ k: 'pink', flt: 'bandpass', fc: 2400, fc1: 4800, q: 1.0, a: 0.05, d: 0.42, g: 0.36 });
+    });
+    patch('fx_chijin_passive_hit', (p) => {
+      p.ring(1680, [1, 1.46], { a: 0.001, d: 0.2, g: 0.2 });
+      playGuzheng(p, midi(86), 0.02, 0.26, 0.55);
+    });
+    patch('fx_chijin_s1_slash', (p) => {
+      p.noise({ k: 'white', flt: 'bandpass', fc: 2400, fc1: 5800, q: 1.6, a: 0.004, d: 0.14, g: 0.34 });
+      p.ring(2240, [1, 1.44], { a: 0.001, d: 0.16, g: 0.18 });
+    });
+    patch('fx_chijin_s2_dash', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1600, fc1: 4200, q: 1.2, a: 0.008, d: 0.16, g: 0.32 });
+      playPipa(p, midi(81), 0.01, 0.16, 0.62);
+    });
+    patch('fx_chijin_ult_start', (p) => {
+      playGongCrash(p, 0, 0.45, 0.65);
+      playPentatonicPhrase(p, [74, 81, 86], 0.04, 0.28, 0.7, 'pipa');
     });
     patch('fx_chijin_ult_tick', (p) => {
       p.noise({ flt: 'bandpass', fc: 2800, fc1: 5600, q: 1.6, a: 0.004, d: 0.09, g: 0.24 });
       p.ring(2200, [1, 1.41], { a: 0.001, d: 0.12, g: 0.14 });
+    });
+    patch('area_chijin_spin', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2200, fc1: 4600, q: 1.2, a: 0.02, d: 0.36, g: 0.26 });
+      p.ring(1980, [1, 1.5], { t: 0.04, a: 0.01, d: 0.28, g: 0.14 });
     });
 
     // ── 苏轼 / 刘娥 (xingli)：五声古琴泛音 + 凤诏玉磬 ──
@@ -1141,17 +1206,47 @@ export function attachTangSongSfx(
       playGuzheng(p, midi(74), 0, 0.25, 0.75);
       playXiao(p, midi(81), 0.03, 0.3, 0.75);
     });
+    patch('xingli_s1_fly', (p) => {
+      playDizi(p, midi(86), 0, 0.2, 0.45);
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1900, fc1: 2800, q: 2.0, a: 0.01, d: 0.16, g: 0.14 });
+    });
+    patch('xingli_s1_hit', (p) => {
+      playGuzheng(p, midi(79), 0, 0.28, 0.76);
+      playBianzhong(p, midi(86), 0, 0.28, 0.58);
+    });
     patch('cast_xingli_s2', (p) => {
-      [62, 69, 74, 79].forEach((m, idx) => playGuzheng(p, midi(m), idx * 0.04, 0.35, 0.68));
+      playPentatonicPhrase(p, [62, 69, 74, 79], 0.04, 0.35, 0.68, 'guzheng');
       playBianzhong(p, midi(74), 0.12, 0.45, 0.62);
     });
     patch('cast_xingli_ult', (p) => {
       playBianzhong(p, midi(62), 0, 0.65, 0.85);
-      [74, 79, 81, 86].forEach((m, idx) => playGuzheng(p, midi(m), 0.03 + idx * 0.045, 0.55, 0.72));
+      playPentatonicPhrase(p, [74, 79, 81, 86], 0.045, 0.55, 0.72, 'guzheng');
+    });
+    patch('fx_xingli_passive_burst', (p) => {
+      playBianzhong(p, midi(74), 0, 0.36, 0.72);
+      playGuzheng(p, midi(86), 0.03, 0.32, 0.72);
+    });
+    patch('fx_xingli_s1_cast', (p) => {
+      playGuzheng(p, midi(76), 0, 0.22, 0.65);
+    });
+    patch('fx_xingli_s2_burst', (p) => {
+      playPentatonicPhrase(p, [79, 74, 69], 0.035, 0.28, 0.72, 'guzheng');
+      playWarDrum(p, 0.04, 0.45, 1.15);
+    });
+    patch('fx_xingli_ult_cast', (p) => {
+      playBianzhong(p, midi(69), 0, 0.55, 0.75);
+      playXiao(p, midi(81), 0.04, 0.45, 0.65);
     });
     patch('fx_xingli_meteor', (p) => {
       playWarDrum(p, 0, 0.62, 1.15);
       playBianzhong(p, midi(79), 0.01, 0.42, 0.72);
+    });
+    patch('area_xingli_well', (p) => {
+      playGuqin(p, midi(62), 0, 0.45, 0.55);
+      playInkPad(p, [midi(62), midi(69), midi(74)], 0, 0.45, 0.45, 1.1);
+    });
+    patch('area_xingli_storm', (p) => {
+      playPentatonicPhrase(p, [74, 79, 81, 86], 0.06, 0.3, 0.55, 'pipa');
     });
 
     // ── 文成公主 (fengling)：牛角硬弓绷弦 + 鸣镝破空 + 飞天羽矢雨 ──
@@ -1171,13 +1266,42 @@ export function attachTangSongSfx(
       p.noise({ flt: 'bandpass', fc: 3600, fc1: 6800, q: 1.4, a: 0.002, d: 0.16, g: 0.38 });
       playPipa(p, midi(81), 0, 0.22, 0.72);
     });
+    patch('fengling_s1_fly', (p) => {
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3200, fc1: 5600, q: 2.2, a: 0.005, d: 0.14, g: 0.22 });
+      p.osc({ w: 'glass', f: 1840, f1: 1420, ft: 0.12, a: 0.002, d: 0.12, g: 0.14 });
+    });
+    patch('fengling_s1_hit', (p) => {
+      playWoodblock(p, 0, 0.85, true);
+      p.ring(1540, [1, 1.5], { a: 0.001, d: 0.16, g: 0.2 });
+    });
     patch('cast_fengling_s2', (p) => {
       p.noise({ k: 'pink', flt: 'bandpass', fc: 1400, fc1: 3200, q: 1.2, a: 0.005, d: 0.16, g: 0.36 });
       playDizi(p, midi(86), 0, 0.22, 0.62);
     });
     patch('cast_fengling_ult', (p) => {
-      [74, 79, 81, 86, 91].forEach((m, idx) => playPipa(p, midi(m), idx * 0.045, 0.22, 0.78));
+      playPentatonicPhrase(p, [74, 79, 81, 86, 91], 0.045, 0.22, 0.78, 'pipa');
       playBianzhong(p, midi(86), 0.12, 0.55, 0.72);
+    });
+    patch('fx_fengling_s1_cast', (p) => {
+      playPipa(p, midi(86), 0, 0.16, 0.62);
+    });
+    patch('fx_fengling_s2_dash', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1800, fc1: 3600, q: 1.3, a: 0.005, d: 0.14, g: 0.28 });
+      playDizi(p, midi(91), 0, 0.16, 0.52);
+    });
+    patch('fx_fengling_ult_cast', (p) => {
+      playPipa(p, midi(81), 0, 0.22, 0.72, true);
+      playDizi(p, midi(86), 0.04, 0.32, 0.62);
+    });
+    patch('fx_fengling_ult_tick', (p) => {
+      playWoodblock(p, 0, 0.5, true);
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3800, fc1: 6200, q: 1.6, a: 0.001, d: 0.06, g: 0.24 });
+    });
+    patch('area_fengling_rain', (p) => {
+      p.scatter(4, 0, 0.28, (ti, idx) => {
+        playWoodblock(p, ti, 0.32, idx % 2 === 0);
+        p.noise({ flt: 'bandpass', fc: 3600, q: 1.8, t: ti, a: 0.001, d: 0.05, g: 0.16 });
+      });
     });
 
     // ── 辛弃疾 (yeque)：单刀寒锋厉啸 + 破阵飞刃 + 铁马雷鼓 ──
@@ -1201,18 +1325,153 @@ export function attachTangSongSfx(
         p.noise({ flt: 'highpass', fc: 4200, t: i * 0.032, a: 0.001, d: 0.045, g: 0.2 });
       }
     });
+    patch('yeque_s2_fly', (p) => {
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3200, fc1: 6400, q: 2.0, a: 0.002, d: 0.09, g: 0.2 });
+      p.ring(2600, [1, 1.44], { a: 0.001, d: 0.08, g: 0.1 });
+    });
+    patch('yeque_s2_hit', (p) => {
+      p.ring(2100, [1, 1.46], { a: 0.001, d: 0.15, g: 0.22 });
+      p.noise({ flt: 'highpass', fc: 3600, a: 0.001, d: 0.035, g: 0.28 });
+    });
     patch('cast_yeque_ult', (p) => {
       playWarDrum(p, 0, 0.85, 0.88);
       p.noise({ k: 'pink', flt: 'bandpass', fc: 1200, fc1: 3800, q: 1.5, a: 0.01, d: 0.24, g: 0.4 });
       playPipa(p, midi(62), 0.02, 0.22, 0.85, true);
+    });
+    patch('fx_yeque_s1_dash', (p) => {
+      p.noise({ k: 'white', flt: 'bandpass', fc: 2000, fc1: 5600, q: 1.5, a: 0.003, d: 0.14, g: 0.36 });
+      playWarDrum(p, 0, 0.45, 1.32);
+    });
+    patch('fx_yeque_s2_cast', (p) => {
+      p.ring(2480, [1, 1.45], { a: 0.001, d: 0.12, g: 0.16 });
+    });
+    patch('fx_yeque_ult_vanish', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2800, fc1: 520, q: 1.4, a: 0.005, d: 0.24, g: 0.32 });
+      playGuqin(p, midi(74), 0, 0.28, 0.65, midi(81));
     });
     patch('fx_yeque_ult_strike', (p) => {
       playWarDrum(p, 0, 0.95, 0.78);
       playGongCrash(p, 0, 0.55, 0.65);
       p.ring(1920, [1, 1.48, 2.3], { a: 0.001, d: 0.32, g: 0.28 });
     });
+    patch('yeque_refresh', (p) => {
+      playBianzhong(p, midi(81), 0, 0.28, 0.62);
+      p.ring(2620, [1, 1.5], { t: 0.03, a: 0.001, d: 0.22, g: 0.18 });
+    });
 
-    // ── 野怪、防御塔、铜钱与连杀高光播报 ──
+    // ── 通用召唤师技能与地面阵法预警 ──
+    patch('cast_recall', (p) => {
+      playBianzhong(p, midi(69), 0, 0.48, 0.58);
+      playGuzheng(p, midi(74), 0.04, 0.45, 0.62);
+    });
+    patch('cast_heal', (p) => {
+      playPentatonicPhrase(p, [69, 74, 81], 0.055, 0.42, 0.68, 'guzheng');
+      playXiao(p, midi(81), 0.06, 0.45, 0.48);
+    });
+    patch('cast_flash', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1200, fc1: 4800, q: 1.3, a: 0.002, d: 0.15, g: 0.38 });
+      playPipa(p, midi(86), 0, 0.18, 0.72);
+    });
+    patch('area_telegraph', (p) => {
+      playGuqin(p, midi(74), 0, 0.25, 0.42);
+    });
+    patch('area_telegraph_enemy', (p) => {
+      playWoodblock(p, 0, 0.65, false);
+      p.ring(980, [1, 1.48], { t: 0.02, a: 0.002, d: 0.18, g: 0.16 });
+    });
+
+    // ── 通用命中火花 & 弹道落空 ──
+    patch('fx_hit_physical', (p) => {
+      p.osc({ f: 175, f1: 70, ft: 0.045, a: 0.001, d: 0.08, g: 0.28 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1900, q: 1.3, a: 0.001, d: 0.04, g: 0.26 });
+    });
+    patch('fx_hit_magic', (p) => {
+      playBianzhong(p, midi(86), 0, 0.16, 0.48);
+      p.ring(2140, [1, 1.48], { a: 0.001, d: 0.14, g: 0.12 });
+    });
+    patch('fx_hit_crit', (p) => {
+      playWarDrum(p, 0, 0.72, 1.15);
+      p.ring(1680, [1, 1.48, 2.2], { a: 0.001, d: 0.22, g: 0.24 });
+      p.noise({ flt: 'highpass', fc: 3200, a: 0.001, d: 0.04, g: 0.3 });
+    });
+    patch('fx_hit_tower', (p) => {
+      playWarDrum(p, 0, 0.55, 0.92);
+      playWoodblock(p, 0, 0.45, false);
+    });
+    patch('proj_fizzle', (p) => {
+      p.noise({ k: 'pink', flt: 'lowpass', fc: 900, fc1: 300, a: 0.004, d: 0.09, g: 0.16 });
+    });
+
+    // ── 小兵与野怪攻防、龙息与刷新 ──
+    patch('minion_swing', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 900, fc1: 1800, q: 1.4, a: 0.008, d: 0.075, g: 0.2 });
+    });
+    patch('minion_melee_hit', (p) => {
+      playWoodblock(p, 0, 0.42, false);
+      p.osc({ f: 150, f1: 78, ft: 0.03, a: 0.001, d: 0.055, g: 0.2 });
+    });
+    patch('minion_ranged_launch', (p) => {
+      playPipa(p, midi(79), 0, 0.09, 0.42);
+    });
+    patch('minion_ranged_hit', (p) => {
+      playBianzhong(p, midi(84), 0, 0.1, 0.35);
+    });
+    patch('minion_siege_launch', (p) => {
+      playWarDrum(p, 0, 0.55, 0.9);
+      p.noise({ k: 'brown', flt: 'bandpass', fc: 420, q: 1.2, a: 0.004, d: 0.12, g: 0.3 });
+    });
+    patch('minion_siege_hit', (p) => {
+      playWarDrum(p, 0, 0.7, 0.78);
+      p.noise({ k: 'brown', flt: 'lowpass', fc: 980, fc1: 240, a: 0.002, d: 0.18, g: 0.32 });
+    });
+    patch('super_hit', (p) => {
+      playWarDrum(p, 0, 0.72, 0.88);
+      p.ring(740, [1, 1.52], { a: 0.002, d: 0.16, g: 0.18 });
+    });
+    patch('monster_swing', (p) => {
+      p.noise({ k: 'brown', flt: 'bandpass', fc: 380, fc1: 920, q: 1.1, a: 0.015, d: 0.13, g: 0.32 });
+    });
+    patch('monster_hit', (p) => {
+      playWarDrum(p, 0, 0.62, 0.96);
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, q: 1.1, a: 0.001, d: 0.055, g: 0.28 });
+    });
+    patch('monster_spit_launch', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2200, fc1: 3800, q: 2.2, a: 0.006, d: 0.11, g: 0.22 });
+      playGuzheng(p, midi(86), 0, 0.12, 0.36);
+    });
+    patch('monster_spit_hit', (p) => {
+      p.ring(1820, [1, 1.48], { a: 0.002, d: 0.16, g: 0.14 });
+    });
+    patch('epic_hit', (p) => {
+      playWarDrum(p, 0, 0.92, 0.68);
+      playGongCrash(p, 0.01, 0.42, 0.55);
+    });
+    patch('monster_spawn', (p) => {
+      playBianzhong(p, midi(62), 0, 0.45, 0.55);
+      playGuqin(p, midi(69), 0.05, 0.42, 0.55);
+    });
+    patch('fx_drake_breath_warn', (p) => {
+      playTangHorn(p, midi(45), 0, 0.55, 0.68);
+      p.noise({ k: 'brown', flt: 'bandpass', fc: 420, fc1: 1100, q: 1.5, a: 0.08, d: 0.48, g: 0.32 });
+    });
+    patch('fx_drake_breath', (p) => {
+      playWarDrum(p, 0, 0.85, 0.65);
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1600, fc1: 420, q: 0.9, a: 0.04, d: 0.65, g: 0.48 });
+      playTangHorn(p, midi(50), 0.02, 0.55, 0.72);
+    });
+    patch('fx_monster_slain', (p) => {
+      playGongCrash(p, 0, 0.48, 0.7);
+      playBianzhong(p, midi(74), 0.04, 0.4, 0.65);
+    });
+    patch('fx_buff_gain', (p) => {
+      playPentatonicPhrase(p, [69, 74, 81, 86], 0.05, 0.42, 0.72, 'guzheng');
+    });
+
+    // ── 防御塔、铜钱、升级、状态反馈、阵亡与复活 ──
+    patch('tower_charge', (p) => {
+      playBianzhong(p, midi(79), 0, 0.24, 0.45);
+      p.osc({ w: 'glass', f: 680, f1: 980, ft: 0.18, a: 0.04, d: 0.18, g: 0.12 });
+    });
     patch('tower_launch', (p) => {
       playBianzhong(p, midi(74), 0, 0.26, 0.6);
       p.noise({ k: 'pink', flt: 'bandpass', fc: 1400, fc1: 3600, q: 1.4, a: 0.01, d: 0.16, g: 0.26 });
@@ -1250,25 +1509,184 @@ export function attachTangSongSfx(
     patch('coin_big', (p) => {
       [74, 81, 86].forEach((m, idx) => p.ring(midi(m) * 4, [1, 1.48], { t: idx * 0.045, a: 0.001, d: 0.2, g: 0.18 }));
     });
+    patch('fx_gold_gain', (p) => {
+      p.ring(2720, [1, 1.48], { a: 0.001, d: 0.14, g: 0.14 });
+    });
     patch('buy', (p) => {
       p.ring(2200, [1, 1.5], { a: 0.001, d: 0.16, g: 0.18 });
       playBianzhong(p, midi(81), 0.04, 0.28, 0.65);
     });
+    patch('fx_heal', (p) => {
+      playGuzheng(p, midi(74), 0, 0.28, 0.52);
+      playGuzheng(p, midi(81), 0.05, 0.32, 0.52);
+    });
+    patch('fx_shield_break', (p) => {
+      p.ring(1480, [1, 1.62], { a: 0.001, d: 0.18, g: 0.22 });
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3400, fc1: 1200, q: 1.4, a: 0.002, d: 0.11, g: 0.24 });
+    });
+    patch('fx_level_up', (p) => {
+      playPentatonicPhrase(p, [69, 74, 81], 0.05, 0.38, 0.48, 'bianzhong');
+    });
     patch('levelup_player', (p) => {
-      [62, 64, 67, 69, 74].forEach((m, idx) => playBianzhong(p, midi(m), idx * 0.055, 0.55, 0.65));
+      playPentatonicPhrase(p, [62, 64, 67, 69, 74], 0.055, 0.55, 0.65, 'bianzhong');
+    });
+    patch('fx_respawn', (p) => {
+      playBianzhong(p, midi(74), 0, 0.45, 0.48);
+    });
+    patch('respawn_player', (p) => {
+      playPentatonicPhrase(p, [62, 69, 74, 81], 0.055, 0.65, 0.72, 'guzheng');
+      playBianzhong(p, midi(74), 0.1, 0.6, 0.75);
+    });
+    patch('fx_recall_start', (p) => {
+      playGuqin(p, midi(69), 0, 0.42, 0.55);
+      playBianzhong(p, midi(81), 0.06, 0.42, 0.45);
+    });
+    patch('recall_channel', (p) => {
+      playXiao(p, midi(74), 0, 0.42, 0.45);
+      playGuqin(p, midi(81), 0.04, 0.38, 0.42);
+    });
+    patch('fx_recall_done', (p) => {
+      playPentatonicPhrase(p, [74, 81, 86], 0.04, 0.48, 0.72, 'bianzhong');
+    });
+    patch('fx_flash', (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1400, fc1: 4400, q: 1.2, a: 0.002, d: 0.14, g: 0.3 });
+      playGuzheng(p, midi(86), 0, 0.18, 0.55);
+    });
+    patch('player_hurt', (p) => {
+      playWarDrum(p, 0, 0.55, 1.05);
+      p.noise({ k: 'pink', flt: 'lowpass', fc: 1200, a: 0.001, d: 0.08, g: 0.3 });
+    });
+    patch('player_hurt_heavy', (p) => {
+      playWarDrum(p, 0, 0.92, 0.74);
+      playGongCrash(p, 0, 0.35, 0.45);
+    });
+    patch('skill_hit', (p) => {
+      p.ring(1860, [1, 1.48], { a: 0.001, d: 0.11, g: 0.18 });
+      playWoodblock(p, 0, 0.45, true);
+    });
+    patch('heartbeat', (p) => {
+      playWarDrum(p, 0, 0.52, 0.54);
+      playWarDrum(p, 0.18, 0.38, 0.52);
+    });
+    patch('reject', (p) => {
+      playWoodblock(p, 0, 0.62, false);
+      playWoodblock(p, 0.055, 0.48, false);
+    });
+    patch('death_minion', (p) => {
+      p.noise({ k: 'pink', flt: 'lowpass', fc: 800, fc1: 260, a: 0.002, d: 0.11, g: 0.22 });
+    });
+    patch('death_minion_big', (p) => {
+      playWarDrum(p, 0, 0.5, 0.85);
+      p.noise({ k: 'brown', flt: 'lowpass', fc: 760, fc1: 220, a: 0.004, d: 0.22, g: 0.28 });
+    });
+    patch('death_monster', (p) => {
+      playWarDrum(p, 0, 0.62, 0.78);
+      playWoodblock(p, 0.03, 0.45, false);
+    });
+    patch('death_hero_ally', (p) => {
+      playGongCrash(p, 0, 0.42, 0.95);
+      playXiao(p, midi(69), 0.04, 0.55, 0.62, midi(72));
+    });
+    patch('death_hero_enemy', (p) => {
+      playGongCrash(p, 0, 0.52, 0.9);
+      playBianzhong(p, midi(74), 0.04, 0.45, 0.68);
+    });
+    patch('death_player', (p) => {
+      playGongCrash(p, 0, 0.78, 1.8);
+      playXiao(p, midi(62), 0.08, 0.95, 0.75, midi(64));
+      playErhu(p, midi(69), 0.14, 0.9, 0.62, midi(72));
+    });
+    patch('kill_ally', (p) => {
+      playBianzhong(p, midi(74), 0, 0.45, 0.68);
+      playGuzheng(p, midi(81), 0.04, 0.35, 0.62);
+    });
+    patch('kill_enemy', (p) => {
+      playWarDrum(p, 0, 0.62, 0.86);
+      playErhu(p, midi(64), 0.03, 0.42, 0.52, midi(67));
     });
     patch('kill_player', (p) => {
       playGongCrash(p, 0, 0.65, 0.9);
-      [74, 79, 86].forEach((m, idx) => playBianzhong(p, midi(m), idx * 0.06, 0.5, 0.72));
+      playPentatonicPhrase(p, [74, 79, 86], 0.06, 0.5, 0.72, 'bianzhong');
     });
+
+    // ── 战局礼乐播报全系 (zS)：建鼓 × 编钟 × 古筝五声华彩 ──
     patch('ann_match_start', (p) => {
       playGongCrash(p, 0, 0.85, 1.8);
       playWarDrum(p, 0.15, 0.9, 0.82);
       playWarDrum(p, 0.32, 0.95, 0.82);
     });
+    patch('ann_minions_spawn', (p) => {
+      playWarDrum(p, 0, 0.72, 0.9);
+      playTangHorn(p, midi(62), 0.04, 0.45, 0.68);
+      playSnareRoll(p, 0.12, 0.55);
+    });
+    patch('ann_super_minions', (p) => {
+      playWarDrum(p, 0, 0.85, 0.8);
+      playTangHorn(p, midi(69), 0.04, 0.55, 0.78);
+      playGongCrash(p, 0.08, 0.55, 0.85);
+    });
+    patch('ann_epic_spawn', (p) => {
+      playGongCrash(p, 0, 0.78, 1.4);
+      playWarDrum(p, 0.06, 0.82, 0.68);
+      playTangHorn(p, midi(50), 0.08, 0.72, 0.75);
+    });
+    patch('ann_epic_slain', (p) => {
+      playGongCrash(p, 0, 0.85, 1.4);
+      playPentatonicPhrase(p, [62, 69, 74, 81], 0.06, 0.65, 0.8, 'bianzhong');
+    });
+    patch('ann_tower_destroyed', (p) => {
+      playGongCrash(p, 0, 0.82, 1.35);
+      playWarDrum(p, 0.04, 0.85, 0.72);
+      playPentatonicPhrase(p, [74, 69, 62], 0.07, 0.48, 0.68, 'bianzhong');
+    });
+    patch('ann_first_blood', (p) => {
+      playGongCrash(p, 0, 0.72, 1.1);
+      playWarDrum(p, 0.02, 0.85, 0.95);
+      playPentatonicPhrase(p, [74, 81, 86], 0.055, 0.5, 0.78, 'bianzhong');
+    });
+    patch('ann_double_kill', (p) => {
+      playWarDrum(p, 0, 0.75, 1.0);
+      playPentatonicPhrase(p, [74, 81], 0.07, 0.45, 0.78, 'bianzhong');
+    });
+    patch('ann_triple_kill', (p) => {
+      playWarDrum(p, 0, 0.82, 1.02);
+      playPentatonicPhrase(p, [74, 79, 86], 0.065, 0.55, 0.82, 'bianzhong');
+    });
+    patch('ann_quadra_kill', (p) => {
+      playGongCrash(p, 0, 0.65, 1.2);
+      playPentatonicPhrase(p, [69, 74, 81, 86], 0.06, 0.65, 0.85, 'bianzhong');
+    });
+    patch('ann_penta_kill', (p) => {
+      playGongCrash(p, 0, 0.95, 2.0);
+      playWarDrum(p, 0.04, 0.92, 0.78);
+      playPentatonicPhrase(p, [62, 69, 74, 81, 86, 93], 0.065, 0.9, 0.9, 'bianzhong');
+      playTangHorn(p, midi(74), 0.14, 0.75, 0.75);
+    });
+    patch('ann_killing_spree', (p) => {
+      playWarDrum(p, 0, 0.72, 1.05);
+      playPentatonicPhrase(p, [74, 76, 81], 0.06, 0.45, 0.72, 'guzheng');
+    });
+    patch('ann_unstoppable', (p) => {
+      playGongCrash(p, 0, 0.55, 1.0);
+      playPentatonicPhrase(p, [74, 79, 81, 86], 0.055, 0.55, 0.78, 'bianzhong');
+    });
+    patch('ann_legendary', (p) => {
+      playGongCrash(p, 0, 0.88, 1.8);
+      playWarDrum(p, 0.05, 0.88, 0.82);
+      playPentatonicPhrase(p, [62, 69, 74, 79, 86], 0.065, 0.8, 0.88, 'bianzhong');
+    });
+    patch('ann_shutdown', (p) => {
+      playGongCrash(p, 0, 0.62, 0.95);
+      playPentatonicPhrase(p, [86, 81, 74], 0.055, 0.45, 0.76, 'guzheng');
+    });
+    patch('ann_ace', (p) => {
+      playGongCrash(p, 0, 0.92, 1.9);
+      playWarDrum(p, 0.06, 0.9, 0.74);
+      playPentatonicPhrase(p, [62, 69, 74, 81, 86], 0.07, 0.85, 0.86, 'bianzhong');
+    });
     patch('ann_victory', (p) => {
       playGongCrash(p, 0, 0.9, 2.2);
-      [74, 76, 78, 81, 86].forEach((m, idx) => playBianzhong(p, midi(m), idx * 0.08, 1.1, 0.78));
+      playPentatonicPhrase(p, [74, 76, 78, 81, 86], 0.08, 1.1, 0.78, 'bianzhong');
     });
     patch('ann_defeat', (p) => {
       playGongCrash(p, 0, 0.78, 2.4);
@@ -1276,8 +1694,14 @@ export function attachTangSongSfx(
     });
   }
 
+  const totalSfxCount = r1 ? Object.keys(r1).length : 0;
+  const unpatchedKeys = r1 ? Object.keys(r1).filter((k) => !patchedKeys.has(k)) : [];
+
   mixer.__tsAudioDebug = () => ({
     mode: 'procedural-tangsong',
-    patchedSfxCount,
+    totalSfxCount,
+    patchedSfxCount: patchedKeys.size,
+    unpatchedCount: unpatchedKeys.length,
+    unpatchedKeys,
   });
 }

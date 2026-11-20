@@ -7,11 +7,11 @@ export const BRAND = {
   colossusName: '镇岳神兽',
   blessingBuffName: '神兽祝福(九州定鼎)',
   blessingBuffShort: '九州定鼎buff',
-  versionStamp: 'v5.0 · 唐宋荣耀',
+  versionStamp: 'v5.1 · 唐宋荣耀',
   footerCredits: [
     '1 名玩家 + 9 名 AI',
     '唐宋全景重构 · 真国风视听 5v5',
-    'v5.0 · 唐宋荣耀',
+    'v5.1 · 唐宋荣耀',
   ],
   settingsStorageKey: 'tsry.settings.v1',
   choiceStorageKey: 'tsry.lastChoice.v1',

@@ -801,7 +801,7 @@ function main() {
   code = assertReplace(
     code,
     'const Gx={"hero:panyue":UU,"hero:chijin":AU,"hero:xingli":$U,"hero:fengling":PU,"hero:yeque":jU,',
-    'const _tsMinions=tsConfig.createMinionBuilders({Wa,Ls,pt,kf,K,Qt,As,wa,$o,ya,Ai,En,Pm,Go,Qo,Kn,Ct,Gn,Xe,Jo}),_tsMonsters=tsConfig.createMonsterBuilders({Wa,Lm,Ls,K,En,pt,bt,Di,Ds,_a,Im,V1,XU,Qn,Gn,Ct,Xe,Jo}),Gx={"hero:panyue":()=>UU("hero:panyue",heroCostume("qinqiong","panyue")??_palPanyue,"qinqiong"),"hero:chijin":()=>AU("hero:chijin",heroCostume("huarui","chijin")??_palChijin,"huarui"),"hero:xingli":()=>$U("hero:xingli",heroCostume("sushi","xingli")??_palXingli,"sushi"),"hero:fengling":()=>PU("hero:fengling",heroCostume("wencheng","fengling")??_palFengling,"wencheng"),"hero:yeque":()=>jU("hero:yeque",heroCostume("xinqiji","yeque")??_palYeque,"xinqiji"),"hero:qinqiong":()=>UU("hero:qinqiong",heroCostume("qinqiong","panyue")??_palPanyue,"qinqiong"),"hero:huarui":()=>AU("hero:huarui",heroCostume("huarui","chijin")??_palChijin,"huarui"),"hero:sushi":()=>$U("hero:sushi",heroCostume("sushi","xingli")??_palXingli,"sushi"),"hero:wencheng":()=>PU("hero:wencheng",heroCostume("wencheng","fengling")??_palFengling,"wencheng"),"hero:xinqiji":()=>jU("hero:xinqiji",heroCostume("xinqiji","yeque")??_palYeque,"xinqiji"),"hero:liue":()=>$U("hero:liue",heroCostume("liue","xingli")??_palXingli,"liue"),',
+    'const _tsMinions=tsConfig.createMinionBuilders({Wa,Ls,pt,kf,K,Qt,As,wa,$o,ya,Ai,En,Pm,Go,Qo,Kn,Ct,Gn,Xe,Jo}),_tsMonsters=tsConfig.createMonsterBuilders({Wa,Lm,Ls,K,En,pt,bt,Di,Ds,_a,Im,V1,XU,Qn,Gn,Ct,Xe,Jo,origMonsters:{mossback:lO,glimwing:pO,frost_golem:CO,ember_golem:yO,abyss_drake:fO,star_colossus:MO}}),Gx={"hero:panyue":()=>UU("hero:panyue",heroCostume("qinqiong","panyue")??_palPanyue,"qinqiong"),"hero:chijin":()=>AU("hero:chijin",heroCostume("huarui","chijin")??_palChijin,"huarui"),"hero:xingli":()=>$U("hero:xingli",heroCostume("sushi","xingli")??_palXingli,"sushi"),"hero:fengling":()=>PU("hero:fengling",heroCostume("wencheng","fengling")??_palFengling,"wencheng"),"hero:yeque":()=>jU("hero:yeque",heroCostume("xinqiji","yeque")??_palYeque,"xinqiji"),"hero:qinqiong":()=>UU("hero:qinqiong",heroCostume("qinqiong","panyue")??_palPanyue,"qinqiong"),"hero:huarui":()=>AU("hero:huarui",heroCostume("huarui","chijin")??_palChijin,"huarui"),"hero:sushi":()=>$U("hero:sushi",heroCostume("sushi","xingli")??_palXingli,"sushi"),"hero:wencheng":()=>PU("hero:wencheng",heroCostume("wencheng","fengling")??_palFengling,"wencheng"),"hero:xinqiji":()=>jU("hero:xinqiji",heroCostume("xinqiji","yeque")??_palYeque,"xinqiji"),"hero:liue":()=>$U("hero:liue",heroCostume("liue","xingli")??_palXingli,"liue"),',
     'Gx 6 independent full-body Tang-Song hero 3D models + _tsMinions + _tsMonsters init',
   );
   code = assertReplace(
@@ -1140,6 +1140,12 @@ function main() {
     'function K1(n){return YB[n]()}',
     'function K1(n){return tsConfig.getSummonerIcon?.(n)??YB[n]()}',
     'K1 Tang-Song summoner skill icons',
+  );
+  code = assertReplace(
+    code,
+    'z("button","sf-hud__sk is-atk",z("span","sf-hud__atk-face",_e(r)),z("span","sf-hud__key",N2.attack))',
+    'z("button","sf-hud__sk is-atk",(()=>{const f=z("span","sf-hud__atk-face"),h=tsConfig.getSummonerIcon?.("attack");return h?f.innerHTML=h:f.appendChild(_e(r)),f})(),z("span","sf-hud__key",N2.attack))',
+    'Basic Attack button Tang-Song painted icon',
   );
   code = assertReplace(
     code,

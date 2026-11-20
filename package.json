@@ -1,7 +1,7 @@
 {
   "name": "tangsong-glory",
   "private": true,
-  "version": "5.0.0",
+  "version": "5.1.0",
   "type": "module",
   "description": "《唐宋荣耀》— 唐风宋韵 5v5 网页 MOBA（TypeScript + Three.js WebGL + WebAudio + Vite）",
   "scripts": {

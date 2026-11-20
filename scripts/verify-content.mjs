@@ -78,9 +78,9 @@ function main() {
   const heroesSrc = fs.readFileSync(path.join(ROOT, 'src/config/heroes.ts'), 'utf8');
   const lobbySrc = fs.readFileSync(path.join(ROOT, 'src/ui/tangsongLobby.ts'), 'utf8');
 
-  assert(brandSrc.includes("versionStamp: 'v5.0 · 唐宋荣耀'"), 'brand.ts versionStamp 必须为 v5.0 · 唐宋荣耀');
-  assert(lobbySrc.includes('v5.0'), 'tangsongLobby.ts 必须包含 v5.0 版本标注');
-  assert(!lobbySrc.includes('v4.0'), 'tangsongLobby.ts 不得残留 v4.0 文案');
+  assert(brandSrc.includes("versionStamp: 'v5.1 · 唐宋荣耀'"), 'brand.ts versionStamp 必须为 v5.1 · 唐宋荣耀');
+  assert(lobbySrc.includes('v5.1'), 'tangsongLobby.ts 必须包含 v5.1 版本标注');
+  assert(!lobbySrc.includes('v4.0') && !lobbySrc.includes('v5.0'), 'tangsongLobby.ts 不得残留旧版本文案');
 
   const requiredAssets = [...ART_FILES];
   for (const [heroId, assetId] of HERO_SPECS) {
@@ -90,6 +90,12 @@ function main() {
     }
     requiredAssets.push(`assets/heroes/pc/${assetId}.pc.webp`);
     requiredAssets.push(`assets/heroes/eyes/${heroId}.eyes.webp`);
+    for (const slot of ['passive', 's1', 's2', 'ult']) {
+      requiredAssets.push(`assets/icons/skills/${heroId}-${slot}.webp`);
+    }
+  }
+  for (const key of ['recall', 'heal', 'flash', 'attack']) {
+    requiredAssets.push(`assets/icons/summoner/${key}.webp`);
   }
 
   for (const rel of requiredAssets) {
