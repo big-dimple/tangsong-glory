@@ -12,7 +12,7 @@
 
 ## 快速开始
 
-需要 Node.js 22+（浏览器冒烟需本机安装 Chrome / Chromium / Edge，可通过 `SMOKE_CHROMIUM_EXECUTABLE_PATH` 指定可执行路径）。
+需要 Node.js 24+（浏览器冒烟需本机安装 Chrome / Chromium / Edge，可通过 `SMOKE_CHROMIUM_EXECUTABLE_PATH` 指定可执行路径）。
 
 ```bash
 npm ci
