@@ -1,0 +1,1126 @@
+/* 《唐宋荣耀》v2.0 彻头彻尾国风美术设计系统
+ * 色彩基调：黑金紫檀漆器 · 汝窑天青玉 · 故宫赤金 · 朱砂御玺 · 《千里江山图》青绿山水画卷
+ * 注意：外部 CSS 严格使用 calc(var(--sf-u, 1px) * N)，绝不出现裸 u 单位。
+ */
+
+@font-face {
+  font-family: 'TangSongBrush';
+  src: url('/assets/fonts/tangsong-brush.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TangSongSerif';
+  src: url('/assets/fonts/tangsong-serif.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TangSongNum';
+  src: url('/assets/fonts/tangsongpai-score-numbers.woff') format('woff');
+  font-display: swap;
+}
+
+:root {
+  --ts-lacquer-0: #0c0806;
+  --ts-lacquer-1: #160f0c;
+  --ts-lacquer-2: #241712;
+  --ts-lacquer-3: #362219;
+  --ts-gold-hi: #fff7dd;
+  --ts-gold: #e9bd62;
+  --ts-gold-deep: #9c6a20;
+  --ts-jade: #6bb4db;
+  --ts-jade-deep: #265c87;
+  --ts-cinnabar: #cc3a2c;
+  --ts-cinnabar-deep: #7a1c14;
+  --ts-font-brush: "TangSongBrush", "STKaiti", "KaiTi", "Songti SC", serif;
+  --ts-font-serif: "TangSongSerif", "Songti SC", "STSong", "FangSong", serif;
+  --ts-font-num: "TangSongNum", "DIN Alternate", "Bahnschrift", serif;
+}
+
+/* ── 1. 覆写根容器与全局漆器设计令牌（高权重压过动态注入样式） ── */
+body .sf-root {
+  --sf-c-void: #090605;
+  --sf-c-abyss: #110b08;
+  --sf-c-navy-900: #18100c;
+  --sf-c-navy-800: #231611;
+  --sf-c-navy-700: #311f17;
+  --sf-c-navy-600: #442b20;
+  --sf-c-navy-500: #5c3a2b;
+  --sf-c-gold-100: #fff7de;
+  --sf-c-gold-200: #fce3a6;
+  --sf-c-gold-300: #e9bd62;
+  --sf-c-gold-400: #cf993e;
+  --sf-c-gold-500: #a67226;
+  --sf-c-gold-600: #754d16;
+  --sf-c-gold-700: #4a300c;
+  --sf-c-cyan-200: #dcedfa;
+  --sf-c-cyan-300: #8cc5e6;
+  --sf-c-cyan-400: #5fa6d1;
+  --sf-c-cyan-500: #3575a3;
+  --sf-c-cyan-600: #1f4d73;
+  --sf-c-text: #f7eedc;
+  --sf-c-text-2: #d4c3a8;
+  --sf-c-text-3: #9d8b72;
+  --sf-c-text-4: #6e5f4b;
+  --sf-c-blue: #6bb4db;
+  --sf-c-blue-deep: #265c87;
+  --sf-c-red: #f05a46;
+  --sf-c-red-deep: #9c241c;
+  --sf-c-me: #ffe070;
+  --sf-c-line: rgba(233, 189, 98, 0.22);
+  --sf-c-line-strong: rgba(233, 189, 98, 0.44);
+  --sf-c-gold-line: rgba(246, 206, 120, 0.5);
+  --sf-c-scrim: rgba(10, 6, 4, 0.78);
+  --sf-bg-panel:
+    linear-gradient(180deg, rgba(233, 189, 98, 0.14), rgba(233, 189, 98, 0) 30%),
+    linear-gradient(180deg, rgba(34, 21, 16, 0.92), rgba(16, 10, 8, 0.96));
+  --sf-bg-inset: rgba(10, 6, 5, 0.62);
+  --sf-bg-raise: rgba(204, 152, 62, 0.14);
+  --sf-bg-raise-2: rgba(204, 152, 62, 0.24);
+  --sf-grad-gold: linear-gradient(180deg, #fff9e3 0%, #fae09b 28%, #ddaa4a 64%, #9c681c 100%);
+  --sf-grad-gold-text: linear-gradient(180deg, #fffef6 0%, #ffe8b0 32%, #e5b352 54%, #96611c 62%, #efc978 82%, #fff2cc 100%);
+  --sf-grad-cyan: linear-gradient(90deg, #163a57, #4a92c4 58%, #d9eefc);
+  --sf-font-num: var(--ts-font-num);
+  font-family: var(--ts-font-serif);
+}
+
+body .sf-root .sf-title,
+body .sf-root .sf-logo__name,
+body .sf-root .sf-select__name,
+body .sf-root .sf-result__title,
+body .sf-root .sf-hud__banner-title,
+body .sf-root .sf-hcard__name,
+body .sf-root .sf-lcard__name,
+body .sf-root .ts-eyes-cutin__label,
+body .sf-root .sf-heading,
+body .sf-root .sf-btn--primary,
+body .sf-root .ts-lobby__dock-title,
+body .sf-root .ts-btn-seal__main,
+body .sf-root .ts-lobby__card-name,
+body .sf-root .ts-select__motto,
+body .sf-root .sf-loading__team-name,
+body .sf-root .sf-hud__st-name {
+  font-family: var(--ts-font-brush);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+/* ── 2. 宋式朱漆宣纸面板、印章钮、开关与分段器全面重塑（彻底告别前作科幻切角八边形） ── */
+body .sf-root .sf-panel {
+  border-radius: 6px;
+  clip-path: none !important;
+  border: 1px solid rgba(226, 180, 92, 0.54);
+  background:
+    linear-gradient(180deg, rgba(233, 189, 98, 0.09), rgba(233, 189, 98, 0) 26%),
+    linear-gradient(155deg, rgba(22, 34, 37, 0.94), rgba(14, 21, 24, 0.97) 55%, rgba(24, 15, 11, 0.98) 100%);
+  box-shadow:
+    0 calc(var(--sf-u, 1px) * 18) calc(var(--sf-u, 1px) * 44) rgba(4, 3, 2, 0.78),
+    inset 0 0 0 4px rgba(15, 22, 24, 0.88),
+    inset 0 0 0 5px rgba(226, 180, 92, 0.24);
+}
+body .sf-root .sf-panel::before {
+  display: none;
+}
+body .sf-root .sf-dialog {
+  position: relative;
+  border-radius: 6px;
+  clip-path: none !important;
+  overflow: hidden;
+}
+body .sf-root .sf-dialog::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url('/assets/ui/xuan-paper.svg') center / 260px repeat;
+  opacity: 0.065;
+}
+body .sf-root .sf-dialog > * {
+  position: relative;
+  z-index: 1;
+}
+body .sf-root .sf-dialog__head {
+  background: linear-gradient(90deg, rgba(164, 72, 55, 0.16), rgba(226, 180, 92, 0.08) 50%, rgba(30, 62, 74, 0.18));
+  box-shadow: inset 0 -1px 0 rgba(226, 180, 92, 0.35);
+}
+
+body .sf-root .sf-btn {
+  --sf-btn-cut: 0px;
+  --sf-btn-edge: linear-gradient(180deg, rgba(220, 191, 132, 0.72), rgba(156, 114, 48, 0.42));
+  --sf-btn-fill: linear-gradient(180deg, rgba(22, 41, 45, 0.92), rgba(14, 26, 29, 0.96));
+  border-radius: 4px;
+  color: #f4ebd8;
+  font-family: var(--ts-font-serif);
+  font-weight: 400;
+  box-shadow: 0 4px 14px rgba(5, 8, 10, 0.42);
+}
+body .sf-root .sf-btn::before,
+body .sf-root .sf-btn::after {
+  clip-path: none !important;
+  border-radius: 4px;
+}
+body .sf-root .sf-btn::after {
+  box-shadow: inset 0 0 0 1px rgba(247, 217, 148, 0.16);
+}
+body .sf-root .sf-btn--primary {
+  --sf-btn-edge: linear-gradient(180deg, #f3cd8b, #a86426);
+  --sf-btn-fill: linear-gradient(180deg, #b84231 0%, #982e21 62%, #741e15 100%);
+  color: #fff6e2;
+  font-family: var(--ts-font-brush);
+  text-shadow: 0 2px 4px rgba(28, 6, 4, 0.72);
+}
+body .sf-root .sf-btn--primary::after {
+  box-shadow:
+    inset 0 0 0 3px rgba(152, 44, 31, 0.92),
+    inset 0 0 0 4px rgba(248, 217, 145, 0.62);
+}
+body .sf-root .sf-btn--ghost {
+  --sf-btn-edge: linear-gradient(180deg, rgba(220, 191, 132, 0.45), rgba(128, 98, 52, 0.25));
+  --sf-btn-fill: linear-gradient(180deg, rgba(20, 32, 36, 0.88), rgba(13, 21, 24, 0.92));
+  color: #e6d6bc;
+}
+body .sf-root .sf-btn--danger {
+  --sf-btn-edge: linear-gradient(180deg, #ffcab0, #661712);
+  --sf-btn-fill: linear-gradient(180deg, #cf4232, #9b211a 60%, #6b1510);
+}
+body .sf-root .sf-toggle {
+  border: 1px solid rgba(220, 191, 132, 0.5);
+  background: rgba(16, 31, 34, 0.9);
+}
+body .sf-root .sf-toggle[aria-checked="true"] {
+  background: linear-gradient(90deg, #8e2c21, #b84231);
+  border-color: rgba(250, 217, 142, 0.78);
+}
+body .sf-root .sf-seg {
+  border-radius: 4px;
+  border: 1px solid rgba(220, 191, 132, 0.38);
+  background: rgba(13, 24, 27, 0.88);
+}
+body .sf-root .sf-seg__opt.is-active {
+  border-radius: 3px;
+  background: linear-gradient(180deg, #ab3c2c, #85261a);
+  color: #fff6e2;
+  box-shadow: inset 0 0 0 1px rgba(247, 217, 148, 0.55);
+}
+
+/* ── 3. 五大界面 AI 唐宋绘卷背景注入 & 粒子浮层层级 ── */
+.sf-root.sf-menu-root,
+.sf-root.sf-loading-root,
+.sf-root.sf-result-root {
+  background-color: #0e1e21;
+}
+body .sf-root .sf-backdrop {
+  z-index: 15 !important;
+  pointer-events: none !important;
+}
+
+body .sf-root .sf-select {
+  background:
+    radial-gradient(ellipse 80% 70% at 54% 52%, rgba(16, 12, 9, 0.08) 0%, rgba(14, 10, 8, 0.44) 76%, rgba(10, 7, 5, 0.8) 100%),
+    linear-gradient(180deg, rgba(16, 11, 8, 0.68) 0%, rgba(16, 11, 8, 0.14) 24%, rgba(16, 11, 8, 0.12) 76%, rgba(12, 8, 6, 0.78) 100%),
+    url('/assets/art/select-pavilion.webp') center / cover no-repeat;
+}
+
+body .sf-root .sf-loading {
+  background:
+    linear-gradient(180deg, rgba(12, 8, 6, 0.78) 0%, rgba(12, 8, 6, 0.34) 48%, rgba(10, 6, 5, 0.86) 100%),
+    url('/assets/art/loading-bg.webp') center / cover no-repeat;
+}
+
+body .sf-root .sf-result {
+  background:
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(18, 12, 8, 0.25) 0%, rgba(10, 6, 5, 0.82) 100%),
+    url('/assets/art/victory-bg.webp') center / cover no-repeat;
+}
+body .sf-root .sf-result--lose {
+  background:
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(12, 13, 16, 0.22) 0%, rgba(8, 9, 12, 0.84) 100%),
+    url('/assets/art/defeat-bg.webp') center / cover no-repeat;
+}
+
+/* ── 4. 全新《唐宋牌》手卷开场大厅 (.ts-lobby)：上下画卷分栏 + 右侧四将宣纸折扇 + 底部朱文印章案几 ── */
+.ts-lobby {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0f2427;
+  color: #fff4d9;
+}
+.ts-lobby__hero {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  isolation: isolate;
+  display: grid;
+  grid-template: auto 1fr / minmax(0, 1.1fr) minmax(0, 0.9fr);
+  align-items: end;
+  gap: 8px clamp(16px, 3vw, 44px);
+  padding: max(14px, var(--sf-safe-t, 0px)) clamp(22px, 5vw, 82px) clamp(18px, 3.2vh, 36px);
+  overflow: hidden;
+}
+.ts-lobby__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+.ts-lobby__bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 62% 38%;
+  display: block;
+}
+.ts-lobby__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(9, 28, 32, 0.62) 0%, rgba(12, 26, 29, 0.08) 38%, rgba(9, 28, 32, 0.16) 68%, rgba(8, 26, 29, 0.88) 100%),
+    linear-gradient(90deg, rgba(8, 28, 32, 0.72) 0%, rgba(10, 30, 34, 0.34) 46%, rgba(10, 30, 34, 0.08) 100%);
+}
+
+.ts-lobby__masthead {
+  grid-column: 1 / -1;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+.ts-lobby__genre {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--ts-font-serif);
+  font-size: clamp(13px, 1.15vw, 17px);
+  letter-spacing: 0.2em;
+  color: #fff2d2;
+  text-shadow: 0 1px 6px rgba(6, 18, 22, 0.9);
+}
+.ts-lobby__genre::before {
+  content: '';
+  width: 11px;
+  height: 11px;
+  border: 1px solid #dcc599;
+  background: #cfa85f;
+  box-shadow: inset 0 0 0 2.5px #17383c;
+  transform: rotate(45deg);
+}
+.ts-lobby__top-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ts-lobby__pill {
+  min-height: 34px;
+  padding: 4px 14px;
+  border: 1px solid rgba(226, 195, 134, 0.45);
+  border-radius: 3px;
+  background: rgba(13, 35, 38, 0.72);
+  color: #fff4d9;
+  font-family: var(--ts-font-serif);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.ts-lobby__pill:hover {
+  background: rgba(29, 64, 68, 0.88);
+  border-color: rgba(248, 217, 145, 0.82);
+}
+
+.ts-lobby__brand {
+  min-width: 0;
+  align-self: end;
+  padding-bottom: 4px;
+}
+.ts-lobby__wordmark {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: clamp(8px, 1.3vw, 18px);
+}
+.ts-lobby__wordmark .sf-logo__name {
+  margin: 0;
+  font-family: var(--ts-font-brush);
+  font-weight: 400;
+  font-size: clamp(54px, 7.8vw, 114px);
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  filter: drop-shadow(0 3px 0 #3f2209) drop-shadow(0 8px 24px rgba(5, 16, 20, 0.85));
+}
+.ts-lobby__seal {
+  margin-top: 0.55em;
+  padding: 5px 4px;
+  border: 1px solid #f0c090;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #b83b2c, #8a2419);
+  color: #fff6dc;
+  font-family: var(--ts-font-serif);
+  font-size: clamp(11px, 1vw, 15px);
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  writing-mode: vertical-rl;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.52);
+}
+.ts-lobby__chapters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 0 2px;
+  font-family: var(--ts-font-serif);
+  font-size: clamp(13px, 1.15vw, 17px);
+  letter-spacing: 0.2em;
+  color: #f7e6bf;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
+}
+.ts-lobby__chapters i {
+  width: 30px;
+  height: 1px;
+  background: #dcc599;
+}
+.ts-lobby__quote {
+  margin: 8px 0 0;
+  max-width: 34em;
+  min-height: 1.5em;
+  font-family: var(--ts-font-serif);
+  font-size: clamp(12px, 1vw, 15px);
+  letter-spacing: 0.08em;
+  color: rgba(246, 236, 212, 0.86);
+  text-shadow: 0 1px 6px rgba(5, 12, 16, 0.92);
+}
+
+/* 右侧宣纸折扇四名士画卷 */
+.ts-lobby__deck {
+  justify-self: end;
+  align-self: end;
+  margin: 0 clamp(0px, 1.2vw, 18px) 0 0;
+  text-align: center;
+}
+.ts-lobby__fan {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 18px 10px 8px;
+}
+.ts-lobby__card {
+  --ts-ang: 0deg;
+  --ts-rise: 0px;
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  margin-left: clamp(-24px, -2vw, -10px);
+  transform-origin: 50% 92%;
+  transform: translateY(var(--ts-rise)) rotate(var(--ts-ang));
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
+}
+.ts-lobby__card:first-child { margin-left: 0; --ts-ang: -13deg; --ts-rise: 10px; z-index: 1; }
+.ts-lobby__card:nth-child(2) { --ts-ang: -4deg; --ts-rise: -4px; z-index: 2; }
+.ts-lobby__card:nth-child(3) { --ts-ang: 4deg; --ts-rise: -4px; z-index: 3; }
+.ts-lobby__card:nth-child(4) { --ts-ang: 13deg; --ts-rise: 10px; z-index: 4; }
+.ts-lobby__card:hover,
+.ts-lobby__card:focus-visible {
+  z-index: 8;
+  transform: translateY(-18px) rotate(0deg) scale(1.06);
+  filter: drop-shadow(0 14px 26px rgba(235, 188, 102, 0.42));
+  outline: none;
+}
+.ts-lobby__card-face {
+  position: relative;
+  display: block;
+  width: clamp(78px, 8.6vw, 124px);
+  aspect-ratio: 5 / 7;
+  border-radius: 5px;
+  border: 1.5px solid #cbb17d;
+  background: #f3eadb url('/assets/ui/xuan-paper.svg') center / 180px;
+  box-shadow:
+    inset 0 0 0 3px #f8efd8,
+    inset 0 0 0 4px #b89862,
+    0 8px 20px rgba(4, 16, 20, 0.72);
+  overflow: hidden;
+}
+.ts-lobby__card-img {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  object-fit: cover;
+  object-position: 50% 14%;
+  border-radius: 3px;
+}
+.ts-lobby__card-era {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: rgba(164, 52, 39, 0.9);
+  border: 1px solid rgba(250, 224, 164, 0.72);
+  color: #fff6de;
+  font-family: var(--ts-font-serif);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+.ts-lobby__card-name {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  padding: 4px 2px 3px;
+  background: linear-gradient(180deg, rgba(14, 24, 26, 0), rgba(12, 22, 25, 0.92) 48%);
+  color: #fff4d9;
+  font-size: clamp(13px, 1.15vw, 17px);
+  line-height: 1.1;
+  text-shadow: 0 1px 4px #000;
+}
+.ts-lobby__deck-hint {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 12px;
+  border: 1px solid rgba(203, 181, 131, 0.48);
+  border-radius: 2px;
+  background: rgba(14, 38, 41, 0.84);
+  color: #f5e9cb;
+  font-family: var(--ts-font-serif);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+/* 底部朱漆沉木案几 Dock */
+.ts-lobby__dock {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(16px, 3vw, 56px);
+  padding: clamp(14px, 2.2vh, 24px) clamp(22px, 5vw, 82px) max(22px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid #ab905e;
+  background: linear-gradient(110deg, #163336 0%, #0f2426 60%, #1b130f 100%);
+  box-shadow: 0 -10px 28px rgba(4, 10, 12, 0.56);
+}
+.ts-lobby__dock::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: clamp(22px, 5vw, 82px);
+  width: 52px;
+  height: 3px;
+  background: #ddb467;
+}
+.ts-lobby__copy {
+  min-width: 0;
+}
+.ts-lobby__dock-title {
+  margin: 0;
+  color: #fff4d9;
+  font-size: clamp(20px, 2.2vw, 32px);
+  line-height: 1.25;
+}
+.ts-lobby__meta {
+  margin: 4px 0 0;
+  font-family: var(--ts-font-serif);
+  font-size: clamp(12px, 1vw, 14px);
+  color: #d6dbcf;
+  letter-spacing: 0.06em;
+}
+.ts-lobby__guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid rgba(203, 181, 131, 0.35);
+  border-radius: 3px;
+  background: rgba(11, 24, 26, 0.7);
+  color: #f4ebd8;
+  font-family: var(--ts-font-serif);
+  font-size: 13px;
+  cursor: pointer;
+}
+.ts-lobby__guide small {
+  color: #b7c2b7;
+  font-size: 11px;
+}
+.ts-lobby__guide-seal {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgba(220, 191, 132, 0.7);
+  border-radius: 2px;
+  font-style: normal;
+  font-size: 12px;
+  color: transparent;
+  background: rgba(20, 32, 34, 0.9);
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+.ts-lobby__guide[aria-checked="true"] .ts-lobby__guide-seal {
+  background: #a93c2d;
+  border-color: #f4d28b;
+  color: #fff6df;
+}
+
+.ts-lobby__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ts-btn-ink {
+  min-height: 48px;
+  padding: 8px clamp(14px, 1.8vw, 24px);
+  border: 1px solid rgba(182, 166, 130, 0.62);
+  border-radius: 3px;
+  background: rgba(16, 36, 39, 0.72);
+  color: #fff4d9;
+  font-family: var(--ts-font-serif);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.ts-btn-ink:hover {
+  background: rgba(34, 66, 69, 0.9);
+  border-color: #eed08f;
+}
+.ts-btn-seal {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 7px clamp(26px, 3.2vw, 48px);
+  border: 1px solid #df9872;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #b54534 0%, #982f21 62%, #792015 100%);
+  box-shadow:
+    inset 0 0 0 3px rgba(154, 47, 33, 0.96),
+    inset 0 0 0 4px rgba(246, 208, 134, 0.62),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+  color: #fff7e4;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.12s ease;
+}
+.ts-btn-seal:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.ts-btn-seal:active,
+.ts-btn-ink:active {
+  transform: translateY(1px);
+}
+.ts-btn-seal__sub {
+  font-family: var(--ts-font-serif);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: #fde3ae;
+  line-height: 1.1;
+}
+.ts-btn-seal__main {
+  font-size: clamp(20px, 1.9vw, 26px);
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-shadow: 0 1px 4px rgba(28, 6, 4, 0.72);
+}
+
+@media (orientation: portrait) {
+  .ts-lobby__hero {
+    grid-template: auto auto 1fr / minmax(0, 1fr);
+    gap: 6px;
+    padding: 14px 16px 14px;
+  }
+  .ts-lobby__top-tools { display: none; }
+  .ts-lobby__brand { text-align: left; }
+  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(46px, 13.5vw, 72px); }
+  .ts-lobby__deck { justify-self: center; align-self: center; margin: 0; }
+  .ts-lobby__card-face { width: clamp(64px, 18vw, 90px); }
+  .ts-lobby__dock {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 16px 26px;
+  }
+  .ts-lobby__dock::before { left: 16px; }
+  .ts-lobby__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ts-lobby__actions .ts-btn-seal {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .ts-lobby__hero {
+    padding: 8px 20px 10px;
+    gap: 4px 16px;
+  }
+  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(40px, 6.4vw, 66px); }
+  .ts-lobby__quote,
+  .ts-lobby__deck-hint { display: none; }
+  .ts-lobby__card-face { width: clamp(56px, 7vw, 84px); }
+  .ts-lobby__dock {
+    padding: 9px 20px 16px;
+    gap: 14px;
+  }
+  .ts-lobby__dock-title { font-size: 18px; }
+  .ts-lobby__meta { display: none; }
+  .ts-lobby__guide { margin-top: 3px; font-size: 11px; }
+  .ts-btn-ink { min-height: 40px; padding: 6px 14px; font-size: 13px; }
+  .ts-btn-seal { min-height: 44px; padding: 5px 24px; }
+  .ts-btn-seal__main { font-size: 18px; }
+}
+
+/* ── 5. 头像通用裁切适配 ── */
+.sf-portrait {
+  background: radial-gradient(circle at 50% 25%, color-mix(in srgb, var(--sf-hero-c, #e9bd62) 32%, #241610), #120b08 88%);
+}
+.sf-portrait > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+}
+.sf-lcard__pic.sf-portrait > img {
+  object-position: 50% 14%;
+}
+
+/* ── 6. 选将殿堂：浑天仪鎏金阵 + 6 英雄漆器卡槽 + 立绘/3D 切换 ── */
+body .sf-root .sf-select__ring {
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 226, 156, 0.85) 0deg,
+    transparent 65deg,
+    color-mix(in srgb, var(--hero, #e9bd62) 65%, transparent) 120deg,
+    transparent 195deg,
+    rgba(107, 180, 219, 0.65) 260deg,
+    transparent 330deg,
+    rgba(255, 226, 156, 0.85) 360deg
+  );
+  opacity: 0.72;
+}
+body .sf-root .sf-select__glow {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--hero, #e9bd62) 38%, transparent), transparent 72%);
+}
+body .sf-root .sf-select__canvas {
+  filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.7));
+}
+.sf-select__roster {
+  gap: max(4px, calc(var(--sf-u, 1px) * 6));
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-right: 2px;
+}
+.sf-select__roster::-webkit-scrollbar {
+  display: none;
+}
+body .sf-root .sf-hcard {
+  max-height: calc(var(--sf-u, 1px) * 104);
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(24, 37, 40, 0.92), rgba(14, 21, 24, 0.96));
+  border: 1px solid rgba(226, 180, 92, 0.28);
+  border-left: 3px solid rgba(226, 180, 92, 0.28);
+}
+body .sf-root .sf-hcard.is-active {
+  background: linear-gradient(135deg, rgba(164, 56, 40, 0.36), rgba(28, 22, 18, 0.97));
+  border-color: rgba(255, 224, 150, 0.88);
+  border-left: 3px solid #d44632;
+  box-shadow: 0 0 18px rgba(233, 189, 98, 0.3);
+}
+.ts-hcard__era {
+  display: inline-block;
+  margin: 0 6px 0 0;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffe8b0;
+  background: rgba(182, 48, 36, 0.45);
+  border: 1px solid rgba(233, 189, 98, 0.42);
+  vertical-align: middle;
+}
+
+.ts-select__pc-wrap {
+  position: absolute;
+  inset: calc(var(--sf-u, 1px) * 10) 8% calc(var(--sf-u, 1px) * 4) 8%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (min-width: 900px) and (orientation: landscape) {
+  .ts-select__pc-wrap {
+    padding-left: 10%;
+  }
+}
+.sf-select__stage.is-3d-mode .ts-select__pc-wrap {
+  opacity: 0;
+  transform: scale(0.96) translateY(10px);
+}
+.sf-select__stage .sf-select__canvas {
+  transition: opacity 0.25s ease;
+}
+.sf-select__stage:not(.is-3d-mode) .sf-select__canvas {
+  opacity: 0;
+  pointer-events: none;
+}
+.ts-select__pc-art {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 92%;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 24px color-mix(in srgb, var(--hero, #e9bd62) 34%, transparent));
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
+  animation: ts-pc-float 4.2s ease-in-out infinite;
+}
+@keyframes ts-pc-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.sf-select__plate { z-index: 3; }
+.sf-select__nav { z-index: 4; }
+.ts-select__era-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 99px;
+  font-size: max(11px, var(--sf-fs-xs, 12px));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #fff2cf;
+  background: linear-gradient(90deg, rgba(168, 46, 34, 0.72), rgba(34, 21, 16, 0.88));
+  border: 1px solid rgba(233, 189, 98, 0.52);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.ts-select__motto {
+  margin: calc(var(--sf-u, 1px) * 2) 0 0;
+  max-width: 24em;
+  font-size: max(12px, var(--sf-fs-sm, 13px));
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: rgba(255, 244, 214, 0.92);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+.ts-stage-toggle {
+  position: absolute;
+  right: calc(var(--sf-u, 1px) * 8);
+  top: calc(var(--sf-u, 1px) * 8);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 99px;
+  background: rgba(24, 15, 11, 0.86);
+  border: 1px solid rgba(233, 189, 98, 0.45);
+  backdrop-filter: blur(8px);
+}
+.ts-stage-toggle button {
+  border: 0;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(240, 226, 200, 0.76);
+  background: transparent;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.ts-stage-toggle button.is-active {
+  color: #241207;
+  background: linear-gradient(180deg, #ffedb3, #d99f3c);
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .ts-hcard__era,
+  .ts-select__motto {
+    display: none;
+  }
+  .ts-select__pc-wrap {
+    inset: calc(var(--sf-u, 1px) * 6) 4% calc(var(--sf-u, 1px) * 2) 4%;
+  }
+  .ts-stage-toggle {
+    top: calc(var(--sf-u, 1px) * 2);
+    right: calc(var(--sf-u, 1px) * 2);
+  }
+}
+
+@media (orientation: portrait) {
+  .sf-select__roster {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .sf-hcard {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 5px 2px 4px;
+  }
+  .sf-hcard__pic {
+    width: min(40px, 10.5vw);
+  }
+  .sf-hcard__name {
+    font-size: clamp(9.5px, 2.4vw, 12px);
+    white-space: nowrap;
+  }
+  .ts-hcard__era,
+  .ts-select__motto {
+    display: none;
+  }
+  .ts-select__pc-wrap {
+    inset: calc(var(--sf-u, 1px) * 4) 6% 0 6%;
+  }
+}
+
+/* ── 7. 局内朱漆鎏金 HUD 全面重写（覆盖所有深蓝科幻控件） ── */
+body .sf-root .sf-hud {
+  --hud-plate: linear-gradient(180deg, rgba(44, 27, 19, 0.92), rgba(16, 10, 7, 0.96));
+  --hud-shadow-text: 0 1px 3px rgba(6, 3, 2, 0.96), 0 0 8px rgba(0, 0, 0, 0.72);
+}
+
+/* 顶部朱漆鎏金宫殿比分牌 + 古铜漏刻计时牌 */
+body .sf-root .sf-hud__score-plate {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(233, 189, 98, 0),
+      rgba(255, 232, 173, 0.92) 22%,
+      rgba(233, 189, 98, 0.35) 44%,
+      rgba(233, 189, 98, 0.35) 56%,
+      rgba(255, 232, 173, 0.92) 78%,
+      rgba(233, 189, 98, 0)
+    ) left bottom / 100% 1.5px no-repeat,
+    linear-gradient(90deg, rgba(36, 76, 114, 0.78), rgba(26, 15, 11, 0.95) 36%, rgba(26, 15, 11, 0.95) 64%, rgba(168, 42, 32, 0.76));
+}
+body .sf-root .sf-hud__score-side:not(.is-red) > .sf-hud__score-kills {
+  color: #9ed4f5;
+}
+body .sf-root .sf-hud__score-side:not(.is-red) > .sf-hud__score-towers .sf-i {
+  color: #7cc0eb;
+}
+body .sf-root .sf-hud__score-side.is-red > .sf-hud__score-kills {
+  color: #ff9482;
+}
+body .sf-root .sf-hud__clock::before {
+  background: linear-gradient(180deg, rgba(255, 232, 173, 0.3), #e9bd62 70%, #fff7de);
+}
+body .sf-root .sf-hud__clock::after {
+  background: linear-gradient(180deg, #24150f, #382016 58%, #47281b);
+}
+body .sf-root .sf-hud__time {
+  font-family: var(--ts-font-num);
+  color: #fff3cf;
+}
+
+/* 古风鎏金漆边宋式青绿舆图框 */
+body .sf-root .sf-hud__mini {
+  background: linear-gradient(180deg, rgba(46, 28, 19, 0.96), rgba(19, 11, 8, 0.98));
+  border-radius: max(6px, calc(var(--sf-u, 1px) * 7));
+  box-shadow:
+    0 calc(var(--sf-u, 1px) * 6) calc(var(--sf-u, 1px) * 20) rgba(6, 3, 2, 0.76),
+    inset 0 0 0 1.5px rgba(226, 180, 92, 0.56);
+}
+body .sf-root .sf-hud__mini.is-peek {
+  box-shadow:
+    0 calc(var(--sf-u, 1px) * 6) calc(var(--sf-u, 1px) * 20) rgba(6, 3, 2, 0.76),
+    0 0 0 1.5px rgba(242, 202, 118, 0.9),
+    0 0 calc(var(--sf-u, 1px) * 14) rgba(217, 168, 72, 0.55);
+}
+
+/* 顶部功能纽 / 提示横幅 / 底部漆器边框 */
+body .sf-root .sf-hud__tips {
+  background: linear-gradient(180deg, rgba(36, 21, 14, 0.9), rgba(20, 12, 8, 0.94));
+  border: 1px solid rgba(226, 180, 92, 0.34);
+  box-shadow: 0 8px 22px rgba(6, 3, 2, 0.65);
+}
+body .sf-root .sf-hud__topbtn,
+body .sf-root .sf-hud__topstat {
+  border-color: rgba(226, 180, 92, 0.32);
+}
+
+/* 商店金钮 + 左下角状态栏 */
+body .sf-root .sf-hud__shopbtn {
+  background-image: url('/assets/ui/coin-handdrawn.webp'), radial-gradient(circle at 35% 30%, #4d3018, #1f130a);
+  background-size: 76%, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 224, 0.7),
+    0 0 0 1px #6b4212,
+    0 0 0 max(3px, calc(var(--sf-u, 1px) * 4)) rgba(20, 12, 8, 0.88),
+    0 0 0 max(4px, calc(var(--sf-u, 1px) * 5)) rgba(233, 189, 98, 0.62),
+    0 calc(var(--sf-u, 1px) * 4) calc(var(--sf-u, 1px) * 12) rgba(0, 0, 0, 0.6);
+}
+body .sf-root .sf-hud__shopbtn > .sf-i {
+  opacity: 0;
+}
+body .sf-root .sf-hud__status {
+  box-shadow: 0 calc(var(--sf-u, 1px) * -4) calc(var(--sf-u, 1px) * 16) rgba(6, 3, 2, 0.65), inset 0 1px 0 rgba(255, 224, 156, 0.26);
+}
+body .sf-root .sf-hud__st-por > .sf-portrait {
+  box-shadow:
+    0 0 0 max(2px, calc(var(--sf-u, 1px) * 2.5)) #180f0b,
+    0 0 0 max(3.5px, calc(var(--sf-u, 1px) * 4.5)) var(--sf-c-gold-400),
+    0 0 calc(var(--sf-u, 1px) * 14) rgba(233, 189, 98, 0.36);
+}
+
+/* 右下角铜镜鎏金技能轮盘 */
+body .sf-root .sf-hud__sk-face {
+  background: #1b110d;
+  box-shadow:
+    0 0 0 1px rgba(18, 10, 7, 0.96),
+    0 0 0 max(2px, calc(var(--d, 56px) * 0.048)) rgba(226, 180, 92, 0.86),
+    0 calc(var(--d, 56px) * 0.07) calc(var(--d, 56px) * 0.2) rgba(0, 0, 0, 0.65);
+}
+body .sf-root .sf-hud__sk.is-ult .sf-hud__sk-face {
+  box-shadow:
+    0 0 0 1px rgba(18, 10, 7, 0.96),
+    0 0 0 max(2px, calc(var(--d, 56px) * 0.05)) #ffe08a,
+    0 0 0 max(3.6px, calc(var(--d, 56px) * 0.088)) rgba(208, 68, 44, 0.72),
+    0 calc(var(--d, 56px) * 0.08) calc(var(--d, 56px) * 0.24) rgba(0, 0, 0, 0.7);
+}
+body .sf-root .sf-hud__sk.is-atk .sf-hud__sk-face {
+  box-shadow:
+    0 0 0 1px rgba(18, 10, 7, 0.96),
+    0 0 0 max(2.2px, calc(var(--d, 72px) * 0.045)) #f0b950,
+    0 0 calc(var(--d, 72px) * 0.22) rgba(204, 58, 44, 0.45);
+}
+
+/* ── 8. 技能/多杀 眼部特写切镜横幅 (MOBA 中央天幕凌空一闪) ── */
+.ts-eyes-cutin {
+  position: fixed;
+  top: clamp(58px, 10.5vh, 92px);
+  left: 50%;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  width: min(520px, 86vw);
+  height: clamp(68px, 11vh, 92px);
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(16, 10, 7, 0.14) 0%, rgba(28, 16, 11, 0.94) 22%, rgba(28, 16, 11, 0.92) 78%, rgba(16, 10, 7, 0.14) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(16, 10, 7, 0.12) 0%,
+    color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 26%, rgba(22, 13, 9, 0.94)) 22%,
+    color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 22%, rgba(22, 13, 9, 0.92)) 78%,
+    rgba(16, 10, 7, 0.12) 100%
+  );
+  border-top: 2px solid color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 60%, #ffe69e);
+  border-bottom: 2px solid color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 60%, #ffe69e);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.78),
+    0 0 28px color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 55%, transparent);
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  transform: translateX(-50%);
+  opacity: 1;
+  transition: opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ts-eyes-cutin.is-leaving {
+  opacity: 0;
+  transform: translateX(-46%) scaleX(0.95);
+}
+.ts-eyes-cutin__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 56% 44%;
+  opacity: 0.96;
+  filter: contrast(1.1) saturate(1.18) brightness(1.04);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
+}
+.ts-eyes-cutin__sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(108deg, transparent 36%, rgba(255, 245, 210, 0.56) 50%, transparent 64%);
+  opacity: 0.38;
+  pointer-events: none;
+}
+.ts-eyes-cutin__meta {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 26px;
+  background: linear-gradient(90deg, rgba(16, 10, 7, 0.78) 0%, rgba(16, 10, 7, 0.45) 70%, transparent 100%);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.96), 0 0 14px rgba(0, 0, 0, 0.92);
+}
+.ts-eyes-cutin__badge {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff6db;
+  background: linear-gradient(135deg, #c23628, #8c1e16);
+  border: 1px solid rgba(255, 224, 148, 0.65);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.ts-eyes-cutin__hero {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #ffe9ba;
+}
+.ts-eyes-cutin__label {
+  font-family: var(--ts-font-brush);
+  font-size: clamp(20px, 3.2vh, 27px);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: #fffdf5;
+}
+
+/* ── 9. 页面右下角/底部版本号戳 ── */
+#sf-ver {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(6px, env(safe-area-inset-bottom));
+  z-index: 20;
+  pointer-events: none;
+  font-family: var(--ts-font-serif);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(246, 206, 120, 0.65);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+body.ts-in-match #sf-ver {
+  opacity: 0.34;
+  right: auto;
+  left: max(10px, env(safe-area-inset-left));
+}

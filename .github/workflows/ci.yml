@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**", "docs/**", "art/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:ci -- --scope=domain
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: domain-${{ github.run_id }}
+          path: shots/ci/
+          retention-days: 14
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select system Chrome
+        run: |
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$chrome"
+          echo "SMOKE_CHROMIUM_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run verify:ci -- --scope=browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-${{ github.run_id }}
+          path: |
+            shots/ci/
+            shots/*.png
+          if-no-files-found: ignore
+          retention-days: 14

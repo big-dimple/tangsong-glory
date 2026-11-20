@@ -1,0 +1,27 @@
+{
+  "name": "tangsong-glory",
+  "private": true,
+  "version": "5.0.0",
+  "type": "module",
+  "description": "《唐宋荣耀》— 唐风宋韵 5v5 网页 MOBA（TypeScript + Three.js WebGL + WebAudio + Vite）",
+  "scripts": {
+    "sync-assets": "node scripts/sync-assets.mjs",
+    "build:fonts": "node scripts/build-fonts.mjs",
+    "build:core": "node scripts/build-core.mjs",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test:deployment": "python3 -B -m unittest discover -s tests -p \"test_*.py\"",
+    "verify:content": "node scripts/verify-content.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "verify": "npm run typecheck && npm run verify:content && npm run build",
+    "verify:smoke": "node harness/verify.mjs",
+    "verify:ci": "node scripts/verify-ci.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^25.18.1",
+    "subset-font": "^2.9.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.1"
+  }
+}

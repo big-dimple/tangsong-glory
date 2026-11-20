@@ -1,0 +1,98 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    outputs:
+      artifact-id: ${{ steps.upload_candidate.outputs.artifact-id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select system Chrome
+        run: |
+          chrome="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$chrome"
+          echo "SMOKE_CHROMIUM_EXECUTABLE_PATH=$chrome" >> "$GITHUB_ENV"
+      - run: npm ci
+      - name: Test candidate validation
+        run: python3 -B -m unittest discover -s tests -p 'test_*release*.py'
+      - name: Run the complete gate and build once
+        run: npm run verify:ci -- --scope=all
+      - name: Prepare and verify release candidate
+        run: |
+          python3 -B scripts/prepare-release-artifact.py
+          python3 -B scripts/verify-release-artifact.py "shots/deploy/$GITHUB_SHA" "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        id: upload_candidate
+        with:
+          name: release-candidate-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            shots/deploy/${{ github.sha }}/dist.tar.gz
+            shots/deploy/${{ github.sha }}/dist.tar.gz.sha256
+            shots/deploy/${{ github.sha }}/manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Download uploaded candidate
+        id: download_candidate
+        uses: ./.github/actions/download-release-candidate
+        with:
+          artifact-id: ${{ steps.upload_candidate.outputs.artifact-id }}
+          path: ${{ runner.temp }}/release-candidate
+      - name: Verify downloaded candidate
+        env:
+          CANDIDATE_DIRECTORY: ${{ steps.download_candidate.outputs.path }}
+        run: python3 -B scripts/verify-release-artifact.py "$CANDIDATE_DIRECTORY" "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-candidate-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            shots/ci/
+            shots/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+  publish:
+    # A manual run on any other branch can build a candidate but cannot publish.
+    if: github.ref == 'refs/heads/main'
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download verified candidate
+        id: download_candidate
+        uses: ./.github/actions/download-release-candidate
+        with:
+          artifact-id: ${{ needs.candidate.outputs.artifact-id }}
+          path: ${{ runner.temp }}/release-candidate
+      - name: Publish verified candidate
+        env:
+          CANDIDATE_DIRECTORY: ${{ steps.download_candidate.outputs.path }}
+        run: python3 -B scripts/publish-release.py "$CANDIDATE_DIRECTORY" "$GITHUB_REPOSITORY" "$GITHUB_SHA"

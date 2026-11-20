@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.cache/
+.tmp/
+/shots/
+/release-artifact/
+dist.tar.gz
+dist.tar.gz.sha256
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
