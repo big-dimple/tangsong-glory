@@ -69,6 +69,7 @@ import {
   type SceneryApi,
 } from './visuals/tangsongWorld';
 import { TANGSONG_COMBAT_FEEL } from './config/combatFeel';
+import { prepareMatchAssets, prepareMatchHud } from './platform/matchAssets';
 import {
   TANGSONG_VFX_SHADERS,
   patchTangSongSpriteAtlas,
@@ -94,17 +95,6 @@ for (const id of HERO_ORDER) {
 
 let activeCutinTimer = 0;
 let cutinRafId = 0;
-const eyesPreloadCache: HTMLImageElement[] = [];
-
-function preloadEyesAssets(): void {
-  if (typeof Image === 'undefined') return;
-  for (const id of HERO_ORDER) {
-    const img = new Image();
-    img.decoding = 'async';
-    img.src = HEROES[id].assets.eyes;
-    eyesPreloadCache.push(img);
-  }
-}
 
 function resolveHero(heroId: string) {
   return (HEROES as Record<string, (typeof HEROES)[HeroId]>)[heroId] ?? heroesByKit[heroId as KitId] ?? HEROES.sushi;
@@ -246,7 +236,6 @@ function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
 }
 
 mountVersionStamp();
-preloadEyesAssets();
 
 bootTangSongGlory({
   brand: BRAND,
@@ -337,6 +326,8 @@ bootTangSongGlory({
   createMonsterBuilders: (api: MonsterEngineApi) => createTangSongMonsters(api),
   createWildlife: (api: WildlifeApi) => createTangSongWildlife(api),
   createLobbyScreen: (ctx: LobbyScreenContext) => createTangSongLobby(ctx),
+  prepareMatchAssets,
+  prepareMatchHud,
   getSkillIcon,
   getSummonerIcon,
   createMusicController: (mixer: AudioMixerLike) => createTangSongMusic(mixer),

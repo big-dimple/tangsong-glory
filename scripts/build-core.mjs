@@ -1312,8 +1312,8 @@ function main() {
   code = assertReplace(
     code,
     'function pH(n,t){const e=[],s=new Set;for(const i of t){let a="";try{a=n.portrait(i)}catch{a=""}!a||s.has(a)||Z1.has(a)||(s.add(a),e.push(new Promise(o=>{const r=new Image,l=()=>{Z1.add(a),o()};r.src=a,typeof r.decode=="function"?r.decode().then(l,()=>o()):(r.addEventListener("load",l),r.addEventListener("error",()=>o()))})))}return Promise.all(e).then(()=>{})}',
-    'function pH(n,t){const e=[],s=new Set;for(const i of t){for(const v of["avatar","portrait","eyes"]){let a="";try{a=n.portrait(i,v)}catch{a=""}!a||s.has(a)||Z1.has(a)||(s.add(a),e.push(new Promise(o=>{const r=new Image,l=()=>{Z1.add(a),o()};r.src=a,typeof r.decode=="function"?r.decode().then(l,()=>o()):(r.addEventListener("load",l),r.addEventListener("error",()=>o()))})))}}return Promise.all(e).then(()=>{})}',
-    'pH preload avatar + portrait + eyes',
+    '',
+    'remove legacy portrait-only warmup',
   );
   code = assertReplace(
     code,
@@ -1350,6 +1350,55 @@ function main() {
     'n.setPhase("loading");const r=XH(i,t,n.menuHost),l=to(),c=document.createElement("div");c.className="app-match";const f=document.createElement("div");f.className="app-stage",c.appendChild(f);let d=null,h=null,u=!1,m=!1,x=()=>{m=!0;try{h?.dispose(),d?.dispose()}catch(g){console.error(g)}d=null,c.remove(),r.close()};const p=()=>s.cancelled?(x(),!0):!1;try{if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;const g={seed:e.seed,playerHero:t.heroId,difficulty:t.difficulty,autoPlay:e.autoPlay,autoBuy:n.getSettings().autoBuy},y=Mq(g),',
     'n.setPhase("loading");const matchSeed=e.seed??qq(),matchTeams=selectMatchTeams(t.heroId,matchSeed);const r=XH(i,t,n.menuHost,matchTeams),l=to(),c=document.createElement("div");c.className="app-match";const f=document.createElement("div");f.className="app-stage",c.appendChild(f);let d=null,h=null,u=!1,m=!1,x=()=>{m=!0;try{h?.dispose(),d?.dispose()}catch(g){console.error(g)}d=null,c.remove(),r.close()};const p=()=>s.cancelled?(x(),!0):!1;try{if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;const g={seed:matchSeed,playerHero:t.heroId,difficulty:t.difficulty,autoPlay:e.autoPlay,autoBuy:n.getSettings().autoBuy},y=Mq(g),',
     'Uq unified matchSeed + matchTeams',
+  );
+  // Match asset readiness
+  code = assertReplace(code, 'Lq=1200,Iq=.6,Pq=1500,_S=6', 'Lq=1200,Iq=.6,_S=6', 'remove portrait warmup deadline');
+  code = assertReplace(
+    code,
+    'try{if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;',
+    [
+      'try{',
+      '  const matchAssets = tsConfig.prepareMatchAssets([...matchTeams.blue, ...matchTeams.red], t.heroId);',
+      '  matchAssets.catch(() => {});',
+      '  if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;',
+    ].join('\n'),
+    'Uq start asset preparation alongside renderer setup',
+  );
+  code = assertReplace(
+    code,
+    'if(d.resize(),typeof d.prewarmAsync=="function"){if(await d.prewarmAsync(k(dl.warm,.9)),p())return null;d.render(v,1,0)}else{if(d.render(v,1,0),r.setProgress(.82,"点亮星辉与光影…"),await zc(),p())return null;d.render(v,1,1/60)}if(d.snapCamera?.(),r.setProgress(dl.hud,"布置战斗界面…"),await Promise.race([pH(n.menuHost,v.heroes.map(lt=>lt.heroId)),X6(Pq)]),await zc(),p())return null;',
+    [
+      'd.resize();',
+      '  const asyncPrewarm = typeof d.prewarmAsync === "function";',
+      '  if (asyncPrewarm) {',
+      '    await d.prewarmAsync(k(dl.warm,.9));',
+      '  } else {',
+      '    d.render(v,1,0);',
+      '    r.setProgress(.82,"点亮星辉与光影…");',
+      '  }',
+      '  if (p()) return null;',
+      '  r.setProgress(dl.hud,"准备战场图标与字体…");',
+      '  for (const url of await matchAssets) Z1.add(url);',
+      '  await zc();',
+      '  if (p()) return null;',
+      '  d.refreshTextCache?.();',
+      '  d.render(v, 1, asyncPrewarm ? 0 : 1 / 60);',
+      '  d.snapCamera?.();',
+      '  r.setProgress(.96,"布置战斗界面…");',
+    ].join('\n'),
+    'Uq wait for decoded assets before rendering the first match frame',
+  );
+  code = assertReplace(
+    code,
+    'x=()=>{U.dispose(),r.close()},rt.update(v,0),r.setProgress(1,"进入战场");',
+    [
+      'x=()=>{U.dispose(),r.close()};',
+      '  rt.update(v,0);',
+      '  await tsConfig.prepareMatchHud(c);',
+      '  if (p()) return null;',
+      '  r.setProgress(1,"进入战场");',
+    ].join('\n'),
+    'Uq wait for real HUD images before completing loading',
   );
   code = assertReplace(
     code,

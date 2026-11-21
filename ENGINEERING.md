@@ -13,6 +13,8 @@
 | 引擎与核心层 | `src/engine/mobaCore.js` | MOBA 5v5 状态机、帧循环、技能施放、碰撞物理与 `window.__moba` 调试接口 |
 | 构建元数据层 | `src/platform/buildMetadata.ts`、`scripts/build-info.ts`、`vite.config.ts` | 生成包含 `version`、`revision`、`builtAt`、`sourceStatus`、`modified` 的 `dist/build-info.json` 并在编译期注入 `__BUILD_INFO__` |
 
+对战加载时，`src/platform/matchAssets.ts` 与场景构建、WebGL 预热并行准备本局图片和字体。HUD 图片解码完成后才开始对局。资源加载失败或超时会进入错误恢复界面。
+
 ### 资产与辅助构建脚本（`scripts/`）
 
 - `scripts/convert-art.mjs` / `scripts/sync-assets.mjs`：通过环境变量（`ART_SOURCE_DIR` / `TANGSONGPAI_PUBLIC_ASSETS`）或命令行参数转换立绘与字体资产至 `public/assets/`（CI 运行不需要外置素材仓）。
