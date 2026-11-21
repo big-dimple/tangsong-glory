@@ -69,7 +69,9 @@ import {
   type SceneryApi,
 } from './visuals/tangsongWorld';
 import { TANGSONG_COMBAT_FEEL } from './config/combatFeel';
-import { prepareMatchAssets, prepareMatchHud } from './platform/matchAssets';
+import { createBattleViewDrag } from './ui/battleViewDrag';
+import { hasTeamSight, teamVision } from './visuals/teamVision';
+import { createMatchAssetLoader } from './platform/matchAssets';
 import {
   TANGSONG_VFX_SHADERS,
   patchTangSongSpriteAtlas,
@@ -93,32 +95,20 @@ for (const id of HERO_ORDER) {
   }
 }
 
-let activeCutinTimer = 0;
-let cutinRafId = 0;
-
 function resolveHero(heroId: string) {
   return (HEROES as Record<string, (typeof HEROES)[HeroId]>)[heroId] ?? heroesByKit[heroId as KitId] ?? HEROES.sushi;
 }
 
 function triggerEyesCutin(
-  _host: HTMLElement | null | undefined,
+  host: HTMLElement | null | undefined,
   heroId: string,
   label?: string,
   badgeText = '绝技 · 大招',
 ): void {
   if (typeof document === 'undefined' || !document.body) return;
   const hero = resolveHero(heroId);
-  const existing = document.querySelectorAll('.ts-eyes-cutin');
-  existing.forEach((el) => el.remove());
-  if (cutinRafId) {
-    window.cancelAnimationFrame(cutinRafId);
-    cutinRafId = 0;
-  }
-  if (activeCutinTimer) {
-    window.clearTimeout(activeCutinTimer);
-    activeCutinTimer = 0;
-  }
-
+  document.querySelector('.ts-eyes-cutin')?.remove();
+  const feed = host?.querySelector('.sf-hud__feed');
   const banner = document.createElement('div');
   banner.className = 'ts-eyes-cutin';
   banner.style.setProperty('--ts-cutin-color', hero.palette.glow);
@@ -129,56 +119,22 @@ function triggerEyesCutin(
   img.alt = `${hero.name}眼神特写`;
   img.draggable = false;
 
-  const sheen = document.createElement('span');
-  sheen.className = 'ts-eyes-cutin__sheen';
-
   const meta = document.createElement('div');
   meta.className = 'ts-eyes-cutin__meta';
 
-  const badgeEl = document.createElement('span');
-  badgeEl.className = 'ts-eyes-cutin__badge';
-  badgeEl.textContent = badgeText;
-
   const heroEl = document.createElement('span');
   heroEl.className = 'ts-eyes-cutin__hero';
-  heroEl.textContent = `${hero.era} · ${hero.name}`;
+  heroEl.textContent = hero.name;
 
   const labelEl = document.createElement('span');
   labelEl.className = 'ts-eyes-cutin__label';
   labelEl.textContent = label || hero.skills.ult.name;
 
-  meta.append(badgeEl, heroEl, labelEl);
-  banner.append(img, sheen, meta);
-  document.body.appendChild(banner);
-  void banner.offsetWidth;
-
-  const createdAt = performance.now();
-  let shownSince = 0;
-  let shownFrames = 0;
-  const holdTick = (now: number) => {
-    if (!banner.isConnected) {
-      cutinRafId = 0;
-      return;
-    }
-    const imgReady = (img.complete && img.naturalWidth > 0) || now - createdAt >= 600;
-    if (imgReady) {
-      if (!shownSince) shownSince = now;
-      shownFrames += 1;
-    }
-    const minHoldMet = shownSince > 0 && now - shownSince >= 4200 && shownFrames >= 45;
-    const hardCapMet = now - createdAt >= 15000 || (document.hidden && now - createdAt >= 3000);
-    if (minHoldMet || hardCapMet) {
-      cutinRafId = 0;
-      banner.classList.add('is-leaving');
-      activeCutinTimer = window.setTimeout(() => {
-        banner.remove();
-        activeCutinTimer = 0;
-      }, 320);
-      return;
-    }
-    cutinRafId = window.requestAnimationFrame(holdTick);
-  };
-  cutinRafId = window.requestAnimationFrame(holdTick);
+  meta.append(heroEl, labelEl);
+  banner.setAttribute('aria-label', `${badgeText} · ${hero.name} · ${labelEl.textContent}`);
+  banner.append(img, meta);
+  banner.addEventListener('animationend', () => banner.remove(), { once: true });
+  (feed ?? document.body).appendChild(banner);
 }
 
 function mountVersionStamp(): void {
@@ -326,8 +282,10 @@ bootTangSongGlory({
   createMonsterBuilders: (api: MonsterEngineApi) => createTangSongMonsters(api),
   createWildlife: (api: WildlifeApi) => createTangSongWildlife(api),
   createLobbyScreen: (ctx: LobbyScreenContext) => createTangSongLobby(ctx),
-  prepareMatchAssets,
-  prepareMatchHud,
+  createMatchAssetLoader,
+  createBattleViewDrag,
+  hasTeamSight,
+  teamVision,
   getSkillIcon,
   getSummonerIcon,
   createMusicController: (mixer: AudioMixerLike) => createTangSongMusic(mixer),

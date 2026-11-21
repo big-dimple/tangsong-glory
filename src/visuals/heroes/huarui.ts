@@ -1,13 +1,4 @@
-/**
- * huarui.ts — 花蕊夫人 3D 英雄模型（100% 按立绘 xiemu.pc.webp 精雕重构）
- *
- * 立绘标志特征：
- * - 彻底告别旧版粉红超短裙露腿与双丸子！100% 还原冷艳英气的后蜀绯金海棠剑舞女侠；
- * - 乌黑高盘发髻 + 鎏金花冠 + 淡粉梅花/海棠立体花簇金步摇 + 金流苏 + 脑后长及腰际的蓬松黑卷发与绯红发带；
- * - 象牙米白织金海棠高腰抹胸长裙 + 绯红织金海棠大广袖长外袍（内翻象牙白广袖）+ 玄黑鎏金海棠扣宽腰封；
- * - 标志性【绯红织金 × 象牙米白 × 玄黑暗金三色多层放射交错垂地大舞裙】，脚下微露朱红织金绣花鞋；
- * - 右手执修长清冷百炼精钢长剑（镂空鎏金圆云纹剑格、细长剑柄、绯红金穗剑坠），100% 兼容 AU()/TU() 剑舞动作。
- */
+/** 花蕊夫人：高髻簪花、绯衣广袖与曳地剑舞长裙。 */
 
 import { addHeroCompanion } from './companions';
 import {
@@ -84,16 +75,6 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   const mChain = t.addChain('sash', e.hips, sashPts.slice(0, 3));
   t.chain({ joints: mChain, tip: [0.06, -0.18, -0.02], stiffness: 4.5, drag: 0.9, gravity: 8, maxAngle: 68, wind: 2.4 });
 
-  // 前腰垂落绯红流苏丝带（绑 tab 物理链）
-  const tabPts = [
-    [0, 1.04, 0.16],
-    [0.04, 0.8, 0.21],
-    [0.06, 0.56, 0.23],
-    [0.08, 0.32, 0.24],
-  ];
-  const pChain = t.addChain('tab', e.hips, tabPts.slice(0, 3));
-  t.chain({ joints: pChain, tip: [0.02, -0.16, 0], stiffness: 6.5, drag: 0.88, gravity: 9, maxAngle: 56, wind: 1.6 });
-
   // 左侧绯红金花飞摆（绑 tail 物理链）
   const tailPts = [
     [-0.16, 1.04, 0.06],
@@ -123,120 +104,58 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   const gold = pal.brass ?? 0xd8a848;
   const goldHi = 0xfff0b4;
 
-  // ── 1. 内腿隐于垂地舞裙之下 + 立绘朱红织金绣花鞋 ──
-  i.sym((side) => {
-    const hx = s.hipX;
-    i.bone(side > 0 ? e.thighL : e.thighR).paint(ivoryShade, { c2: ivory, mat: K.cloth, line: 0.3 });
-    i.limb([hx, s.hipY + 0.04, 0], [hx, s.kneeY, 0], 0.078, 0.062, { seg: 8 });
-    i.bone(side > 0 ? e.shinL : e.shinR).paint(pal.skin, { ao: 0.88, mat: K.skin, line: 0.32 });
-    i.limb([hx, s.kneeY, 0], [hx, s.ankleY, 0], 0.056, 0.044, { seg: 8 });
-  });
+  // 鞋与短袜随足踝运动，膝部由外层舞裙覆盖。
   for (const side of [1, -1]) {
-    i.paint(crimson, { c2: gold, gloss: 0.4, mat: K.cloth, pattern: En.weave, patternScale: 12, patternAmt: 0.35, line: 0.42 });
-    Ox(i, n, side, { top: 0.14, rTop: 0.054, rAnkle: 0.044, len: 0.21, toe: 0.032, seg: 10 });
+    i.paint(crimson, { c2: crimsonDark, gloss: 0.23, mat: K.cloth, pattern: En.weave, patternScale: 12, patternAmt: 0.35, line: 0.42 });
+    Ox(i, n, side, { top: 0.24, rTop: 0.050, rAnkle: 0.044, len: 0.21, toe: 0.032, seg: 10 });
   }
 
-  // ── 2. 核心立绘特征：【绯红织金 × 象牙米白 × 玄黑暗金三色多层交错垂地大舞裙】 ──
-  const skirtBind = (sideX: number, y: number) => {
-    const th = sideX >= 0 ? e.thighL : e.thighR;
-    const sh = sideX >= 0 ? e.shinL : e.shinR;
-    if (y >= 0.96) return [e.hips, e.hips, 1];
-    if (y >= 0.5) return [e.hips, th, clamp01(1 - (0.96 - y) / 0.46)];
-    return [th, sh, clamp01(1 - clamp01((0.5 - y) / 0.38) * 0.52)];
-  };
-
-  // 2a. 里层：修长垂地象牙米白百褶长裙（立绘裙前大面积优雅褶皱白裙！）
-  i.bind(skirtBind).paint(ivory, {
-    c2: ivoryShade,
-    ao: 0.92,
-    mat: K.cloth,
-    pattern: En.weave,
-    patternScale: 11,
-    patternAmt: 0.2,
-    line: 0.56,
-    by: (_x: number, yVal: number, _z: number, _r: number, nx: number) => clamp01(0.18 + Math.abs(nx) * 0.3 + (0.35 - yVal) * 0.4),
+  // 共用一张裙面。前襟基本随腰，只有侧褶少量随大腿，让膝盖能在布下活动。
+  i.bind((x: number, y: number) => {
+    const leg = x < 0 ? e.thighR : e.thighL;
+    const weight = 0.38 * clamp01(Math.abs(x) / 0.32) * clamp01((0.98 - y) / 0.62);
+    return [e.hips, leg, 1 - weight];
   });
-  i.lathe(
-    [
-      [0.09, 0.46, 0.44],
-      [0.36, 0.35, 0.33],
-      [0.7, 0.225, 0.2],
-      [1.0, 0.158, 0.128],
-    ],
-    {
-      seg: 26,
-      cap0: false,
-      cap1: false,
-      shape: (ang: number, idx: number) =>
-        1 + (idx < 3 ? (0.088 - idx * 0.022) * Math.sin(ang * 12) : 0),
-    },
-  );
 
-  // 2b. 中层：玄黑暗金织锦交错放射片层（明显外浮于白裙两侧前缘，突出立绘红白黑三色交错舞裙！）
-  i.bind(skirtBind).paint(noir, {
-    c2: noirGold,
-    mat: K.cloth,
-    pattern: En.weave,
-    patternScale: 14,
-    patternAmt: 0.42,
-    line: 0.48,
-  });
-  const blackPanels: [number, number][] = [
-    [22, 54],
-    [126, 158],
-    [-46, -12],
-    [-168, -134],
+  // 从前中线向两侧铺开白绢、墨缘和绯色外袍。各幅共用边缘，腰细、前短、后曳。
+  const panels = [
+    [-180, -155, noir, noirGold], [-155, -58, crimson, crimsonDark],
+    [-58, -52, noir, noirGold], [-52, -49, gold, noirGold],
+    [-49, 34, ivory, ivoryShade], [34, 53, crimson, crimsonDark],
+    [53, 70, ivory, ivoryShade], [70, 82, noir, noirGold],
+    [82, 159, crimson, crimsonDark], [159, 180, noir, noirGold],
   ];
-  for (const [a0, a1] of blackPanels) {
-    i.sheet(
-      6,
-      9,
-      (u, v) => {
-        const ang = bt(a0, a1, u) * (Math.PI / 180);
-        const rad = bt(0.178, 0.53, v);
-        const wave = Math.sin(u * Math.PI) * 0.032 * v;
-        return [Math.cos(ang) * (rad + wave), bt(1.01, 0.11, v), Math.sin(ang) * (rad * 0.96 + wave)];
-      },
-      true,
-      180,
-    );
+  function skirtPoint(degrees: number, v: number, relief = 0) {
+    const a = degrees * Math.PI / 180;
+    const angle = a + 0.16 * v + 0.05 * Math.sin(a) * v;
+    const front = (1 + Math.cos(angle)) / 2;
+    const pleat = Math.cos(12 * a + 0.7 * v) + 0.28 * Math.cos(7 * a - v);
+    const flare = v * (0.48 + 0.52 * v);
+    const fold = pleat * (0.003 + 0.032 * flare) + relief;
+    return [
+      Math.sin(angle) * (0.146 + 0.275 * flare + fold),
+      bt(1.09, 0.135 + 0.08 * front + 0.018 * pleat, v),
+      Math.cos(angle) * (0.114 + 0.21 * flare + fold) - 0.09 * flare,
+    ];
   }
-
-  // 2c. 外层：冷艳深绯织金海棠花放射外舞裙片（与玄黑、象牙白三色交错绽放，告别发橘！）
-  i.bind(skirtBind).paint(crimson, {
-    c2: crimsonDark,
-    mat: K.cloth,
-    pattern: En.weave,
-    patternScale: 13,
-    patternAmt: 0.34,
-    line: 0.5,
-  });
-  const redPanels: [number, number][] = [
-    [48, 72],
-    [108, 132],
-    [-16, 22],
-    [158, 196],
-    [-136, -44],
-  ];
-  for (const [a0, a1] of redPanels) {
-    i.sheet(
-      6,
-      9,
-      (u, v) => {
-        const ang = bt(a0, a1, u) * (Math.PI / 180);
-        const rad = bt(0.184, 0.555, v);
-        const wave = Math.sin(u * Math.PI) * 0.038 * v;
-        return [Math.cos(ang) * (rad + wave), bt(1.02, 0.15, v), Math.sin(ang) * (rad * 0.96 + wave)];
-      },
-      true,
-      180,
-    );
+  for (const [start, end, color, shade] of panels) {
+    i.paint(color, { c2: shade, mat: K.cloth, pattern: En.weave, patternAmt: 0.23, patternScale: 13, line: 0.23 });
+    i.sheet(Math.ceil((end - start) / 4), 9, (u, v) => skirtPoint(bt(end, start, u), v), false, 180);
+  }
+  // 金线海棠贴着红绢起伏，使用与裙面相同的蒙皮。
+  i.paint(noirGold, { c2: gold, mat: K.cloth, gloss: 0.22, line: 0 });
+  for (const [azimuth, drop] of [[-71, .56], [-88, .77], [43, .66], [96, .73]]) {
+    i.sheet(25, 1, (u, v) => {
+      const angle = u * Math.PI * 2;
+      const radius = (0.78 + 0.22 * Math.cos(5 * angle)) * (0.66 + 0.34 * v);
+      return skirtPoint(azimuth + 5.4 * radius * Math.cos(angle), drop + 0.034 * radius * Math.sin(angle), 0.006);
+    }, true, 180);
   }
 
   // 腰际飘带物理链（深绯海棠大长带向左右飞舞）
   i.bind(Zi(mChain, sashPts, e.hips)).paint(crimson, { c2: crimsonDark, mat: K.cloth, pattern: En.weave, patternScale: 13, patternAmt: 0.32, line: 0.42 });
   buildTatteredCape(api, i, sashPts, {
-    widthFn: (v) => mixVal(0.065, 0.14, v),
+    widthFn: (v) => mixVal(0.036, 0.063, v),
     axis: [0.25, 0, 0.95],
     bow: [0.03, 0, 0.02],
     nu: 5,
@@ -247,7 +166,7 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   });
   i.bind(Zi(gChain, tailPts, e.hips)).paint(crimson, { c2: crimsonDark, mat: K.cloth, pattern: En.weave, patternScale: 13, patternAmt: 0.32, line: 0.42 });
   buildTatteredCape(api, i, tailPts, {
-    widthFn: (v) => mixVal(0.065, 0.145, v),
+    widthFn: (v) => mixVal(0.038, 0.07, v),
     axis: [0.25, 0, 0.95],
     bow: [-0.03, 0, -0.02],
     nu: 5,
@@ -256,19 +175,9 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
     wave: 0.32,
     seed: 3.4,
   });
-  i.bind(Zi(pChain, tabPts, e.hips)).paint(crimson, { c2: crimsonDark, mat: K.cloth, line: 0.35 });
-  buildTatteredCape(api, i, tabPts, {
-    widthFn: (v) => mixVal(0.032, 0.048, v),
-    bow: [0, 0, 0.02],
-    nu: 3,
-    nv: 8,
-    tatterAmp: 0.06,
-    seed: 2.2,
-  });
-
   // ── 3. 象牙白织金高腰抹胸上衣 + 玄黑鎏金海棠扣宽腰封 + 绯红外袍领襟 ──
   i.bind(Bl(n)).paint(ivory, {
-    c2: crimson,
+    c2: ivoryShade,
     ao: 0.9,
     mat: K.cloth,
     pattern: En.weave,
@@ -295,7 +204,7 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   i.lathe([[1.37, 0.132, 0.105], [1.47, 0.086, 0.076]], { seg: 14, cap0: false });
 
   // 绯红织金外袍披肩领襟（斜披双肩露出优雅象牙抹胸）
-  i.paint(crimson, { c2: gold, mat: K.cloth, pattern: En.weave, patternScale: 13, patternAmt: 0.35, line: 0.42 });
+  i.paint(crimson, { c2: crimsonDark, mat: K.cloth, pattern: En.weave, patternScale: 13, patternAmt: 0.35, line: 0.32 });
   i.sym(() => {
     i.tube(
       [
@@ -308,12 +217,14 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   });
 
   // 立绘标志性【玄黑鎏金海棠花扣宽腰封】+ 绯红细腰绳
-  i.bone(e.spine).paint(noir, { c2: gold, gloss: 0.65, mat: K.cloth, pattern: En.weave, patternScale: 14, patternAmt: 0.36, line: 0.4 });
-  i.lathe([[1.02, 0.152, 0.122], [1.15, 0.158, 0.126]], { seg: 18 });
+  i.bone(e.spine).paint(noir, { c2: noirGold, gloss: 0.3, mat: K.cloth, pattern: En.weave, patternScale: 14, patternAmt: 0.36, line: 0.4 });
+  i.lathe([[1.025, 0.158, 0.135], [1.10, 0.155, 0.137], [1.16, 0.169, 0.14]], { seg: 20 });
+  i.paint(noirGold, { c2: gold, gloss: 0.4, mat: K.cloth, line: 0.12 });
+  i.lathe([[1.149, 0.17, 0.141], [1.16, 0.17, 0.141]], { seg: 20, cap0: false, cap1: false });
   i.paint(crimson, { c2: crimsonDark, mat: K.cloth, line: 0.25 });
   i.g(pt(0, 1.07, 0, 5, 0, 0), () => i.torus(0.158, 0.012, 0.012, 16, 4));
   i.paint(gold, { c2: goldHi, gloss: 1, glow: 0.18, mat: K.metal, line: 0.15 });
-  i.g(pt(0, 1.085, 0.132, 0, 0, 0), () => {
+  i.g(pt(0, 1.085, 0.146, 0, 0, 0), () => {
     buildBlossomHairpin(api, i, gold, goldHi, 0xb82428, 1.4);
   });
 
@@ -323,10 +234,10 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
       outer: crimson,
       outerDark: crimsonDark,
       trim: gold,
-      trimHi: crimson,
+      trimHi: ivoryShade,
       inner: ivory,
       innerShade: ivoryShade,
-      flare: 0.172,
+      flare: 0.151,
       drop: 0.13,
       pattern: En.weave,
       trimWidth: 0.038,
@@ -346,11 +257,11 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
     line: 0.5,
   });
   buildTatteredCape(api, i, scarfPts, {
-    widthFn: (v) => mixVal(0.24, 0.44, v),
+    widthFn: (v) => mixVal(0.18, 0.25, v),
     bow: [0, 0, -0.08],
     nu: 9,
     nv: 11,
-    tatterAmp: 0.1,
+    tatterAmp: 0.035,
     wave: 0.24,
     seed: 2.5,
   });

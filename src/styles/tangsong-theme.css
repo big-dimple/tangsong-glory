@@ -98,7 +98,6 @@ body .sf-root .sf-result__title,
 body .sf-root .sf-hud__banner-title,
 body .sf-root .sf-hcard__name,
 body .sf-root .sf-lcard__name,
-body .sf-root .ts-eyes-cutin__label,
 body .sf-root .sf-heading,
 body .sf-root .sf-btn--primary,
 body .sf-root .ts-btn-seal,
@@ -765,7 +764,7 @@ body .sf-root .sf-hcard.is-active {
 
 @media (orientation: portrait) {
   body .sf-root .sf-select__main {
-    grid-template-rows: auto minmax(138px, 1fr) minmax(0, 2fr) auto;
+    grid-template-rows: auto minmax(clamp(120px, 21dvh, 182px), 1.1fr) minmax(0, 1.55fr) auto;
   }
   body .sf-root .sf-select__roster {
     flex-direction: row;
@@ -791,7 +790,20 @@ body .sf-root .sf-hcard.is-active {
     display: none;
   }
   .ts-select__pc-wrap {
-    inset: calc(var(--sf-u, 1px) * 4) 6% 0 6%;
+    inset: 4px 2% 0 37%;
+  }
+  .sf-select__stage { overflow: hidden; }
+  body .sf-root .sf-select__plate {
+    top: 8px;
+    right: auto;
+    width: 43%;
+  }
+  body .sf-root .sf-select__name { font-size: clamp(23px, 7vw, 32px); }
+  body .sf-root .sf-select__name-role { display: none; }
+  .sf-select__rings { left: 35%; }
+  .sf-select__stage.is-3d-mode .sf-select__canvas {
+    inset: -16% auto auto 16%;
+    height: 135%;
   }
 }
 
@@ -909,96 +921,88 @@ body .sf-root .sf-hud__sk.is-atk .sf-hud__sk-face {
     0 0 calc(var(--d, 72px) * 0.22) rgba(204, 58, 44, 0.45);
 }
 
-/* ── 8. 技能/多杀 眼部特写切镜横幅 (MOBA 中央天幕凌空一闪) ── */
-.ts-eyes-cutin {
-  position: fixed;
-  top: clamp(58px, 10.5vh, 92px);
-  left: 50%;
-  z-index: 950;
+.sf-hud.is-spectating .sf-hud__death { animation: none; opacity: .36; }
+
+.ts-loading-recovery {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  width: min(520px, 86vw);
-  height: clamp(68px, 11vh, 92px);
-  pointer-events: none;
-  overflow: hidden;
-  border-radius: 4px;
-  background: linear-gradient(90deg, rgba(16, 10, 7, 0.14) 0%, rgba(28, 16, 11, 0.94) 22%, rgba(28, 16, 11, 0.92) 78%, rgba(16, 10, 7, 0.14) 100%);
-  background: linear-gradient(
-    90deg,
-    rgba(16, 10, 7, 0.12) 0%,
-    color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 26%, rgba(22, 13, 9, 0.94)) 22%,
-    color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 22%, rgba(22, 13, 9, 0.92)) 78%,
-    rgba(16, 10, 7, 0.12) 100%
-  );
-  border-top: 2px solid color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 60%, #ffe69e);
-  border-bottom: 2px solid color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 60%, #ffe69e);
-  box-shadow:
-    0 12px 34px rgba(0, 0, 0, 0.78),
-    0 0 28px color-mix(in srgb, var(--ts-cutin-color, #e9bd62) 55%, transparent);
-  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
-  transform: translateX(-50%);
-  opacity: 1;
-  transition: opacity 0.28s ease-out, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  justify-content: center;
+  gap: 2px 12px;
+  color: #fff3d7;
+  font: 500 clamp(14px, 2vh, 17px)/1.5 var(--ts-font-serif);
+  text-align: center;
 }
-.ts-eyes-cutin.is-leaving {
-  opacity: 0;
-  transform: translateX(-46%) scaleX(0.95);
+.ts-loading-recovery ~ .sf-loading__tip { display: none; }
+.ts-loading-recovery button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #bc9658;
+  border-radius: 4px;
+  background: #37251c;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ts-loading-recovery button:disabled { opacity: .55; }
+
+/* 大招特写与击杀播报共用屏幕边缘，按实际时间淡出。 */
+.ts-eyes-cutin {
+  --cutin-width: min(260px, 27vw);
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  top: calc(env(safe-area-inset-top) + 58px);
+  z-index: 950;
+  width: var(--cutin-width);
+  height: clamp(44px, 7vh, 57px);
+  overflow: hidden;
+  pointer-events: none;
+  background: #291c18;
+  border-inline-end: 2px solid var(--ts-cutin-color, #e9bd62);
+  clip-path: polygon(5% 0, 100% 0, 100% 100%, 0 100%);
+  animation: ts-cutin-glance 1.3s linear both;
+}
+.sf-hud__feed > .ts-eyes-cutin {
+  position: relative;
+  inset: auto;
+  order: -1;
+}
+@keyframes ts-cutin-glance {
+  0%, 12% { opacity: .94; }
+  35%, 72% { opacity: .42; }
+  100% { opacity: 0; }
+}
+@media (orientation: portrait) {
+  .ts-eyes-cutin {
+    --cutin-width: min(190px, 44vw);
+    top: calc(env(safe-area-inset-top) + 104px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
+  .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }
+  @keyframes ts-cutin-quiet { 0%, 72% { opacity: .48; } 100% { opacity: 0; } }
 }
 .ts-eyes-cutin__img {
   position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 56% 44%;
-  opacity: 0.96;
-  filter: contrast(1.1) saturate(1.18) brightness(1.04);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 14%, #000 84%, transparent 100%);
-}
-.ts-eyes-cutin__sheen {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: linear-gradient(108deg, transparent 36%, rgba(255, 245, 210, 0.56) 50%, transparent 64%);
-  opacity: 0.38;
-  pointer-events: none;
+  object-position: 58% 44%;
 }
 .ts-eyes-cutin__meta {
   position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 26px;
-  background: linear-gradient(90deg, rgba(16, 10, 7, 0.78) 0%, rgba(16, 10, 7, 0.45) 70%, transparent 100%);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.96), 0 0 14px rgba(0, 0, 0, 0.92);
+  justify-content: center;
+  height: 100%;
+  padding-inline: 8%;
+  background: linear-gradient(90deg, #201310ed, #2013109c 30%, transparent 62%);
+  color: #fff6e5;
+  text-shadow: 0 1px 3px #21120d;
 }
-.ts-eyes-cutin__badge {
-  align-self: flex-start;
-  padding: 1px 7px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: #fff6db;
-  background: linear-gradient(135deg, #c23628, #8c1e16);
-  border: 1px solid rgba(255, 224, 148, 0.65);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-}
-.ts-eyes-cutin__hero {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: #ffe9ba;
-}
-.ts-eyes-cutin__label {
-  font-family: var(--ts-font-brush);
-  font-size: clamp(20px, 3.2vh, 27px);
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  color: #fffdf5;
-}
+.ts-eyes-cutin__hero { font: 500 12px/1.2 var(--ts-font-serif); }
+.ts-eyes-cutin__label { font: 600 clamp(14px, 2.2vh, 18px)/1.35 var(--ts-font-serif); }
 
 /* ── 9. 页面右下角/底部版本号戳 ── */
 #sf-ver {

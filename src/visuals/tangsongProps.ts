@@ -980,16 +980,31 @@ export function createLandmarkPropBuilders(api: PropsApi) {
       { sides: 8, c0: darkGold, c1: bronzeGold, cap: true },
     );
 
-    // 4 盏悬空大红宫灯（±4.42 与 ±2.10，y=3.92 高挑不挡视野）
-    for (const lz of [-4.42, -2.1, 2.1, 4.42]) {
-      addWorldBox(b, 0, 4.22, lz, 0.04, 0.32, 0.04, bronzeGold, darkGold);
-      Ts(b, 0, 3.92, lz, 0.22, 0.26, 0.22, {
-        detail: 1,
-        seed: isRed ? 91 + Math.round(lz * 10) : 41 + Math.round(lz * 10),
-        bottom: crimsonCloth,
-        top: warmAmber,
-        glow: 0.9,
-      });
+    // 上元灯市的纱灯与灯谜签成对悬在牌坊檐下，中间留出视线。
+    for (const z of [-4.42, -2.92, 2.92, 4.42]) {
+      const outer = Math.abs(z) > 4;
+      const y = outer ? 3.80 : 4.02;
+      addWorldBox(b, 0, (4.33 + y) / 2, z, 0.035, 4.33 - y, 0.035, bronzeGold, darkGold);
+      gn(b, [
+        [0, y - 0.28, z, 0.16], [0, y - 0.16, z, 0.29],
+        [0, y + 0.13, z, 0.29], [0, y + 0.23, z, 0.17],
+      ], { sides: outer ? 8 : 6, c0: outer ? crimsonCloth : warmAmber, c1: outer ? warmAmber : warmAmberTop, glow: 0.42, cap: true });
+      for (const rim of [-0.28, 0.23]) {
+        addWorldBox(b, 0, y + rim, z, 0.33, 0.045, 0.33, bronzeGold, darkGold);
+      }
+      addWorldBox(b, 0, y - 0.38, z, 0.025, 0.18, 0.025, crimsonCloth, lacquerDark);
+      addWorldBox(b, 0, y - 0.55, z, 0.045, 0.24, 0.12, warmAmberTop, bronzeGold);
+    }
+
+    // 檐柱外的一盏兔儿灯，木托在通道以外。
+    const rabbitZ = 5.96;
+    addWorldBox(b, 0, 0.27, rabbitZ, 0.9, 0.54, 1.16, lacquerDark, darkGold);
+    const silk = { detail: 1, seed: 34, bottom: warmAmber, top: warmAmberTop, glow: 0.38 };
+    Ts(b, 0, 0.87, rabbitZ, 0.35, 0.34, 0.46, silk);
+    Ts(b, 0, 1.13, rabbitZ - 0.34, 0.23, 0.24, 0.23, silk);
+    for (const x of [-0.11, 0.11]) {
+      gn(b, [[x, 1.27, rabbitZ - 0.3, 0.06], [x * 1.3, 1.52, rabbitZ - 0.23, 0.078],
+        [x * 1.6, 1.65, rabbitZ - 0.18, 0.018]], { sides: 6, c0: warmAmberTop, c1: warmAmber, cap: true });
     }
 
     return b.build();

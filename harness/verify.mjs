@@ -730,7 +730,7 @@ async function run() {
         });
       }
 
-      const res = await page.evaluate((expectedHero) => {
+      const res = await page.evaluate(async (expectedHero) => {
         const moba = window.__moba;
         const { world, state, renderer, hud } = moba;
         const me = state.heroes.find((h) => h.id === state.playerId);
@@ -797,6 +797,13 @@ async function run() {
             }
           }
         }
+        const cutin = document.querySelector('.ts-eyes-cutin');
+        const glance = cutin?.getAnimations()[0];
+        if (expectedHero === 'xinqiji' && glance) {
+          glance.pause();
+          glance.currentTime = 100;
+        }
+        await cutin?.querySelector('img')?.decode();
         renderer?.render?.(state, 1, 0.016);
 
         return {
@@ -813,20 +820,11 @@ async function run() {
           atkOrderAfterMove,
           movedDist: +movedDist.toFixed(2),
           fired,
-          hasCutin: !!document.querySelector('.ts-eyes-cutin'),
+          hasCutin: !!cutin?.querySelector('img')?.naturalWidth,
           brokenImgs: imgs.filter((x) => !x.ok),
           battleAudioStats: moba.audio.debug.stats(),
         };
       }, heroId);
-
-      await waitForCondition(
-        page,
-        () => {
-          const img = document.querySelector('.ts-eyes-cutin__img');
-          return !!img && img.complete && img.naturalWidth > 0;
-        },
-        10_000,
-      );
 
       assert.equal(res.heroId, heroId);
       assert.equal(res.blueCount, 5);
@@ -852,36 +850,19 @@ async function run() {
       assert.equal(res.brokenImgs.length, 0, `存在破损图片: ${JSON.stringify(res.brokenImgs)}`);
 
       if (heroId === 'xinqiji') {
-        await page.evaluate(
-          () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-        );
-        const vis = await page.evaluate(() => {
+        const glance = await page.evaluate(() => {
           const el = document.querySelector('.ts-eyes-cutin');
-          if (!el) return null;
-          return {
-            opacity: parseFloat(getComputedStyle(el).opacity),
-            width: el.getBoundingClientRect().width,
-          };
+          const anim = el?.getAnimations()[0];
+          if (!anim) return null;
+          const initial = Number(getComputedStyle(el).opacity);
+          anim.currentTime = 600;
+          const rect = el.getBoundingClientRect();
+          return { reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, initial, softened: Number(getComputedStyle(el).opacity), left: rect.left, center: innerWidth / 2 };
         });
-        assert(vis && vis.opacity > 0.7 && vis.width > 200, `Eyes cutin 未清晰显现: ${JSON.stringify(vis)}`);
-        await page.evaluate(() => window.__moba?.session?.loop?.stop?.());
-        let afterShot = null;
-        try {
-          await page.screenshot({ path: path.join(SHOT_DIR, 'v2_11_match_eyes_cutin_1280x720.png') });
-          afterShot = await page.evaluate(() => {
-            const el = document.querySelector('.ts-eyes-cutin');
-            return {
-              exists: !!el,
-              opacity: el ? parseFloat(getComputedStyle(el).opacity) : 0,
-            };
-          });
-        } finally {
-          await page.evaluate(() => window.__moba?.session?.loop?.start?.());
-        }
-        assert(
-          afterShot?.exists && afterShot.opacity > 0.7,
-          `Eyes cutin 截图期间已消退: ${JSON.stringify(afterShot)}`,
-        );
+        assert(glance && glance.left > glance.center && glance.initial > (glance.reduced ? .4 : .7) && glance.softened > .1 && glance.softened <= .5,
+          `眼神特写应在屏幕边缘短暂显现并淡出: ${JSON.stringify(glance)}`);
+        await page.screenshot({ path: path.join(SHOT_DIR, 'v2_11_match_eyes_cutin_1280x720.png') });
+        await page.evaluate(() => document.querySelector('.ts-eyes-cutin')?.getAnimations()[0]?.play());
       }
 
       // 新增 Milestone 2 战斗技能特效专项截图（苏轼/刘娥/花蕊夫人/辛弃疾中路演武绽放）

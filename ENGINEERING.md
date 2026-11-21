@@ -13,7 +13,9 @@
 | 引擎与核心层 | `src/engine/mobaCore.js` | MOBA 5v5 状态机、帧循环、技能施放、碰撞物理与 `window.__moba` 调试接口 |
 | 构建元数据层 | `src/platform/buildMetadata.ts`、`scripts/build-info.ts`、`vite.config.ts` | 生成包含 `version`、`revision`、`builtAt`、`sourceStatus`、`modified` 的 `dist/build-info.json` 并在编译期注入 `__BUILD_INFO__` |
 
-对战加载时，`src/platform/matchAssets.ts` 与场景构建、WebGL 预热并行准备本局图片和字体。HUD 图片解码完成后才开始对局。资源加载失败或超时会进入错误恢复界面。
+对战加载时，`src/platform/matchAssets.ts` 与场景构建、WebGL 预热并行准备本局图片和字体。HUD 图片解码完成后才开始对局。下载或解码失败时保留当前阵容与已完成资源，在加载页退避重试。断网后等待网络恢复，也可以手动立即重试。
+
+战斗、小地图与野区状态共用己方英雄、兵线和建筑的视野。草丛按同丛、近身或显形状态判断。移动镜头只改变观察位置，阵亡拖镜会保持观察点，复活后恢复跟随。
 
 ### 资产与辅助构建脚本（`scripts/`）
 

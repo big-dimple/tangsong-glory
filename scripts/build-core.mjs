@@ -1351,14 +1351,206 @@ function main() {
     'n.setPhase("loading");const matchSeed=e.seed??qq(),matchTeams=selectMatchTeams(t.heroId,matchSeed);const r=XH(i,t,n.menuHost,matchTeams),l=to(),c=document.createElement("div");c.className="app-match";const f=document.createElement("div");f.className="app-stage",c.appendChild(f);let d=null,h=null,u=!1,m=!1,x=()=>{m=!0;try{h?.dispose(),d?.dispose()}catch(g){console.error(g)}d=null,c.remove(),r.close()};const p=()=>s.cancelled?(x(),!0):!1;try{if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;const g={seed:matchSeed,playerHero:t.heroId,difficulty:t.difficulty,autoPlay:e.autoPlay,autoBuy:n.getSettings().autoBuy},y=Mq(g),',
     'Uq unified matchSeed + matchTeams',
   );
+  // Camera gestures, team sight and the shared fog projection.
+  code = assertReplace(
+    code,
+    "let Z=null,ot=-1;function j(O){",
+    "const viewDrag=tsConfig.createBattleViewDrag(i,n);let Z=null,ot=-1;function j(O){",
+    "A$ bind field camera gestures",
+  );
+  code = assertReplace(
+    code,
+    "m===null&&C(O)&&(O.preventDefault(),T(O));return",
+    "if(n.me.alive&&C(O)){m===null&&(O.preventDefault(),T(O))}else if(R===null)viewDrag.start(O);return",
+    "A$ arbitrate joystick and camera pointers",
+  );
+  code = assertReplace(
+    code,
+    "l(i,\"pointermove\",O=>{if(O.pointerId===m)",
+    "l(i,\"pointermove\",O=>{viewDrag.move(O);if(O.pointerId===m)",
+    "A$ move camera pointer",
+  );
+  code = assertReplace(
+    code,
+    "const at=O=>{O.pointerId===m&&A()",
+    "const at=O=>{viewDrag.end(O),O.pointerId===m&&A()",
+    "A$ finish field camera gesture",
+  );
+  code = assertReplace(
+    code,
+    "function V(){u.up=u.down=u.left=u.right=!1",
+    "function V(){viewDrag.reset(),u.up=u.down=u.left=u.right=!1",
+    "A$ reset field camera on menu and blur",
+  );
+  code = assertReplace(
+    code,
+    "l(s,\"pointerdown\",O=>d(O.pointerType),{capture:!0})",
+    "l(s,\"pointerdown\",O=>{d(O.pointerType);if(O.target.closest?.(\".sf-hud__mini, .sf-hud__skills button\"))viewDrag.reset()},{capture:!0})",
+    "A$ hand camera to minimap",
+  );
+  code = assertReplace(
+    code,
+    "update(O){const Y=O.inputBlocked();if(Y!==lt",
+    "update(O){viewDrag.update();const Y=O.inputBlocked();if(Y!==lt",
+    "A$ release spectator camera on respawn",
+  );
+  code = assertReplace(
+    code,
+    "f(v.autoBuy?\"阵亡期间金币照涨，自动出装照买。\":\"阵亡期间金币照涨，可以打开商店买装备。\")",
+    "f(n.mode===\"touch\"?\"滑动战场空地观战，复活后回到英雄。\":v.autoBuy?\"阵亡期间金币照涨，自动出装照买。\":\"阵亡期间金币照涨，可以打开商店买装备。\")",
+    "death view gesture hint",
+  );
+
+  code = assertReplace(
+    code,
+    "let c=!1;const f=r.pos.x,d=r.pos.y;for(let h=0;h<Jp.length;h++){const u=Jp[h],m=u.pos.x-f,x=u.pos.y-d,p=m*m+x*x,g=u.rt.sight;if(!(p>g*g)&&!(l&&u.bushId!==r.bushId&&p>i)){c=!0;break}}",
+    "const f=r.pos.x,d=r.pos.y,c=tsConfig.hasTeamSight(Jp,f,d,l?r.bushId:-1,i);",
+    "x6 shared team sight predicate",
+  );
+  code = assertReplace(
+    code,
+    "if(r.visible[a]=c,c&&r.kind===\"hero\")",
+    "if(r.visible[a]=c,c&&r.alive&&r.kind===\"hero\")",
+    "x6 last seen living heroes",
+  );
+  code = assertReplace(
+    code,
+    "||f0[Q.kind]||Q.kind===\"monster\"||Q.visible[$.playerTeam]",
+    "||Q.visible[$.playerTeam]",
+    "unit render obeys current team sight",
+  );
+  code = assertReplace(
+    code,
+    "D.targetOpacity=kt;const U=V-Q.lastHitTime;",
+    "D.targetOpacity=kt;if(!Rt)D.opacity=0;const U=V-Q.lastHitTime;",
+    "hide occluded units immediately",
+  );
+  code = assertReplace(
+    code,
+    "Z.id===$.playerId||Z.opacity<.3||Z.culled",
+    "Z.id===$.playerId||Z.targetOpacity===0||Z.opacity<.3||Z.culled",
+    "pick only current visible targets",
+  );
+  code = assertReplace(
+    code,
+    "o.team!==a&&o.team!==2&&!o.visible[a]",
+    "o.team!==a&&!o.visible[a]",
+    "ripples require unit sight",
+  );
+  code = assertReplace(
+    code,
+    "t.team!==this.team&&t.team!==2&&!t.visible[this.team]",
+    "t.team!==this.team&&!t.visible[this.team]",
+    "combat text requires unit sight",
+  );
+  code = assertReplace(
+    code,
+    "v.team!==o.playerTeam&&v.team!==2&&v.id!==o.playerId",
+    "v.team!==o.playerTeam&&v.id!==o.playerId",
+    "hit effects require target sight",
+  );
+  code = assertReplace(
+    code,
+    "c.visible=f.alive&&(d||r.opacity>.02)",
+    "c.visible=f.alive&&d",
+    "vfx anchors use current sight",
+  );
+  code = assertReplace(
+    code,
+    "function VD(n){switch(n.kind){case\"hero\":return ui.hero;case\"minion\":return ui.minion;case\"tower\":return ui.tower;case\"core\":return ui.core;default:return 0}}function WD(n,t){const e=new Map;let s=new Float32Array(192),i=0,a=n.frame,o;const r={x:0,y:0,z:0,height:2,opacity:1};return{begin(l){a=l,o=n.getModule(\"units\"),e.clear(),i=0;const c=l.playerTeam;for(const f of l.state.units){if(e.set(f.id,f),f.team!==c||!f.alive)continue;const d=VD(f);if(!(d<=0)){if(i*3+3>s.length){const h=new Float32Array(s.length*2);h.set(s),s=h}s[i*3]=f.pos.x,s[i*3+1]=f.pos.y,s[i*3+2]=d*d,i++}}},",
+    "function WD(n,t){const e=new Map,s=[];let a=n.frame,o;const r={x:0,y:0,z:0,height:2,opacity:1};return{begin(l){a=l,o=n.getModule(\"units\"),e.clear(),s.length=0;for(const f of l.state.units){e.set(f.id,f);if(f.team===l.playerTeam&&f.alive&&f.rt.sight>0)s.push(f)}},",
+    "vfx collect actual sight sources",
+  );
+  code = assertReplace(
+    code,
+    "pointVisible(l,c){for(let f=0;f<i;f++){const d=s[f*3]-l,h=s[f*3+1]-c;if(d*d+h*h<=s[f*3+2])return!0}return!1},",
+    "pointVisible(l,c){return tsConfig.hasTeamSight(s,l,c,qk(a.state.map,{x:l,y:c}),ui.bushReveal**2)},",
+    "vfx point sight accounts for brush",
+  );
+  code = assertReplace(
+    code,
+    "posSeen(t,e){const s=this.sight;if(!this.sightReady){s.length=0;for(const i of t.units){if(i.team!==0||!i.alive)continue;const a=i.kind===\"hero\"?ui.hero:i.kind===\"minion\"?ui.minion:i.kind===\"tower\"?ui.tower:ui.core;s.push(i.pos.x,i.pos.y,a*a)}this.sightReady=!0}for(let i=0;i<s.length;i+=3){const a=e.x-s[i],o=e.y-s[i+1];if(a*a+o*o<=s[i+2])return!0}return!1}",
+    "posSeen(t,e){const s=this.sight;if(!this.sightReady){s.length=0;for(const u of t.units)if(u.team===0&&u.alive&&u.rt.sight>0)s.push(u);this.sightReady=!0}return tsConfig.hasTeamSight(s,e.x,e.y,qk(t.map,e),ui.bushReveal**2)}",
+    "audio point sight accounts for brush",
+  );
+  code = assertReplace(
+    code,
+    "a.kind===\"monster\"?this.cMonsters.push(a):a.kind",
+    "a.kind===\"monster\"?(a.visible[e]&&this.cMonsters.push(a)):a.kind",
+    "jV visible neutral units",
+  );
+  code = assertReplace(
+    code,
+    "perceivable(t){return t.team===this.team||t.kind===\"monster\"||",
+    "perceivable(t){return t.team===this.team||",
+    "jV target perception",
+  );
+  code = assertReplace(
+    code,
+    "const Jp=[];function x6(n){",
+    "function currentTeamVision(state,team){return tsConfig.teamVision(state,team,qk,ui.bushReveal)}const Jp=[];function x6(n){",
+    "share fog between world and minimap",
+  );
+  code = assertReplace(
+    code,
+    "const x=GF(r,c,f,h,l,m);d.add(x.mesh);",
+    "const x=GF(r,c,f,h,l,m);d.add(x.mesh);\n  const fogTexture = new Z7(document.createElement(\"canvas\"));\n  fogTexture.generateMipmaps = false;\n  fogTexture.minFilter = fogTexture.magFilter = Ns;\n  const fogMesh = new Sn(new Gl(2*o.bound,2*o.bound),new yM({map:fogTexture,transparent:true,depthTest:false,depthWrite:false,toneMapped:false,fog:false}));\n  fogMesh.name = \"team-sight\";\n  fogMesh.rotation.x = -Math.PI / 2;\n  fogMesh.renderOrder = 2000;\n  d.add(fogMesh);\n  let fogTick = -1;\n  ",
+    "nw add ground-aligned war fog",
+  );
+  code = assertReplace(
+    code,
+    "update(j){ew.multiplyMatrices(n.camera",
+    "update(j){\n    const vision = currentTeamVision(j.state,j.playerTeam);\n    if (vision.version !== fogTick || fogTexture.image !== vision.canvas) {\n      fogTick = vision.version;\n      fogTexture.image = vision.canvas;\n      fogTexture.needsUpdate = true;\n    }\n    ew.multiplyMatrices(n.camera",
+    "nw update shared fog texture",
+  );
+  code = assertReplace(
+    code,
+    "o.drawImage(r,0,0),B(o),M.length=0",
+    "o.drawImage(r,0,0);const vision=currentTeamVision(J,n.team),bound=e.bound;o.drawImage(vision.canvas,b(-bound),w(-bound),bound*2*f,bound*2*f),B(o,vision),M.length=0",
+    "minimap shade unseen ground",
+  );
+  code = assertReplace(
+    code,
+    "function B(N){const J=n.state.camps;",
+    "function B(N,vision){const J=n.state.camps;",
+    "minimap hide unseen camp status",
+  );
+  code = assertReplace(
+    code,
+    "ht=Y4[Z.monsterType];if(!ot||ot.alive)",
+    "ht=Y4[Z.monsterType];if(!vision.visible(Z.pos)){L(N,at,V,U,kt);N.strokeStyle=\"rgba(227,219,196,.5)\";N.lineWidth=Math.max(1,d);N.stroke();continue}if(!ot||ot.alive)",
+    "minimap mark unknown camps neutrally",
+  );
+  code = assertReplace(
+    code,
+    "Z&&nt(Z.pos,\"kill\"",
+    "Z&&(Z.team===J.team||Z.visible[J.team])&&nt(Z.pos,\"kill\"",
+    "minimap only locate witnessed kills",
+  );
+  code = assertReplace(code, "if(r.team===a||r.kind===\"tower\"||r.kind===\"core\"||r.kind===\"monster\"||!r.alive){r.visible[a]=!0;continue}", "if(r.team===a){r.visible[a]=!0;continue}", "x6 restrict live structure data to allied sight");
+  code = assertReplace(code, "case\"monsterSpawn\":rn[N.monsterType].epic&&nt(N.pos,\"epic\"", "case\"monsterSpawn\":rn[N.monsterType].epic&&currentTeamVision(J.state,J.team).visible(N.pos)&&nt(N.pos,\"epic\"", "minimap conceal unseen monster spawns");
+  code = assertReplace(code, "const Jp=[];function x6(n){const t=n.units", "const Jp=[];function x6(n){n.state.sightTick=n.state.tick;const t=n.units", "refresh fog on the simulation sight tick");
+  code = assertReplace(code, "visible:[t!==1,t!==0],bushId:-1", "visible:[t===0,t===1],bushId:-1", "neutral units spawn unseen until scouted");
+  code = assertReplace(code, "i.classList.remove(\"is-loaded\"),o.remove()", "i.classList.remove(\"is-loaded\")", "preserve failed portrait elements for in-place recovery");
+  code = assertReplace(code, "function c(d){e.textContent=\"\",d===\"kbm\"?e.append", "function c(d){e.textContent=\"\",d===\"kbm\"&&e.append", "l$ only construct shortcuts for keyboards");
+  code = assertReplace(code, ":e.append(z(\"span\",null,_e(Vt(\"joystick\")),z(\"b\",null,\"左下拖动\"),\"移动\"),z(\"span\",null,_e(Vt(\"touch\")),z(\"b\",null,\"轻点技能\"),\"自动瞄准\"),z(\"span\",null,_e(Vt(\"target\")),z(\"b\",null,\"按住拖动\"),\"手动瞄准，松手施放\"),z(\"span\",null,_e(Vt(\"cancel\")),\"拖到\",z(\"b\",null,\"取消\"),\"松手放弃\"),z(\"span\",null,_e(Vt(\"info\")),z(\"b\",null,\"长按技能\"),\"看说明\"))}c(n.mode);", "}c(n.mode);", "l$ remove the in-battle touch instruction sheet");
+  code = assertReplace(code, "onMode(d){o||c(d)},update(d){if(o){r>0&&d.now>=r", "onMode(d){if(!o){c(d);if(d===\"touch\"){i.classList.remove(\"is-on\");a=-1}}},update(d){if(d.mode===\"touch\")return;if(o){r>0&&d.now>=r", "l$ keep touch field clear while retaining keyboard hints");
+  code = assertReplace(code, "touch:[\"轻点技能键会自动瞄准；", "touch:[\"左下拖动移动，右侧空地拖动看战场。松手回到英雄。\",\"轻点技能键会自动瞄准；", "WH touch loading tip");
+  code = assertReplace(code, "const h=WH(ey());let u=", "const inputMode=ey(),h=WH(inputMode);let u=", "XH choose loading tips for current controls");
+  code = assertReplace(code, "%h.length;i.textContent=h[u];let m=0;", "%h.length;i.textContent=inputMode===\"touch\"?VH.touch[0]:h[u];let m=0;", "XH show camera controls before touch matches");
+  code = assertReplace(code, "Pa(\"ui\",\"5\",\"小地图\",\"点按并拖动可观察战场，松手回到英雄\")", "Pa(\"ui\",\"5\",\"视野\",\"<em>拖动右侧空地或小地图</em>观察己方视野。阵亡后滑动空地，松手可停留观战。\")", "IH explain field and minimap observation");
   // Match asset readiness
+  code = assertReplace(code, 'setProgress(y,v){p||(g=Math.max(g,', 'root:f,setProgress(y,v){p||(g=Math.max(g,', 'XH expose loading screen');
+  code = assertReplace(code, 'fastLoad:et==="direct"},G)', 'fastLoad:et==="direct",signal:q,backToMenu:p},G)', 'Uq link navigation cancellation');
+  code = assertReplace(code, 'Q.start(),U)}catch(g){throw x(),g}}', 'Q.start(),U)}catch(g){if(p())return null;throw x(),g}finally{assets.dispose()}}', 'Uq dispose asset loader');
   code = assertReplace(code, 'Lq=1200,Iq=.6,Pq=1500,_S=6', 'Lq=1200,Iq=.6,_S=6', 'remove portrait warmup deadline');
   code = assertReplace(
     code,
     'try{if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;',
     [
+      'const assets = tsConfig.createMatchAssetLoader(r.root, e.signal, e.backToMenu);',
       'try{',
-      '  const matchAssets = tsConfig.prepareMatchAssets([...matchTeams.blue, ...matchTeams.red], t.heroId);',
+      '  const matchAssets = assets.prepareAssets([...matchTeams.blue, ...matchTeams.red], t.heroId);',
       '  matchAssets.catch(() => {});',
       '  if(r.setProgress(dl.world,"集结双方英雄…"),await zc(),p())return null;',
     ].join('\n'),
@@ -1394,7 +1586,7 @@ function main() {
     [
       'x=()=>{U.dispose(),r.close()};',
       '  rt.update(v,0);',
-      '  await tsConfig.prepareMatchHud(c);',
+      '  await assets.prepareHud(c);',
       '  if (p()) return null;',
       '  r.setProgress(1,"进入战场");',
     ].join('\n'),
