@@ -483,11 +483,7 @@ async function run() {
     await wait(250);
 
     // 进入选将殿堂
-    await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('开始对战'));
-      if (!btn) throw new Error('找不到开始对战按钮');
-      btn.click();
-    });
+    await page.click('.ts-lobby .ts-btn-seal');
     await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6);
     await wait(900);
     await page.screenshot({ path: path.join(SHOT_DIR, 'v2_02_select_sushi_pc_1280x720.png') });
@@ -520,10 +516,7 @@ async function run() {
     await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
     const cardCountPortrait = await page.evaluate(() => document.querySelectorAll('.sf-hcard').length);
     if (cardCountPortrait !== 6) {
-      await page.evaluate(() => {
-        const btn = [...document.querySelectorAll('button')].find((b) => b.textContent?.includes('开始对战'));
-        btn?.click();
-      });
+      await page.click('.ts-lobby .ts-btn-seal');
       await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6, 30_000);
       await wait(700);
     }

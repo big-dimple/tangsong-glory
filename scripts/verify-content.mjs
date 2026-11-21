@@ -79,7 +79,6 @@ function main() {
   const lobbySrc = fs.readFileSync(path.join(ROOT, 'src/ui/tangsongLobby.ts'), 'utf8');
 
   assert(brandSrc.includes("versionStamp: 'v5.1 · 唐宋荣耀'"), 'brand.ts versionStamp 必须为 v5.1 · 唐宋荣耀');
-  assert(lobbySrc.includes('v5.1'), 'tangsongLobby.ts 必须包含 v5.1 版本标注');
   assert(!lobbySrc.includes('v4.0') && !lobbySrc.includes('v5.0'), 'tangsongLobby.ts 不得残留旧版本文案');
 
   const requiredAssets = [...ART_FILES];

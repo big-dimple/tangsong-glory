@@ -100,9 +100,7 @@ body .sf-root .sf-lcard__name,
 body .sf-root .ts-eyes-cutin__label,
 body .sf-root .sf-heading,
 body .sf-root .sf-btn--primary,
-body .sf-root .ts-lobby__dock-title,
-body .sf-root .ts-btn-seal__main,
-body .sf-root .ts-lobby__card-name,
+body .sf-root .ts-btn-seal,
 body .sf-root .ts-select__motto,
 body .sf-root .sf-loading__team-name,
 body .sf-root .sf-hud__st-name {
@@ -245,8 +243,9 @@ body .sf-root .sf-result--lose {
     url('/assets/art/defeat-bg.webp') center / cover no-repeat;
 }
 
-/* ── 4. 全新《唐宋牌》手卷开场大厅 (.ts-lobby)：上下画卷分栏 + 右侧四将宣纸折扇 + 底部朱文印章案几 ── */
+/* ── 4. 手卷大厅 ── */
 .ts-lobby {
+  --ts-lobby-gutter: clamp(22px, 5vw, 82px);
   position: fixed;
   inset: 0;
   display: flex;
@@ -264,8 +263,12 @@ body .sf-root .sf-result--lose {
   grid-template: auto 1fr / minmax(0, 1.1fr) minmax(0, 0.9fr);
   align-items: end;
   gap: 8px clamp(16px, 3vw, 44px);
-  padding: max(14px, var(--sf-safe-t, 0px)) clamp(22px, 5vw, 82px) clamp(18px, 3.2vh, 36px);
+  padding-block: max(14px, var(--sf-safe-t, 0px)) clamp(18px, 3.2vh, 36px);
   overflow: hidden;
+}
+.ts-lobby__hero,
+.ts-lobby__dock {
+  padding-inline: max(var(--ts-lobby-gutter), var(--sf-safe-l, 0px)) max(var(--ts-lobby-gutter), var(--sf-safe-r, 0px));
 }
 .ts-lobby__canvas {
   position: absolute;
@@ -284,52 +287,26 @@ body .sf-root .sf-result--lose {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(9, 28, 32, 0.62) 0%, rgba(12, 26, 29, 0.08) 38%, rgba(9, 28, 32, 0.16) 68%, rgba(8, 26, 29, 0.88) 100%),
-    linear-gradient(90deg, rgba(8, 28, 32, 0.72) 0%, rgba(10, 30, 34, 0.34) 46%, rgba(10, 30, 34, 0.08) 100%);
+    linear-gradient(180deg, rgba(9, 28, 32, 0.52), transparent 42%, rgba(8, 26, 29, 0.1) 65%, rgba(8, 26, 29, 0.86)),
+    linear-gradient(90deg, rgba(8, 28, 32, 0.32), transparent 64%);
 }
 
 .ts-lobby__masthead {
   grid-column: 1 / -1;
   align-self: start;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 40px;
-}
-.ts-lobby__genre {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--ts-font-serif);
-  font-size: clamp(13px, 1.15vw, 17px);
-  letter-spacing: 0.2em;
-  color: #fff2d2;
-  text-shadow: 0 1px 6px rgba(6, 18, 22, 0.9);
-}
-.ts-lobby__genre::before {
-  content: '';
-  width: 11px;
-  height: 11px;
-  border: 1px solid #dcc599;
-  background: #cfa85f;
-  box-shadow: inset 0 0 0 2.5px #17383c;
-  transform: rotate(45deg);
-}
-.ts-lobby__top-tools {
-  display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 .ts-lobby__pill {
-  min-height: 34px;
+  min-height: 44px;
   padding: 4px 14px;
   border: 1px solid rgba(226, 195, 134, 0.45);
   border-radius: 3px;
   background: rgba(13, 35, 38, 0.72);
   color: #fff4d9;
   font-family: var(--ts-font-serif);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   cursor: pointer;
   backdrop-filter: blur(6px);
@@ -373,30 +350,14 @@ body .sf-root .sf-result--lose {
   writing-mode: vertical-rl;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.52);
 }
-.ts-lobby__chapters {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 10px 0 0 2px;
-  font-family: var(--ts-font-serif);
-  font-size: clamp(13px, 1.15vw, 17px);
-  letter-spacing: 0.2em;
-  color: #f7e6bf;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
-}
-.ts-lobby__chapters i {
-  width: 30px;
-  height: 1px;
-  background: #dcc599;
-}
 .ts-lobby__quote {
-  margin: 8px 0 0;
+  margin: 6px 0 0 2px;
   max-width: 34em;
   min-height: 1.5em;
   font-family: var(--ts-font-serif);
-  font-size: clamp(12px, 1vw, 15px);
+  font-size: clamp(14px, 1.2vw, 17px);
   letter-spacing: 0.08em;
-  color: rgba(246, 236, 212, 0.86);
+  color: #f7e6bf;
   text-shadow: 0 1px 6px rgba(5, 12, 16, 0.92);
 }
 
@@ -421,21 +382,20 @@ body .sf-root .sf-result--lose {
   border: 0;
   background: none;
   cursor: pointer;
-  margin-left: clamp(-24px, -2vw, -10px);
+  margin-left: clamp(-16px, -1.2vw, -8px);
   transform-origin: 50% 92%;
   transform: translateY(var(--ts-rise)) rotate(var(--ts-ang));
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s ease;
 }
-.ts-lobby__card:first-child { margin-left: 0; --ts-ang: -13deg; --ts-rise: 10px; z-index: 1; }
-.ts-lobby__card:nth-child(2) { --ts-ang: -4deg; --ts-rise: -4px; z-index: 2; }
-.ts-lobby__card:nth-child(3) { --ts-ang: 4deg; --ts-rise: -4px; z-index: 3; }
-.ts-lobby__card:nth-child(4) { --ts-ang: 13deg; --ts-rise: 10px; z-index: 4; }
+.ts-lobby__card:first-child { margin-left: 0; --ts-ang: -10deg; --ts-rise: 6px; z-index: 1; }
+.ts-lobby__card:nth-child(2) { --ts-ang: -3deg; --ts-rise: -4px; z-index: 2; }
+.ts-lobby__card:nth-child(3) { --ts-ang: 3deg; --ts-rise: -4px; z-index: 3; }
+.ts-lobby__card:nth-child(4) { --ts-ang: 10deg; --ts-rise: 6px; z-index: 4; }
 .ts-lobby__card:hover,
 .ts-lobby__card:focus-visible {
   z-index: 8;
   transform: translateY(-18px) rotate(0deg) scale(1.06);
   filter: drop-shadow(0 14px 26px rgba(235, 188, 102, 0.42));
-  outline: none;
 }
 .ts-lobby__card-face {
   position: relative;
@@ -464,7 +424,7 @@ body .sf-root .sf-result--lose {
   position: absolute;
   top: 7px;
   left: 7px;
-  padding: 1px 5px;
+  padding: 1px 3px;
   border-radius: 2px;
   background: rgba(164, 52, 39, 0.9);
   border: 1px solid rgba(250, 224, 164, 0.72);
@@ -472,87 +432,51 @@ body .sf-root .sf-result--lose {
   font-family: var(--ts-font-serif);
   font-size: 9px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 .ts-lobby__card-name {
   position: absolute;
   left: 4px;
   right: 4px;
   bottom: 4px;
-  padding: 4px 2px 3px;
+  padding: 4px 0 3px;
   background: linear-gradient(180deg, rgba(14, 24, 26, 0), rgba(12, 22, 25, 0.92) 48%);
   color: #fff4d9;
-  font-size: clamp(13px, 1.15vw, 17px);
-  line-height: 1.1;
+  font: 400 clamp(12px, 1.15vw, 17px) / 1.1 var(--ts-font-brush);
   text-shadow: 0 1px 4px #000;
 }
 .ts-lobby__deck-hint {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 3px 12px;
-  border: 1px solid rgba(203, 181, 131, 0.48);
-  border-radius: 2px;
-  background: rgba(14, 38, 41, 0.84);
+  margin-top: 8px;
   color: #f5e9cb;
   font-family: var(--ts-font-serif);
-  font-size: 12px;
-  letter-spacing: 0.1em;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 6px #091c20;
 }
 
-/* 底部朱漆沉木案几 Dock */
 .ts-lobby__dock {
-  position: relative;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: clamp(16px, 3vw, 56px);
-  padding: clamp(14px, 2.2vh, 24px) clamp(22px, 5vw, 82px) max(22px, env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid #ab905e;
+  gap: 12px;
+  padding-block: clamp(10px, 1.8vh, 16px) calc(22px + var(--sf-safe-b, 0px));
+  border-top: 1px solid rgba(207, 181, 129, 0.55);
   background: linear-gradient(110deg, #163336 0%, #0f2426 60%, #1b130f 100%);
-  box-shadow: 0 -10px 28px rgba(4, 10, 12, 0.56);
-}
-.ts-lobby__dock::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: clamp(22px, 5vw, 82px);
-  width: 52px;
-  height: 3px;
-  background: #ddb467;
-}
-.ts-lobby__copy {
-  min-width: 0;
-}
-.ts-lobby__dock-title {
-  margin: 0;
-  color: #fff4d9;
-  font-size: clamp(20px, 2.2vw, 32px);
-  line-height: 1.25;
-}
-.ts-lobby__meta {
-  margin: 4px 0 0;
-  font-family: var(--ts-font-serif);
-  font-size: clamp(12px, 1vw, 14px);
-  color: #d6dbcf;
-  letter-spacing: 0.06em;
 }
 .ts-lobby__guide {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
-  padding: 4px 10px 4px 6px;
+  min-height: 44px;
+  padding: 6px 12px;
   border: 1px solid rgba(203, 181, 131, 0.35);
   border-radius: 3px;
   background: rgba(11, 24, 26, 0.7);
   color: #f4ebd8;
   font-family: var(--ts-font-serif);
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
-}
-.ts-lobby__guide small {
-  color: #b7c2b7;
-  font-size: 11px;
 }
 .ts-lobby__guide-seal {
   display: grid;
@@ -573,36 +497,8 @@ body .sf-root .sf-result--lose {
   color: #fff6df;
 }
 
-.ts-lobby__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.ts-btn-ink {
-  min-height: 48px;
-  padding: 8px clamp(14px, 1.8vw, 24px);
-  border: 1px solid rgba(182, 166, 130, 0.62);
-  border-radius: 3px;
-  background: rgba(16, 36, 39, 0.72);
-  color: #fff4d9;
-  font-family: var(--ts-font-serif);
-  font-size: 15px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
-}
-.ts-btn-ink:hover {
-  background: rgba(34, 66, 69, 0.9);
-  border-color: #eed08f;
-}
 .ts-btn-seal {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 54px;
+  min-height: 50px;
   padding: 7px clamp(26px, 3.2vw, 48px);
   border: 1px solid #df9872;
   border-radius: 3px;
@@ -612,6 +508,9 @@ body .sf-root .sf-result--lose {
     inset 0 0 0 4px rgba(246, 208, 134, 0.62),
     0 8px 22px rgba(0, 0, 0, 0.45);
   color: #fff7e4;
+  font-size: clamp(20px, 1.9vw, 26px);
+  line-height: 1.15;
+  text-shadow: 0 1px 4px rgba(28, 6, 4, 0.72);
   cursor: pointer;
   transition: filter 0.15s ease, transform 0.12s ease;
 }
@@ -619,72 +518,32 @@ body .sf-root .sf-result--lose {
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-.ts-btn-seal:active,
-.ts-btn-ink:active {
+.ts-btn-seal:active {
   transform: translateY(1px);
-}
-.ts-btn-seal__sub {
-  font-family: var(--ts-font-serif);
-  font-size: 10px;
-  letter-spacing: 0.24em;
-  color: #fde3ae;
-  line-height: 1.1;
-}
-.ts-btn-seal__main {
-  font-size: clamp(20px, 1.9vw, 26px);
-  letter-spacing: 0.14em;
-  line-height: 1.15;
-  text-shadow: 0 1px 4px rgba(28, 6, 4, 0.72);
 }
 
 @media (orientation: portrait) {
+  .ts-lobby { --ts-lobby-gutter: 16px; }
   .ts-lobby__hero {
-    grid-template: auto auto 1fr / minmax(0, 1fr);
-    gap: 6px;
-    padding: 14px 16px 14px;
-  }
-  .ts-lobby__top-tools { display: none; }
-  .ts-lobby__brand { text-align: left; }
-  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(46px, 13.5vw, 72px); }
-  .ts-lobby__deck { justify-self: center; align-self: center; margin: 0; }
-  .ts-lobby__card-face { width: clamp(64px, 18vw, 90px); }
-  .ts-lobby__dock {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 14px 16px 26px;
-  }
-  .ts-lobby__dock::before { left: 16px; }
-  .ts-lobby__actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template: auto auto minmax(0, 1fr) / minmax(0, 1fr);
     gap: 8px;
   }
-  .ts-lobby__actions .ts-btn-seal {
-    grid-column: 1 / -1;
-    order: -1;
-  }
+  .ts-lobby__bg { object-position: 74% 50%; }
+  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(46px, 13.5vw, 72px); }
+  .ts-lobby__deck { justify-self: center; margin: 0; }
+  .ts-lobby__card-face { width: clamp(64px, 18vw, 90px); }
+  .ts-btn-seal { flex: 1; }
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
+  .ts-lobby { --ts-lobby-gutter: 20px; }
   .ts-lobby__hero {
-    padding: 8px 20px 10px;
+    padding-block: max(8px, var(--sf-safe-t, 0px)) 14px;
     gap: 4px 16px;
   }
-  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(40px, 6.4vw, 66px); }
-  .ts-lobby__quote,
-  .ts-lobby__deck-hint { display: none; }
-  .ts-lobby__card-face { width: clamp(56px, 7vw, 84px); }
-  .ts-lobby__dock {
-    padding: 9px 20px 16px;
-    gap: 14px;
-  }
-  .ts-lobby__dock-title { font-size: 18px; }
-  .ts-lobby__meta { display: none; }
-  .ts-lobby__guide { margin-top: 3px; font-size: 11px; }
-  .ts-btn-ink { min-height: 40px; padding: 6px 14px; font-size: 13px; }
-  .ts-btn-seal { min-height: 44px; padding: 5px 24px; }
-  .ts-btn-seal__main { font-size: 18px; }
+  .ts-lobby__wordmark .sf-logo__name { font-size: clamp(34px, 6.4vw, 66px); }
+  .ts-lobby__card-face { width: clamp(60px, 9vw, 84px); }
+  .ts-btn-seal { min-height: 44px; }
 }
 
 /* ── 5. 头像通用裁切适配 ── */

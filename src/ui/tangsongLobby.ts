@@ -1,3 +1,4 @@
+import { BRAND } from '../config/brand';
 import { HEROES } from '../config/heroes';
 
 export interface LobbyScreenContext {
@@ -18,7 +19,7 @@ export interface LobbyScreenContext {
 }
 
 const DECK_HERO_IDS = ['sushi', 'xinqiji', 'huarui', 'qinqiong'] as const;
-const DEFAULT_QUOTE = '金秋长安烽火起，挥毫持戟定山河';
+const LOBBY_SUBTITLE = `${BRAND.mapName} · 5v5 人机对战`;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -36,14 +37,12 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 export function createTangSongLobby(ctx: LobbyScreenContext) {
   let frozen = false;
-  let tutorialOn = !!ctx.getTutorial();
 
-  const quoteEl = el('p', 'ts-lobby__quote', DEFAULT_QUOTE);
+  const quoteEl = el('p', 'ts-lobby__quote', LOBBY_SUBTITLE);
   const quoteReset = () => {
-    quoteEl.textContent = DEFAULT_QUOTE;
+    quoteEl.textContent = LOBBY_SUBTITLE;
   };
 
-  // ── 1. 上半部：唐宋工笔秋山长卷画卷区 ──
   const scrollBg = el('img', 'ts-lobby__bg');
   scrollBg.src = '/assets/art/lobby-scroll.webp';
   scrollBg.alt = '';
@@ -51,29 +50,24 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
 
   const backdrop = el('div', 'ts-lobby__canvas', scrollBg, el('div', 'ts-lobby__scrim'));
 
-  const howtoTopBtn = el('button', 'ts-lobby__pill', '操作说明');
-  howtoTopBtn.type = 'button';
-  howtoTopBtn.dataset.sfSnd = 'click';
-  howtoTopBtn.addEventListener('click', () => {
+  const howtoBtn = el('button', 'ts-lobby__pill', '操作说明');
+  howtoBtn.type = 'button';
+  howtoBtn.dataset.sfSnd = 'click';
+  howtoBtn.addEventListener('click', () => {
     if (!frozen) ctx.openHowto();
   });
 
-  const settingsTopBtn = el('button', 'ts-lobby__pill', '弈局设置');
-  settingsTopBtn.type = 'button';
-  settingsTopBtn.dataset.sfSnd = 'click';
-  settingsTopBtn.addEventListener('click', () => {
-    if (!frozen) ctx.openSettings(() => syncTutorial());
+  const settingsBtn = el('button', 'ts-lobby__pill', '设置');
+  settingsBtn.type = 'button';
+  settingsBtn.dataset.sfSnd = 'click';
+  settingsBtn.addEventListener('click', () => {
+    if (!frozen) ctx.openSettings(syncTutorial);
   });
 
-  const masthead = el(
-    'header',
-    'ts-lobby__masthead',
-    el('span', 'ts-lobby__genre', '唐宋名士 · 5v5 丹青演武'),
-    el('div', 'ts-lobby__top-tools', howtoTopBtn, settingsTopBtn),
-  );
+  const masthead = el('header', 'ts-lobby__masthead', howtoBtn, settingsBtn);
 
-  const titleEl = el('h1', 'sf-logo__name', ...'唐宋荣耀'.split('').map((ch) => el('span', undefined, ch)));
-  titleEl.setAttribute('aria-label', '唐宋荣耀');
+  const titleEl = el('h1', 'sf-logo__name', ...Array.from(BRAND.title, (ch) => el('span', undefined, ch)));
+  titleEl.setAttribute('aria-label', BRAND.title);
   const sealEl = el('span', 'ts-lobby__seal', '演武');
   sealEl.setAttribute('aria-hidden', 'true');
 
@@ -81,17 +75,15 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     'div',
     'ts-lobby__brand',
     el('div', 'ts-lobby__wordmark', titleEl, sealEl),
-    el('p', 'ts-lobby__chapters', el('i'), el('span', undefined, '六大唐宋名士 · 汴京三路演武')),
     quoteEl,
   );
 
-  // 右侧四枚宣纸名士折扇画卷
   const fan = el('div', 'ts-lobby__fan');
-  DECK_HERO_IDS.forEach((heroId, idx) => {
+  for (const heroId of DECK_HERO_IDS) {
     const hero = HEROES[heroId];
     const artImg = el('img', 'ts-lobby__card-img');
     artImg.src = hero.assets.portrait;
-    artImg.alt = hero.name;
+    artImg.alt = '';
     artImg.draggable = false;
 
     const frame = el(
@@ -105,8 +97,7 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     btn.type = 'button';
     btn.dataset.hero = hero.id;
     btn.dataset.sfSnd = 'select';
-    btn.style.setProperty('--ts-card-idx', String(idx));
-    btn.setAttribute('aria-label', `选择${hero.name}进入选将殿堂`);
+    btn.setAttribute('aria-label', `预选${hero.name}`);
 
     const showHeroQuote = () => {
       quoteEl.textContent = `${hero.era} · ${hero.name}：「${hero.motto}」`;
@@ -123,33 +114,26 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     });
 
     fan.append(btn);
-  });
+  }
 
   const deck = el(
     'figure',
     'ts-lobby__deck',
     fan,
-    el('figcaption', 'ts-lobby__deck-hint', '轻点名士画卷，择将直入演武'),
+    el('figcaption', 'ts-lobby__deck-hint', '点画卷预选英雄'),
   );
 
   const heroSection = el('section', 'ts-lobby__hero', backdrop, masthead, brand, deck);
   heroSection.setAttribute('aria-label', '开场画卷');
 
-  // ── 2. 下半部：宋式朱漆沉木案几与朱文印章操作栏 ──
   const guideCheck = el('i', 'ts-lobby__guide-seal', '✓');
-  const guideBtn = el(
-    'button',
-    'ts-lobby__guide',
-    guideCheck,
-    el('span', undefined, '新手引导'),
-    el('small', undefined, '首次游玩建议开启'),
-  );
+  guideCheck.setAttribute('aria-hidden', 'true');
+  const guideBtn = el('button', 'ts-lobby__guide', guideCheck, '新手引导');
   guideBtn.type = 'button';
   guideBtn.setAttribute('role', 'checkbox');
 
   function syncTutorial() {
-    tutorialOn = !!ctx.getTutorial();
-    guideBtn.setAttribute('aria-checked', tutorialOn ? 'true' : 'false');
+    guideBtn.setAttribute('aria-checked', String(ctx.getTutorial()));
   }
   syncTutorial();
 
@@ -161,48 +145,21 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     syncTutorial();
   });
 
-  const startBtn = el(
-    'button',
-    'ts-btn-seal',
-    el('span', 'ts-btn-seal__sub', '出征演武'),
-    el('span', 'ts-btn-seal__main', '开始对战'),
-  );
+  const startBtn = el('button', 'ts-btn-seal', '选择英雄');
   startBtn.type = 'button';
   startBtn.dataset.sfSnd = 'confirm';
   startBtn.addEventListener('click', () => {
     if (!frozen) ctx.onStart();
   });
 
-  const howtoDockBtn = el('button', 'ts-btn-ink', el('span', undefined, '操作说明'));
-  howtoDockBtn.type = 'button';
-  howtoDockBtn.dataset.sfSnd = 'click';
-  howtoDockBtn.addEventListener('click', () => {
-    if (!frozen) ctx.openHowto();
-  });
-
-  const settingsDockBtn = el('button', 'ts-btn-ink', el('span', undefined, '设置'));
-  settingsDockBtn.type = 'button';
-  settingsDockBtn.dataset.sfSnd = 'click';
-  settingsDockBtn.addEventListener('click', () => {
-    if (!frozen) ctx.openSettings(() => syncTutorial());
-  });
-
-  const copyCol = el(
-    'div',
-    'ts-lobby__copy',
-    el('h2', 'ts-lobby__dock-title', '择一唐宋名士，共赴汴京演武'),
-    el('p', 'ts-lobby__meta', '1 名玩家 + 9 名 AI · 实时 5v5 推塔对决 · v5.1'),
-    guideBtn,
-  );
-
-  const actionsCol = el('div', 'ts-lobby__actions', settingsDockBtn, howtoDockBtn, startBtn);
-  const dockSection = el('section', 'ts-lobby__dock', copyCol, actionsCol);
+  const dockSection = el('section', 'ts-lobby__dock', guideBtn, startBtn);
   dockSection.setAttribute('aria-label', '开局入口');
 
   const rootScreen = el('div', 'sf-screen ts-lobby', heroSection, dockSection);
 
   const onKeyDown = (ev: KeyboardEvent) => {
-    if (frozen || ctx.isInputFocused() || ev.repeat || ctx.hasOpenDialog()) return;
+    if (frozen || ev.defaultPrevented || ev.repeat || ctx.isInputFocused() || ctx.hasOpenDialog()) return;
+    if (ev.target instanceof HTMLButtonElement) return;
     if (ev.key === 'Enter' || ev.key === ' ') {
       ev.preventDefault();
       ctx.host.audio.ui('confirm');
