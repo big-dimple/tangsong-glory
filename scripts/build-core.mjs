@@ -576,6 +576,62 @@ function main() {
     'Scene fog range for wide/standard camera',
   );
 
+  // Keep dense, shadow-casting scenery in smaller cells. Light scatter can share larger draws.
+  code = replaceBetween(
+    code,
+    'class c_{constructor(t=32)',
+    'let a=this.cells.get(i);',
+    `class c_{constructor(cell=32,detailCell=cell){this.cell=cell;this.detailCell=detailCell}cells=new Map;
+    builder(t,e,s){const size=s?this.cell:this.detailCell;
+      const i=[Math.floor(t/size),Math.floor(e/size),s?1:0].join(",");let a=this.cells.get(i);`,
+    'scenery batch sizes by caster type',
+  );
+  code = assertReplace(code, 'const I=new c_(32),P=ZN()', 'const I=new c_(16,32),P=ZN()', 'partition dense scenery');
+  // Draw the expensive ground shader after opaque cover. At equal depth the decoration wins.
+  code = assertReplace(
+    code,
+    'y.name="ground",y.receiveShadow=!0',
+    'y.name="ground",y.renderOrder=1,g.depthFunc=g5,y.receiveShadow=!0',
+    'depth-test covered ground before shading it',
+  );
+  code = replaceBetween(
+    code,
+    'const w=[],T=j=>{for(const at of j){at.frustumCulled=!1;',
+    'w.push({mesh:at,box:Rt})}};',
+    `const w=[],T=meshes=>{
+      for(const mesh of meshes){
+        mesh.frustumCulled=false;
+        const bounds=mesh.geometry.boundingBox.clone().expandByScalar(.8);
+        const shadowBounds=mesh.castShadow?bounds.clone():bounds;
+        if(mesh.castShadow){
+          const reach=hU*KL, dx=mf.x*reach, dz=mf.y*reach;
+          shadowBounds.min.x+=Math.min(0,dx);shadowBounds.max.x+=Math.max(0,dx);
+          shadowBounds.min.z+=Math.min(0,dz);shadowBounds.max.z+=Math.max(0,dz);
+        }
+        w.push({mesh,bounds,shadowBounds,box:bounds});
+      }
+    };`,
+    'retain wind and projected shadow bounds',
+  );
+  code = assertReplace(
+    code,
+    'for(const at of w)Zz(at.mesh,j.sceneryRank,j.shadowRank)',
+    'for(const chunk of w){Zz(chunk.mesh,j.sceneryRank,j.shadowRank);chunk.box=j.shadows?chunk.shadowBounds:chunk.bounds}',
+    'switch culling bounds with shadow quality',
+  );
+
+  // Sample live match frames. Prewarming, simulation speed and pause menus must not drive resolution.
+  code = assertReplace(code, 'resScale=1;slowTime=0;slowFrames=0;slowWindows=0;',
+    'resolution=new tsConfig.RenderResolution();get resScale(){return this.resolution.scale}', 'renderer resolution controller');
+  code = assertReplace(code, 'this.resScale=1,this.slowWindows=0,this.applyQuality()',
+    'this.resolution=new tsConfig.RenderResolution(),this.applyQuality()', 'reset resolution on quality change');
+  code = assertReplace(code, 'this.adaptiveResolution&&this.trackPerformance(t),this.fpsAccum>=.5',
+    'this.fpsAccum>=.5', 'exclude synthetic renders from resolution samples');
+  code = replaceBetween(code, 'trackPerformance(t){if(this.slowTime+=t', 'getStats(){return this.stats}',
+    'trackPerformance(dt){if(this.resolution.sample(dt))this.resize()}getStats(){return this.stats}', 'apply resolution transitions');
+  code = assertReplace(code, 'q(lt.dt),d?.render(v,lt.alpha,lt.dt);const Y=to();',
+    'q(lt.dt),d?.render(v,lt.alpha,lt.dt);if(d?.engine.adaptiveResolution)d.engine.trackPerformance(lt.paused||v.over?0:lt.dt);const Y=to();', 'sample active match frame times');
+
   // ── 8. 设置默认值 dk、持久化 yH、设置面板 wH、默认英雄与 storage keys ──
   code = assertReplace(
     code,

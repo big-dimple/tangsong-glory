@@ -71,6 +71,7 @@ import {
 import { TANGSONG_COMBAT_FEEL } from './config/combatFeel';
 import { createBattleViewDrag } from './ui/battleViewDrag';
 import { hasTeamSight, teamVision } from './visuals/teamVision';
+import { RenderResolution } from './visuals/renderResolution';
 import { createMatchAssetLoader } from './platform/matchAssets';
 import {
   TANGSONG_VFX_SHADERS,
@@ -284,6 +285,7 @@ bootTangSongGlory({
   createLobbyScreen: (ctx: LobbyScreenContext) => createTangSongLobby(ctx),
   createMatchAssetLoader,
   createBattleViewDrag,
+  RenderResolution,
   hasTeamSight,
   teamVision,
   getSkillIcon,

@@ -540,6 +540,29 @@ async function run() {
       await wait(700);
 
       if (heroId === 'sushi') {
+        const resolution = await page.evaluate(() => {
+          const { engine } = window.__moba.renderer;
+          const width = () => engine.canvas.width;
+          const sample = (fps, seconds) => {
+            for (let frame = 0; frame < fps * seconds; frame++) engine.trackPerformance(1 / fps);
+          };
+          const full = width();
+          sample(20, 20);
+          const reduced = width();
+          sample(60, 7);
+          engine.trackPerformance(0); // Pausing interrupts a partial recovery window.
+          sample(60, 4);
+          const afterPause = width();
+          sample(35, 5);
+          const steady = width();
+          sample(60, 35);
+          return { full, reduced, afterPause, steady, recovered: width() };
+        });
+        assert(resolution.reduced < resolution.full, '持续低帧率应降低实际 3D 绘图缓冲宽度');
+        assert.equal(resolution.afterPause, resolution.reduced, '暂停前后的快速帧不能累加为一次回升');
+        assert.equal(resolution.steady, resolution.reduced, '中等帧率应保持当前分辨率');
+        assert.equal(resolution.recovered, resolution.full, '持续流畅后应恢复到所选画质的完整分辨率');
+
         // 先截蓝方基地（圜丘社稷玉玺坛 + 四隅华表 + 朱漆匾额比分牌 + 古风舆图小地图）
         await page.evaluate(() => {
           const moba = window.__moba;
