@@ -35,7 +35,7 @@ export function buildQinQiongFull(api: FullHeroEngineApi, pal: Record<string, nu
     [0.34, 0.25, 0.26],
   ];
   const tabChain = t.addChain('tab', e.hips, tabPts.slice(0, 3));
-  t.chain({ joints: tabChain, tip: [0.06, -0.2, 0], stiffness: 6.5, drag: 0.88, gravity: 9, maxAngle: 56, wind: 2.2 });
+  t.chain({ joints: tabChain, tip: [0.06, -0.2, 0], stiffness: 9, drag: 0.8, gravity: 9, maxAngle: 46, wind: 2.8 });
 
   const tabPtsL = [
     [-0.14, 0.92, 0.14],
@@ -44,7 +44,7 @@ export function buildQinQiongFull(api: FullHeroEngineApi, pal: Record<string, nu
     [-0.44, 0.22, 0.04],
   ];
   const tabChainL = t.addChain('tabL', e.hips, tabPtsL.slice(0, 3));
-  t.chain({ joints: tabChainL, tip: [-0.08, -0.18, -0.02], stiffness: 5.5, drag: 0.89, gravity: 8.5, maxAngle: 62, wind: 2.6 });
+  t.chain({ joints: tabChainL, tip: [-0.08, -0.18, -0.02], stiffness: 8, drag: 0.8, gravity: 8.5, maxAngle: 48, wind: 3 });
 
   const cloakPts = [
     [0, 1.5, -0.16],
@@ -57,11 +57,11 @@ export function buildQinQiongFull(api: FullHeroEngineApi, pal: Record<string, nu
   t.chain({
     joints: cloakChain,
     tip: [0, -0.24, -0.04],
-    stiffness: 3.1,
-    drag: 0.92,
+    stiffness: 11,
+    drag: 0.72,
     gravity: 6.8,
-    maxAngle: 74,
-    wind: 3.0,
+    maxAngle: 40,
+    wind: 9,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.34 }],
   });
 

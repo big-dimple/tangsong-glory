@@ -49,11 +49,11 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
     t.chain({
       joints: rb,
       tip: [0, -0.2, 0.04],
-      stiffness: 3.1,
-      drag: 0.92,
+      stiffness: 8.5,
+      drag: 0.7,
       gravity: 6.2,
-      maxAngle: 76,
-      wind: 3.2,
+      maxAngle: 46,
+      wind: 8,
       colliders: [
         { joint: e.hips, x: 0, y: -0.04, z: 0, r: 0.26 },
         { joint: e.chest, x: 0, y: 0, z: 0, r: 0.22 },
@@ -70,7 +70,7 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
     [0.38, cyRef - 0.46 * headScale, -0.48],
   ];
   const headRibChain = t.addChain('headRib', e.head, headRibPts.slice(0, 3));
-  t.chain({ joints: headRibChain, tip: [0.06, -0.16, -0.08], stiffness: 3.2, drag: 0.92, gravity: 5.5, maxAngle: 76, wind: 3.4 });
+  t.chain({ joints: headRibChain, tip: [0.06, -0.16, -0.08], stiffness: 7, drag: 0.8, gravity: 5.5, maxAngle: 50, wind: 4 });
 
   const ivory = pal.lining ?? 0xf4ecdc;
   const ivoryShade = pal.liningShade ?? 0xd6c4a4;

@@ -52,11 +52,11 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
   t.chain({
     joints: hairChain,
     tip: [0.08, -0.1, -0.1],
-    stiffness: 3.8,
-    drag: 0.91,
+    stiffness: 6.5,
+    drag: 0.8,
     gravity: 5,
-    maxAngle: 72,
-    wind: 3.4,
+    maxAngle: 48,
+    wind: 3.5,
   });
 
   // 腰间青墨飘带物理链
@@ -69,7 +69,7 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
   const ribL = t.addChain('ribL', e.hips, makeRib(1).slice(0, 3));
   const ribR = t.addChain('ribR', e.hips, makeRib(-1).slice(0, 3));
   for (const rb of [ribL, ribR]) {
-    t.chain({ joints: rb, tip: [0, -0.2, 0.03], stiffness: 4.0, drag: 0.92, gravity: 6.5, maxAngle: 68, wind: 2.6 });
+    t.chain({ joints: rb, tip: [0, -0.2, 0.03], stiffness: 7.5, drag: 0.8, gravity: 6.5, maxAngle: 46, wind: 3.2 });
   }
 
   // 水墨墨青外罩大披摆（绑于 cloak 链）
@@ -84,11 +84,11 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
   t.chain({
     joints: cloakChain,
     tip: [0, -0.22, -0.05],
-    stiffness: 3.2,
-    drag: 0.92,
+    stiffness: 9.5,
+    drag: 0.7,
     gravity: 7,
-    maxAngle: 68,
-    wind: 2.8,
+    maxAngle: 42,
+    wind: 8,
     colliders: [
       { joint: e.hips, x: 0, y: -0.08, z: 0.08, r: 0.3 },
       { joint: e.chest, x: 0, y: 0, z: 0.06, r: 0.25 },

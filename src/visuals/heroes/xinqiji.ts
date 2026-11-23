@@ -32,11 +32,11 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   t.chain({
     joints: rChain,
     tip: [0.02, -0.24, -0.06],
-    stiffness: 2.8,
-    drag: 0.92,
+    stiffness: 8,
+    drag: 0.7,
     gravity: 6.5,
-    maxAngle: 78,
-    wind: 3.2,
+    maxAngle: 46,
+    wind: 8,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.24 }],
   });
 
@@ -51,11 +51,11 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   t.chain({
     joints: cChain,
     tip: [-0.02, -0.22, -0.05],
-    stiffness: 3.2,
-    drag: 0.92,
+    stiffness: 8.5,
+    drag: 0.7,
     gravity: 6.8,
-    maxAngle: 76,
-    wind: 2.9,
+    maxAngle: 46,
+    wind: 7.5,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.24 }],
   });
 
@@ -67,7 +67,7 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
     [-0.34, 0.22, 0.24],
   ];
   const dChain = t.addChain('sash', e.hips, sashPts.slice(0, 3));
-  t.chain({ joints: dChain, tip: [-0.06, -0.18, -0.02], stiffness: 4.5, drag: 0.9, gravity: 8.5, maxAngle: 68, wind: 2.2 });
+  t.chain({ joints: dChain, tip: [-0.06, -0.18, -0.02], stiffness: 8, drag: 0.8, gravity: 8.5, maxAngle: 46, wind: 3 });
 
   const sashRPts = [
     [0.08, 0.96, 0.16],
@@ -76,7 +76,7 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
     [0.26, 0.24, 0.2],
   ];
   const dChainR = t.addChain('sashR', e.hips, sashRPts.slice(0, 3));
-  t.chain({ joints: dChainR, tip: [0.05, -0.18, -0.02], stiffness: 4.8, drag: 0.9, gravity: 8.5, maxAngle: 66, wind: 2.0 });
+  t.chain({ joints: dChainR, tip: [0.05, -0.18, -0.02], stiffness: 8, drag: 0.8, gravity: 8.5, maxAngle: 44, wind: 2.6 });
 
   // 后脑飘逸黑长发丝 + 暗红发带物理链
   const cyRef = s.headY + 0.2 * headScale;
@@ -90,11 +90,11 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   t.chain({
     joints: hairBackChain,
     tip: [0.02, -0.18, -0.04],
-    stiffness: 5.2,
-    drag: 0.9,
+    stiffness: 8,
+    drag: 0.8,
     gravity: 7,
-    maxAngle: 64,
-    wind: 2.8,
+    maxAngle: 46,
+    wind: 3.5,
     colliders: [{ joint: e.chest, x: 0, y: 0.06, z: -0.04, r: 0.22 }],
   });
 
@@ -105,7 +105,7 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
     [0.32, cyRef - 0.02 * headScale, -0.58],
   ];
   const ribBandChain = t.addChain('headRib', e.head, ribBandPts.slice(0, 3));
-  t.chain({ joints: ribBandChain, tip: [0.08, -0.1, -0.12], stiffness: 3.4, drag: 0.92, gravity: 4.5, maxAngle: 78, wind: 3.6 });
+  t.chain({ joints: ribBandChain, tip: [0.08, -0.1, -0.12], stiffness: 6.5, drag: 0.8, gravity: 4.5, maxAngle: 50, wind: 4 });
 
   // 隐藏大招军令图骨骼
   const h = t.add('furl', e.handL, s.shoulderX, s.handY, 0);

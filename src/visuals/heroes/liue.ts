@@ -53,11 +53,11 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   t.chain({
     joints: hairChain,
     tip: [0, -0.15, -0.01],
-    stiffness: 8.0,
-    drag: 0.88,
+    stiffness: 10,
+    drag: 0.8,
     gravity: 10,
-    maxAngle: 42,
-    wind: 0.9,
+    maxAngle: 38,
+    wind: 2,
     colliders: [{ joint: e.chest, x: 0, y: 0.05, z: -0.04, r: 0.24 }],
   });
 
@@ -71,7 +71,7 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   const ribL = t.addChain('ribL', e.hips, makeRib(1).slice(0, 3));
   const ribR = t.addChain('ribR', e.hips, makeRib(-1).slice(0, 3));
   for (const rb of [ribL, ribR]) {
-    t.chain({ joints: rb, tip: [0, -0.18, 0.02], stiffness: 5.5, drag: 0.9, gravity: 8.5, maxAngle: 54, wind: 1.5 });
+    t.chain({ joints: rb, tip: [0, -0.18, 0.02], stiffness: 8, drag: 0.8, gravity: 8.5, maxAngle: 42, wind: 2.4 });
   }
 
   // 背后正朱红重工织金凤纹拖尾礼披（绑 cloak 物理链）
@@ -86,11 +86,11 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   t.chain({
     joints: cloakChain,
     tip: [0, -0.24, -0.05],
-    stiffness: 3.4,
-    drag: 0.92,
+    stiffness: 11,
+    drag: 0.72,
     gravity: 8,
-    maxAngle: 60,
-    wind: 2.0,
+    maxAngle: 38,
+    wind: 7,
     colliders: [
       { joint: e.hips, x: 0, y: -0.1, z: 0.1, r: 0.32 },
       { joint: e.chest, x: 0, y: 0, z: 0.08, r: 0.26 },

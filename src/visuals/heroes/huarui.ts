@@ -34,11 +34,11 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   t.chain({
     joints: fChain,
     tip: [0.06, -0.18, -0.04],
-    stiffness: 5.0,
-    drag: 0.9,
+    stiffness: 8,
+    drag: 0.78,
     gravity: 6.5,
-    maxAngle: 64,
-    wind: 2.8,
+    maxAngle: 48,
+    wind: 3,
     colliders: [{ joint: e.chest, x: 0, y: 0.05, z: -0.04, r: 0.22 }],
   });
 
@@ -54,11 +54,11 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   t.chain({
     joints: hChain,
     tip: [0, -0.22, -0.04],
-    stiffness: 3.1,
-    drag: 0.92,
+    stiffness: 9.5,
+    drag: 0.7,
     gravity: 6.8,
-    maxAngle: 74,
-    wind: 3.0,
+    maxAngle: 42,
+    wind: 8,
     colliders: [
       { joint: e.chest, x: 0, y: 0, z: 0.02, r: 0.24 },
       { joint: e.hips, x: 0, y: 0, z: 0, r: 0.25 },
@@ -73,7 +73,7 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
     [0.52, 0.24, 0.08],
   ];
   const mChain = t.addChain('sash', e.hips, sashPts.slice(0, 3));
-  t.chain({ joints: mChain, tip: [0.06, -0.18, -0.02], stiffness: 4.5, drag: 0.9, gravity: 8, maxAngle: 68, wind: 2.4 });
+  t.chain({ joints: mChain, tip: [0.06, -0.18, -0.02], stiffness: 8, drag: 0.8, gravity: 8, maxAngle: 46, wind: 3 });
 
   // 左侧绯红金花飞摆（绑 tail 物理链）
   const tailPts = [
@@ -83,7 +83,7 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
     [-0.52, 0.22, -0.06],
   ];
   const gChain = t.addChain('tail', e.hips, tailPts.slice(0, 3));
-  t.chain({ joints: gChain, tip: [-0.06, -0.16, -0.02], stiffness: 4.6, drag: 0.9, gravity: 8, maxAngle: 68, wind: 2.5 });
+  t.chain({ joints: gChain, tip: [-0.06, -0.16, -0.02], stiffness: 8, drag: 0.8, gravity: 8, maxAngle: 46, wind: 3 });
 
   // 剑柄尾端绯红剑穗
   const tasselPts = [
