@@ -57,11 +57,11 @@ export function buildQinQiongFull(api: FullHeroEngineApi, pal: Record<string, nu
   t.chain({
     joints: cloakChain,
     tip: [0, -0.24, -0.04],
-    stiffness: 11,
-    drag: 0.72,
-    gravity: 6.8,
-    maxAngle: 40,
-    wind: 9,
+    stiffness: 4.5,
+    drag: 0.7,
+    gravity: 14,
+    maxAngle: 44,
+    wind: 3,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.34 }],
   });
 

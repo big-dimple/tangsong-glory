@@ -84,11 +84,11 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
   t.chain({
     joints: cloakChain,
     tip: [0, -0.22, -0.05],
-    stiffness: 9.5,
-    drag: 0.7,
-    gravity: 7,
-    maxAngle: 42,
-    wind: 8,
+    stiffness: 3.5,
+    drag: 0.72,
+    gravity: 12,
+    maxAngle: 46,
+    wind: 2.5,
     colliders: [
       { joint: e.hips, x: 0, y: -0.08, z: 0.08, r: 0.3 },
       { joint: e.chest, x: 0, y: 0, z: 0.06, r: 0.25 },

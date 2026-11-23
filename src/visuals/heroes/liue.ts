@@ -86,11 +86,11 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   t.chain({
     joints: cloakChain,
     tip: [0, -0.24, -0.05],
-    stiffness: 11,
+    stiffness: 3.5,
     drag: 0.72,
-    gravity: 8,
-    maxAngle: 38,
-    wind: 7,
+    gravity: 12,
+    maxAngle: 44,
+    wind: 2.5,
     colliders: [
       { joint: e.hips, x: 0, y: -0.1, z: 0.1, r: 0.32 },
       { joint: e.chest, x: 0, y: 0, z: 0.08, r: 0.26 },

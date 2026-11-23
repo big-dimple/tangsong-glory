@@ -32,11 +32,11 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   t.chain({
     joints: rChain,
     tip: [0.02, -0.24, -0.06],
-    stiffness: 8,
-    drag: 0.7,
-    gravity: 6.5,
+    stiffness: 4,
+    drag: 0.72,
+    gravity: 13,
     maxAngle: 46,
-    wind: 8,
+    wind: 3,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.24 }],
   });
 
@@ -51,11 +51,11 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   t.chain({
     joints: cChain,
     tip: [-0.02, -0.22, -0.05],
-    stiffness: 8.5,
-    drag: 0.7,
-    gravity: 6.8,
+    stiffness: 4,
+    drag: 0.72,
+    gravity: 13,
     maxAngle: 46,
-    wind: 7.5,
+    wind: 2.5,
     colliders: [{ joint: e.chest, x: 0, y: 0, z: 0, r: 0.24 }],
   });
 

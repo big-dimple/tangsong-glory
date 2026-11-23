@@ -54,11 +54,11 @@ export function buildHuaRuiWarriorFull(api: FullHeroEngineApi, pal: Record<strin
   t.chain({
     joints: hChain,
     tip: [0, -0.22, -0.04],
-    stiffness: 9.5,
-    drag: 0.7,
-    gravity: 6.8,
-    maxAngle: 42,
-    wind: 8,
+    stiffness: 3.5,
+    drag: 0.72,
+    gravity: 12,
+    maxAngle: 46,
+    wind: 3,
     colliders: [
       { joint: e.chest, x: 0, y: 0, z: 0.02, r: 0.24 },
       { joint: e.hips, x: 0, y: 0, z: 0, r: 0.25 },

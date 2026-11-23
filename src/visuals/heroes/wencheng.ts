@@ -49,11 +49,11 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
     t.chain({
       joints: rb,
       tip: [0, -0.2, 0.04],
-      stiffness: 8.5,
-      drag: 0.7,
-      gravity: 6.2,
+      stiffness: 3.5,
+      drag: 0.72,
+      gravity: 11,
       maxAngle: 46,
-      wind: 8,
+      wind: 2.5,
       colliders: [
         { joint: e.hips, x: 0, y: -0.04, z: 0, r: 0.26 },
         { joint: e.chest, x: 0, y: 0, z: 0, r: 0.22 },
