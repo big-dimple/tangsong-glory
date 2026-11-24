@@ -70,7 +70,9 @@ import {
 } from './visuals/tangsongWorld';
 import { TANGSONG_COMBAT_FEEL } from './config/combatFeel';
 import { createBattleViewDrag } from './ui/battleViewDrag';
+import { mountTeamCommands, teamTactics, type TeamState } from './engine/teamTactics';
 import { hasTeamSight, teamVision } from './visuals/teamVision';
+import { showSkillInk, type SkillInkHud } from './visuals/skillInk';
 import { RenderResolution } from './visuals/renderResolution';
 import { createMatchAssetLoader } from './platform/matchAssets';
 import {
@@ -152,16 +154,16 @@ interface HudEventLike {
   slot?: string;
   unitId?: number;
   heroId?: string;
+  pos?: { x: number; y: number };
+  dir?: { x: number; y: number };
 }
 
-interface HudCtxLike {
-  root?: HTMLElement;
-  me?: { id?: number; heroId?: string };
-  host?: { getSettings?: () => { eyesCutin?: boolean } };
-  hero?: (id: number) => { heroId?: string } | undefined;
+interface HudCtxLike extends SkillInkHud {
+  host?: SkillInkHud['host'] & { getSettings?: () => { eyesCutin?: boolean } };
 }
 
 function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
+  showSkillInk(events, hudCtx);
   const settings = hudCtx.host?.getSettings?.();
   if (settings && settings.eyesCutin === false) return;
 
@@ -271,6 +273,7 @@ bootTangSongGlory({
     api: SpriteAtlasApi,
   ) => patchTangSongSpriteAtlas(vb, Ft, api),
   combatFeel: TANGSONG_COMBAT_FEEL,
+  teamTactics,
   heroes3D: {
     buildQinQiongFull,
     buildMageFull,
@@ -304,6 +307,10 @@ bootTangSongGlory({
   onPhaseChange(phase: string) {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('ts-in-match', phase === 'match' || phase === 'loading');
+      if (phase === 'match') requestAnimationFrame(() => {
+        const game = window.__moba as { phase?: string; state?: TeamState; hud?: { el?: HTMLElement } } | undefined;
+        if (game?.phase === 'match' && game.state && game.hud?.el) mountTeamCommands(game.hud.el, game.state);
+      });
     }
   },
 });

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { patchCoreTeamwork } from './patch-core-teamwork.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -1822,6 +1823,8 @@ function main() {
     'y=1-Math.exp(-m.stiffness*h*h*60)',
     'cloth chain spring frame-rate scaling',
   );
+
+  code = patchCoreTeamwork(code);
 
   // ── 15. 包装为 ES Module 并强制静态语法/禁词检查 ──
   const output = [

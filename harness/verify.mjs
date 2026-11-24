@@ -505,22 +505,43 @@ async function run() {
       await page.screenshot({ path: path.join(SHOT_DIR, `v2_select_3d_${heroId}.png`) });
     }
 
-    // 竖屏手机 390x844 选将殿截图
-    await page.setViewport({
-      width: 390,
-      height: 844,
-      deviceScaleFactor: 2,
-      isMobile: true,
-      hasTouch: true,
-    });
-    await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
-    const cardCountPortrait = await page.evaluate(() => document.querySelectorAll('.sf-hcard').length);
-    if (cardCountPortrait !== 6) {
-      await page.click('.ts-lobby .ts-btn-seal');
-      await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6, 30_000);
+    // 竖屏手机的 3D 舞台应与圆环对齐，人物信息留在圆环中心左侧。
+    for (const [width, height] of [[320, 740], [390, 844], [430, 932]]) {
+      await page.setViewport({ width, height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+      await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
+      const cardCountPortrait = await page.evaluate(() => document.querySelectorAll('.sf-hcard').length);
+      if (cardCountPortrait !== 6) {
+        await page.click('.ts-lobby .ts-btn-seal');
+        await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6, 30_000);
+      }
+      await page.evaluate(() => {
+        [...document.querySelectorAll('.ts-stage-toggle button')]
+          .find((button) => button.textContent?.includes('3D'))?.click();
+      });
+      await waitForCondition(page, () => !!document.querySelector('.sf-select__stage.is-3d-mode .sf-select__canvas'));
       await wait(700);
+      const layout = await page.evaluate(() => {
+        const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
+        const stage = rect('.sf-select__stage');
+        const canvas = rect('.sf-select__canvas');
+        const ring = rect('.sf-select__ring');
+        const plate = rect('.sf-select__plate');
+        return {
+          stageWidth: stage.width,
+          canvasCenter: canvas.left + canvas.width / 2,
+          ringCenter: ring.left + ring.width / 2,
+          plateRight: plate.right,
+        };
+      });
+      assert(
+        Math.abs(layout.canvasCenter - layout.ringCenter) <= layout.stageWidth * 0.04,
+        `${width}x${height} 3D 人物画布与圆环未对齐: ${JSON.stringify(layout)}`,
+      );
+      assert(layout.plateRight < layout.ringCenter, `${width}x${height} 人物信息遮挡舞台中心: ${JSON.stringify(layout)}`);
+      if (width === 390) {
+        await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_390x844.png') });
+      }
     }
-    await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_390x844.png') });
 
     // ── 3. 6 英雄全通进局 + 局内基地/中路塔/BGM切换/eyes切镜截图 ──
     await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
@@ -797,6 +818,9 @@ async function run() {
         world.grid.rebuild(state.units);
 
         const fired = {};
+        const inkSlots = {};
+        let brushText = '';
+        let brushDelays = [];
         for (const slot of ['s1', 's2', 'ult']) {
           me.mana = me.stats.maxMana;
           me.rt.lockUntil = 0;
@@ -816,6 +840,26 @@ async function run() {
               hud?.handleEvents?.(evs, state);
               if (evs.some((ev) => ev.type === 'skillCast' && ev.slot === slot && ev.unitId === me.id)) {
                 fired[slot] = true;
+              }
+            }
+          }
+          if (expectedHero === 'sushi' && slot === 'ult') {
+            const title = document.querySelector('.ts-brush-title');
+            brushText = title?.textContent ?? '';
+            brushDelays = [...(title?.querySelectorAll('.ts-brush-title__char') ?? [])]
+              .map((char) => parseFloat(getComputedStyle(char).animationDelay));
+          }
+          if (slot === 'ult') {
+            const animation = document.querySelector('.ts-eyes-cutin')?.getAnimations()[0];
+            if (animation) { animation.pause(); animation.currentTime = 100; }
+          }
+          for (let attempt = 0; attempt < 3 && !inkSlots[slot]; attempt++) {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            const ink = document.querySelector('.ts-skill-ink');
+            const pixels = ink?.getContext('2d')?.getImageData(0, 0, ink.width, ink.height).data;
+            if (pixels) {
+              for (let i = 3; i < pixels.length; i += 4) {
+                if (pixels[i] > 0) { inkSlots[slot] = true; break; }
               }
             }
           }
@@ -843,6 +887,10 @@ async function run() {
           atkOrderAfterMove,
           movedDist: +movedDist.toFixed(2),
           fired,
+          inkSlots,
+          brushText,
+          brushDelays,
+          reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
           hasCutin: !!cutin?.querySelector('img')?.naturalWidth,
           brokenImgs: imgs.filter((x) => !x.ok),
           battleAudioStats: moba.audio.debug.stats(),
@@ -860,6 +908,15 @@ async function run() {
       assert.equal(res.fired.s1, true);
       assert.equal(res.fired.s2, true);
       assert.equal(res.fired.ult, true);
+      for (const slot of ['s1', 's2', 'ult']) {
+        assert(res.inkSlots[slot], `${heroId} ${slot} 未绘制水墨动效`);
+      }
+      if (heroId === 'sushi') {
+        assert.equal(res.brushText, lobbyChecks.heroTable.sushi.skills.ult.name, '苏轼大招毛笔字缺失');
+        if (!res.reducedMotion) {
+          assert(res.brushDelays.every((delay, i) => Math.abs(delay - i * 0.14) < 0.01), '毛笔字应逐字出现');
+        }
+      }
       assert.equal(res.hasCutin, true);
       assert.equal(
         res.battleAudioStats.track,
@@ -888,10 +945,10 @@ async function run() {
         await page.evaluate(() => document.querySelector('.ts-eyes-cutin')?.getAnimations()[0]?.play());
       }
 
-      // 新增 Milestone 2 战斗技能特效专项截图（苏轼/刘娥/花蕊夫人/辛弃疾中路演武绽放）
-      if (['sushi', 'liue', 'huarui', 'xinqiji'].includes(heroId)) {
+      // 六位英雄都检查局内大招的国风表现。
+      {
         await page.evaluate(async (hid) => {
-          const { world, state, renderer } = window.__moba;
+          const { world, state, renderer, hud } = window.__moba;
           const cutin = document.querySelector('.ts-eyes-cutin');
           if (cutin) cutin.remove();
           const me = state.heroes.find((h) => h.id === state.playerId);
@@ -935,7 +992,10 @@ async function run() {
           for (let i = 0; i < 3; i++) {
             world.step();
             const evs = world.drainEvents();
-            if (evs.length) renderer?.handleEvents?.(evs, state);
+            if (evs.length) {
+              renderer?.handleEvents?.(evs, state);
+              hud?.handleEvents?.(evs, state);
+            }
             renderer?.render?.(state, 1, 0.033);
           }
 
@@ -954,7 +1014,10 @@ async function run() {
           for (let i = 0; i < frames; i++) {
             world.step();
             const evs = world.drainEvents();
-            if (evs.length) renderer?.handleEvents?.(evs, state);
+            if (evs.length) {
+              renderer?.handleEvents?.(evs, state);
+              hud?.handleEvents?.(evs, state);
+            }
             renderer?.render?.(state, 1, 0.033);
           }
           renderer.snapCamera();
@@ -1436,7 +1499,8 @@ async function run() {
             let maxMoveBlend = 0;
             let maxThighDelta = 0;
             let firstThigh = null;
-            for (let i = 0; i < 10; i++) {
+            // 覆盖完整步态，避免只采到转身混合初期的短暂停顿。
+            for (let i = 0; i < 20; i++) {
               stepRender();
               if (puppet) {
                 maxMoveBlend = Math.max(maxMoveBlend, puppet.input.moveBlend || 0);
@@ -1491,8 +1555,34 @@ async function run() {
         timeout: 60_000,
       });
       await waitForCondition(page, () => window.__moba?.phase === 'match' && !!window.__moba?.renderer, 60_000);
+      await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 2, 30_000);
       await wait(450);
       viewMetrics[vpName] = {};
+
+      const commandLayout = await page.evaluate(() => {
+        const { session } = window.__moba;
+        session.loop.stop();
+        const quick = document.querySelector('.sf-hud__quick');
+        const wasOn = quick.classList.contains('is-on');
+        quick.classList.add('is-on');
+        quick.getAnimations().forEach((animation) => animation.finish());
+        const controls = [...document.querySelectorAll('.ts-team-orders button')];
+        const targets = [document.querySelector('.sf-hud__shopbtn'), ...controls, quick];
+        const rects = targets.map((el) => {
+          const rect = el.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, hit: el === hit || el.contains(hit) };
+        });
+        if (!wasOn) quick.classList.remove('is-on');
+        session.loop.start();
+        return { rects, width: innerWidth, height: innerHeight };
+      });
+      for (let i = 0; i < commandLayout.rects.length; i++) {
+        const rect = commandLayout.rects[i];
+        assert(rect.hit && rect.left >= 0 && rect.right <= commandLayout.width && rect.top >= 0 && rect.bottom <= commandLayout.height,
+          `${vpName} 商店、队友指令或快捷购买不可点击: ${JSON.stringify(commandLayout)}`);
+        if (i) assert(rect.left >= commandLayout.rects[i - 1].right, `${vpName} 控件相互遮挡: ${JSON.stringify(commandLayout)}`);
+      }
 
       for (const preset of ['near', 'standard', 'wide']) {
         const m = await page.evaluate((key) => {
@@ -1531,6 +1621,120 @@ async function run() {
     await waitForCondition(page, () => window.__moba?.phase === 'match', 60_000);
     const persisted = await page.evaluate(() => window.__moba.getCameraPreset());
     assert.equal(persisted, 'standard');
+
+    // 使用真实模拟器验证队友自动支援、指令续期与危险时的自保。
+    await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 2, 30_000);
+    const teamwork = await page.evaluate(() => {
+      const { world, state, session } = window.__moba;
+      session.loop.stop();
+      const me = state.heroes.find((hero) => hero.id === state.playerId);
+      const ally = state.heroes.find((hero) => hero.team === me.team && hero.id !== me.id);
+      const foe = state.heroes.find((hero) => hero.team !== me.team);
+      for (const hero of state.heroes) world.setBotControl(hero.id, false);
+      world.setBotControl(ally.id, true);
+      const bot = ally.h.controller;
+      const position = (hero, x, y) => {
+        hero.pos.x = hero.prevPos.x = x;
+        hero.pos.y = hero.prevPos.y = y;
+        hero.rt.lockUntil = 0;
+        hero.rt.dash = null;
+      };
+      const reset = () => {
+        for (const hero of state.heroes) {
+          if (hero !== me && hero !== ally && hero !== foe) {
+            position(hero, hero.team === me.team ? -44 : 44, hero.team === me.team ? 44 : -44);
+          }
+        }
+        for (const hero of [me, ally, foe]) { hero.alive = true; hero.hp = hero.stats.maxHp; }
+        me.h.atkOrder = false;
+        me.h.atkTargetId = -1;
+        me.h.lastCombatTime = -999;
+        me.inCombat = false;
+        me.targetId = -1;
+        me.anim = 'idle';
+        ally.h.nextThink = state.time;
+        world.grid.rebuild(state.units);
+      };
+      const step = (count) => {
+        const labels = new Set();
+        const focus = new Set();
+        for (let i = 0; i < count; i++) {
+          world.step();
+          labels.add(bot.label);
+          focus.add(bot.brain.focusId);
+        }
+        return { labels: [...labels], focus: [...focus] };
+      };
+      const gatherButton = document.querySelector('[data-order="gather"]');
+      const attackButton = document.querySelector('[data-order="attack"]');
+
+      reset();
+      position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
+      foe.visible[me.team] = true;
+      world.grid.rebuild(state.units);
+      world.step();
+      world.command(me.id, { type: 'attack', targetId: foe.id });
+      const beforeFight = Math.hypot(ally.pos.x - foe.pos.x, ally.pos.y - foe.pos.y);
+      const automatic = step(90);
+      automatic.approach = beforeFight - Math.hypot(ally.pos.x - foe.pos.x, ally.pos.y - foe.pos.y);
+
+      reset();
+      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      world.grid.rebuild(state.units);
+      gatherButton.click();
+      const beforeGather = Math.hypot(ally.pos.x - me.pos.x, ally.pos.y - me.pos.y);
+      const gather = step(90);
+      gather.approach = beforeGather - Math.hypot(ally.pos.x - me.pos.x, ally.pos.y - me.pos.y);
+      gather.feedback = document.querySelector('.ts-team-orders__feedback').textContent;
+
+      reset();
+      position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
+      foe.visible[me.team] = true;
+      world.grid.rebuild(state.units);
+      world.step();
+      attackButton.click();
+      const attack = step(60);
+
+      reset();
+      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      ally.hp = ally.stats.maxHp * 0.25;
+      world.grid.rebuild(state.units);
+      gatherButton.click();
+      const lowHealth = step(30);
+
+      reset();
+      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      world.grid.rebuild(state.units);
+      gatherButton.click(); step(180); gatherButton.click(); step(105);
+      reset();
+      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      world.grid.rebuild(state.units);
+      const repeated = step(15);
+      step(150);
+      reset();
+      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      world.grid.rebuild(state.units);
+      const expired = step(15);
+
+      reset();
+      const tower = state.units.find((unit) => unit.kind === 'tower' && unit.team !== me.team && unit.lane === 'mid' && unit.tier === 1);
+      position(me, tower.pos.x, tower.pos.y);
+      position(ally, tower.pos.x - 10, tower.pos.y + 10);
+      position(foe, 44, -44);
+      world.grid.rebuild(state.units);
+      gatherButton.click();
+      const towerRisk = step(30);
+      return { foeId: foe.id, automatic, gather, attack, lowHealth, repeated, expired, towerRisk };
+    });
+    assert(teamwork.automatic.labels.includes('assist-player') && teamwork.automatic.focus.includes(teamwork.foeId) && teamwork.automatic.approach > 2,
+      `玩家开战时队友未支援: ${JSON.stringify(teamwork)}`);
+    assert(teamwork.gather.labels.includes('gather-player') && teamwork.gather.approach > 2 && teamwork.gather.feedback,
+      `集合指令未生效: ${JSON.stringify(teamwork)}`);
+    assert(teamwork.attack.labels.includes('assist-player') && teamwork.attack.focus.includes(teamwork.foeId), `进攻指令未聚焦敌人: ${JSON.stringify(teamwork)}`);
+    assert(!teamwork.lowHealth.labels.some((label) => label.includes('gather')) && !teamwork.towerRisk.labels.some((label) => label.includes('gather')),
+      `危险情况下不应强制队友集合: ${JSON.stringify(teamwork)}`);
+    assert(teamwork.repeated.labels.includes('gather-player') && !teamwork.expired.labels.includes('gather-player'),
+      `重复指令未续期或过期后仍生效: ${JSON.stringify(teamwork)}`);
 
     assert.equal(errors.length, 0, `发现运行时报错: ${errors.join(' | ')}`);
     assert.equal(badHttp.length, 0, `发现 HTTP >= 400 资源请求: ${badHttp.join(' | ')}`);

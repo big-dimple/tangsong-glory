@@ -25,12 +25,25 @@ export interface SculptedHeadOpts {
   lip: number;
   headScale: number;
   female?: boolean;
-  jawSharp?: number;
+  jawWidth?: number;
   huadian?: number;
   eyeSlant?: number;
+  eyeWidth?: number;
+  eyeHeight?: number;
+  irisScale?: number;
+  gazeX?: number;
+  lidArch?: number;
+  eyeTail?: number;
   browAngle?: number;
+  browThickness?: number;
+  browLift?: number;
+  browArch?: number;
+  frown?: boolean;
   smile?: number;
-  beard?: 'none' | 'stubble' | 'general';
+  smileAsymmetry?: number;
+  mouthOpen?: number;
+  noseWidth?: number;
+  beard?: 'none' | 'general';
   bangStyle?: 'swept' | 'parted' | 'wild' | 'noble';
   sideLockLen?: number;
 }
@@ -52,7 +65,7 @@ export function buildSculptedTangSongHead(
   const headBone = h.J.head;
 
   // 骨相纵剖面 [dy, rx, rz, cz]（精致短下颌东方鹅蛋/剑眉俊颜，拒绝拉长马脸与对称卤蛋）
-  const profile: [number, number, number, number][] = female
+  const baseProfile: [number, number, number, number][] = female
     ? [
         [-0.222, 0.03, 0.034, 0.062], // 娇巧下巴尖
         [-0.185, 0.088, 0.094, 0.048], // 柔和下颌收束
@@ -75,6 +88,13 @@ export function buildSculptedTangSongHead(
         [0.242, 0.108, 0.12, -0.025],
         [0.262, 0.022, 0.024, -0.024],
       ];
+  const jawWidth = opts.jawWidth ?? 1;
+  const profile: [number, number, number, number][] = baseProfile.map(([dy, rx, rz, cz]) => [
+    dy,
+    rx * (1 + (jawWidth - 1) * clamp01((-0.04 - dy) / 0.1)),
+    rz,
+    cz,
+  ]);
 
   const ring = (offsetY: number): [number, number, number] => {
     const dy = offsetY / s;
@@ -84,46 +104,41 @@ export function buildSculptedTangSongHead(
     for (let idx = 1; idx < profile.length; idx++) {
       if (dy <= profile[idx][0]) {
         const t = (dy - profile[idx - 1][0]) / (profile[idx][0] - profile[idx - 1][0]);
-        return [
-          bt(profile[idx - 1][1], profile[idx][1], t) * s,
-          bt(profile[idx - 1][2], profile[idx][2], t) * s,
-          bt(profile[idx - 1][3], profile[idx][3], t) * s,
-        ];
+        const prev = profile[Math.max(0, idx - 2)];
+        const next = profile[Math.min(profile.length - 1, idx + 1)];
+        const left = profile[idx - 1], right = profile[idx];
+        const span = right[0] - left[0];
+        const smooth = (column: 1 | 2 | 3) => {
+          const m0 = (right[column] - prev[column]) / (right[0] - prev[0]) * span;
+          const m1 = (next[column] - left[column]) / (next[0] - left[0]) * span;
+          const value = (2 * t ** 3 - 3 * t ** 2 + 1) * left[column] + (t ** 3 - 2 * t ** 2 + t) * m0 +
+            (-2 * t ** 3 + 3 * t ** 2) * right[column] + (t ** 3 - t ** 2) * m1;
+          return Math.max(Math.min(left[column], right[column]), Math.min(Math.max(left[column], right[column]), value)) * s;
+        };
+        return [smooth(1), smooth(2), smooth(3)];
       }
     }
     const last = profile[profile.length - 1];
     return [last[1] * s, last[2] * s, last[3] * s];
   };
 
-  // 非对称东方骨相塑形：正脸微收颊、下巴前挺、后脑饱满
-  const faceShape = (ang: number, idx: number): number => {
-    const front = Math.sin(ang); // +1 正脸, -1 后脑
-    const side = Math.abs(Math.cos(ang)); // +1 左右耳侧
-    const dy = profile[idx][0];
-    let k = 1.0;
-    // 下颌区：女性瓜子脸收颊，男性微显下颌骨棱角
-    if (dy < -0.06) {
-      const low = clamp01((-0.06 - dy) / 0.19);
-      if (female) {
-        k -= low * side * 0.085;
-        if (front > 0) k += low * Math.pow(front, 2) * 0.045;
-      } else {
-        k -= low * side * 0.035;
-        if (front > 0) k += low * Math.pow(front, 2) * 0.055;
-      }
-    }
-    // 太阳穴略收、后脑微饱
-    if (dy > 0.0 && dy < 0.16) {
-      k -= side * 0.035;
-      if (front < 0) k += -front * 0.05;
-    }
-    return k;
+  const noseWidth = opts.noseWidth ?? 1;
+  const facialDepth = (x: number, y: number) => {
+    const area = (cx: number, cy0: number, wx: number, wy: number) =>
+      Math.exp(-(((Math.abs(x) - cx) / wx) ** 2 + ((y - cy0) / wy) ** 2));
+    return -0.012 * area(0.077, 0, 0.043, 0.028) + // 眼窝
+      0.009 * area(0.078, 0.039, 0.052, 0.024) + // 眉弓
+      0.008 * area(0.108, -0.061, 0.052, 0.041) + // 颧骨
+      0.018 * area(0, -0.025, 0.022 * noseWidth, 0.062) + // 鼻梁
+      0.016 * area(0, -0.054, 0.025 * noseWidth, 0.019) + // 鼻尖
+      0.004 * area(0, -0.105, 0.06, 0.03); // 口周
   };
 
   const surf = (x: number, y: number): number => {
     const r = ring(y - cy);
     const ratio = Math.min(0.99, Math.abs(x) / Math.max(0.001, r[0]));
-    return r[2] + r[1] * Math.sqrt(Math.max(0, 1 - ratio * ratio));
+    const front = Math.sqrt(Math.max(0, 1 - ratio * ratio));
+    return r[2] + r[1] * front + facialDepth(x / s, (y - cy) / s) * s * front ** 3;
   };
 
   const skinShade = opts.skinShade ?? (female ? 0xe5b296 : 0xc28664);
@@ -135,14 +150,30 @@ export function buildSculptedTangSongHead(
     ao2: 1.0,
     glow: 0.05,
     mat: K.skin,
-    line: 0.42,
-    by: (_x: number, yVal: number, _z: number, _r: number, _nx: number, ny: number) =>
-      clamp01(0.45 - ny * 0.42 + (cy - yVal) * 0.6),
+    line: 0.24,
+    by: (x: number, yVal: number, z: number, _r: number, _nx: number, ny: number) => {
+      const eyeShadow = Math.exp(-(((Math.abs(x) / s - 0.077) / 0.045) ** 2 + ((yVal - cy) / s / 0.035) ** 2));
+      return clamp01(0.24 - ny * 0.24 + (cy - yVal) * 0.42 + (z > 0 ? eyeShadow * 0.16 : 0));
+    },
   });
-  m.lathe(
-    profile.map(([dy, rx, rz, cz]) => [cy + dy * s, rx * s, rz * s, 0, cz * s]),
-    { seg: 20, crease: 180, shape: faceShape },
-  );
+  const rows = 40, segments = 56;
+  const vertices: number[] = [], triangles: number[] = [];
+  for (let row = 0; row <= rows; row++) {
+    const dy = bt(profile[0][0], profile[profile.length - 1][0], row / rows);
+    const [rx, rz, cz] = ring(dy * s);
+    for (let column = 0; column < segments; column++) {
+      const angle = column / segments * Math.PI * 2;
+      const x = Math.cos(angle) * rx;
+      const front = Math.sin(angle);
+      vertices.push(x, cy + dy * s, cz + front * rz + facialDepth(x / s, dy) * s * Math.max(0, front) ** 3);
+      if (row < rows) {
+        const a = row * segments + column, b = (row + 1) * segments + column;
+        const c = row * segments + (column + 1) % segments, d = (row + 1) * segments + (column + 1) % segments;
+        triangles.push(a, b, c, c, b, d);
+      }
+    }
+  }
+  m.emit(vertices, triangles, null, 180);
 
   // 精致贴合双耳（含耳廓内影）
   m.sym(() => {
@@ -158,45 +189,71 @@ export function buildSculptedTangSongHead(
   const eyeY = cy - 0.004 * s;
   const eyeX = (female ? 0.075 : 0.08) * s;
   const eyeRing = ring(eyeY - cy);
-  const eyeZ =
-    eyeRing[2] +
-    eyeRing[1] * Math.sqrt(Math.max(0, 1 - (eyeX / Math.max(0.001, eyeRing[0])) ** 2));
+  const eyeZ = surf(eyeX, eyeY);
   const eyeYaw =
     Math.atan2(
       eyeX / (eyeRing[0] * eyeRing[0]),
       (eyeZ - eyeRing[2]) / (eyeRing[1] * eyeRing[1]),
     ) *
     (180 / Math.PI);
-  const ew = (female ? 0.044 : 0.04) * s;
-  const eh = (female ? 0.025 : 0.018) * s;
+  const ew = (female ? 0.041 : 0.04) * (opts.eyeWidth ?? 1) * s;
+  const eh = (female ? 0.019 : 0.017) * (opts.eyeHeight ?? 1) * s;
   const slant = opts.eyeSlant ?? (female ? 7 : 5);
+  const irisScale = opts.irisScale ?? 1;
+  const lidArch = opts.lidArch ?? 0.9;
+  const eyeTail = opts.eyeTail ?? 0.24;
 
-  m.sym(() => {
+  m.sym((side) => {
     m.g(pt(eyeX, eyeY, eyeZ - 0.004 * s, 0, eyeYaw * 0.7, slant), () => {
-      // 柔和象牙白睛
-      m.paint(0xfcf7f0, { c2: 0xe6dcd2, line: 0, glow: 0.05 });
-      m.ball(0, 0, 0.002 * s, ew, eh, 0.009 * s, 1);
+      const gazeX = (opts.gazeX ?? 0) * s * side;
+      // 杏仁形眼裂贴入眼窝，不再使用凸起的圆球眼白。
+      m.paint(0xfff9ef, { c2: 0xe8dacc, line: 0, glow: 0.12 });
+      m.sheet(14, 6, (u, v) => {
+        const x = (u * 2 - 1) * ew;
+        const arch = Math.sin(Math.PI * u) ** 0.72;
+        const lower = -eh * 0.58 * arch;
+        const upper = eh * (0.76 + 0.16 * u) * arch;
+        return [x, bt(lower, upper, v), (0.006 + 0.003 * arch) * s];
+      }, true, 180);
       // 温润深邃大瞳眸（水灵明亮）
       m.paint(opts.iris, { c2: 0x160f0e, glow: 0.14, line: 0 });
-      m.ball(0, eh * 0.02, 0.008 * s, eh * 0.82, eh * 0.88, 0.0055 * s, 1);
+      m.ball(gazeX, 0, 0.009 * s, eh * 0.66 * irisScale, eh * 0.7 * irisScale, 0.0035 * s, 1);
       // 瞳孔
       m.paint(0x110c0c, { line: 0 });
-      m.ball(0, 0, 0.0112 * s, eh * 0.42, eh * 0.44, 0.0038 * s, 1);
+      m.ball(gazeX, 0, 0.012 * s, eh * 0.32 * irisScale, eh * 0.36 * irisScale, 0.0025 * s, 1);
       // 双眼神高光点
       m.paint(0xffffff, { glow: 0.72, line: 0 });
-      m.ball(ew * 0.14, eh * 0.3, 0.0138 * s, eh * 0.2, eh * 0.2, 0.0024 * s, 0);
-      m.ball(-ew * 0.14, -eh * 0.24, 0.0132 * s, eh * 0.11, eh * 0.11, 0.002 * s, 0);
+      m.ball(gazeX + eh * 0.18 * irisScale, eh * 0.21 * irisScale, 0.014 * s, eh * 0.12, eh * 0.12, 0.0015 * s, 0);
       // 上睫毛墨线 + 凤尾轻扬
-      m.paint(0x1a1416, { line: 0 });
+      m.paint(0x3d2928, { line: 0 });
       m.tube(
         [
-          [-ew * 1.02, -eh * 0.05, 0.008 * s, 0.003 * s],
-          [-ew * 0.28, eh * 0.9, 0.0112 * s, 0.0044 * s],
-          [ew * 0.56, eh * 0.8, 0.0104 * s, 0.004 * s],
-          [ew * 1.08, eh * 0.36, 0.0084 * s, 0.0032 * s],
-          [ew * 1.32, eh * 0.62, 0.004 * s, 0.0018 * s],
+          [-ew * 0.98, 0, 0.008 * s, 0.0012 * s],
+          [-ew * 0.3, eh * lidArch * 0.78, 0.0112 * s, 0.0024 * s],
+          [ew * 0.45, eh * lidArch * 0.8, 0.0104 * s, 0.0026 * s],
+          [ew * 0.96, eh * 0.1, 0.0084 * s, 0.0018 * s],
+          [ew * (1.02 + eyeTail * 0.45), eh * eyeTail * 0.5, 0.004 * s, 0.0008 * s],
         ],
         { seg: 5, up: [0, 0, 1] },
+      );
+      // 下眼睑与上眼褶分层，避免不同神态只靠眉毛区分。
+      m.paint(skinShade, { c2: opts.skin, line: 0 });
+      m.tube(
+        [
+          [-ew * 0.9, -eh * 0.16, 0.008 * s, 0.0015 * s],
+          [-ew * 0.28, -eh * 0.92, 0.0105 * s, 0.002 * s],
+          [ew * 0.55, -eh * 0.75, 0.0095 * s, 0.0017 * s],
+          [ew * 1.02, -eh * 0.02, 0.006 * s, 0.001 * s],
+        ],
+        { seg: 4, up: [0, 0, 1] },
+      );
+      m.tube(
+        [
+          [-ew * 0.72, eh * 1.24, 0.006 * s, 0.001 * s],
+          [-ew * 0.08, eh * (lidArch + 0.38), 0.009 * s, 0.0017 * s],
+          [ew * 0.7, eh * (lidArch + 0.25), 0.006 * s, 0.001 * s],
+        ],
+        { seg: 4, up: [0, 0, 1] },
       );
       // 女角眼尾丹霞淡红晕染
       if (female) {
@@ -206,63 +263,75 @@ export function buildSculptedTangSongHead(
     });
 
     // 剑眉 / 柳叶黛眉
-    const browY = eyeY + eh + (female ? 0.02 : 0.018) * s;
+    const browY = eyeY + eh + ((female ? 0.02 : 0.018) + (opts.browLift ?? 0)) * s;
     const browZ = surf(eyeX, browY) + 0.002 * s;
     const bAng = opts.browAngle ?? (female ? 4 : 11);
     m.paint(opts.hair, { c2: opts.hairHi, line: 0 });
     m.g(pt(eyeX * 0.94, browY, browZ, -6, eyeYaw * 0.62, bAng), () => {
-      const thick = (female ? 0.0038 : 0.0062) * s;
+      const thick = (female ? 0.0038 : 0.0062) * (opts.browThickness ?? 1) * s;
       m.tube(
         [
           [-ew * 1.04, -0.003 * s, 0, thick * 0.9, thick * 0.65],
-          [0, 0.006 * s, 0.002 * s, thick, thick * 0.72],
+          [0, (opts.browArch ?? 0.006) * s, 0.002 * s, thick, thick * 0.72],
           [ew * 1.1, female ? -0.004 * s : 0.008 * s, -0.003 * s, thick * 0.44, thick * 0.44],
         ],
         { seg: 4 },
       );
     });
 
-    // 女性淡胭脂颊彩
-    if (female) {
-      const cheekY = eyeY - 0.044 * s;
-      const cheekX = eyeX * 1.06;
-      m.paint(0xe5928c, { c2: opts.skin, line: 0, ao: 0.95 });
-      m.ball(cheekX, cheekY, surf(cheekX, cheekY) - 0.002 * s, 0.028 * s, 0.015 * s, 0.006 * s, 0);
-    }
   });
 
-  // ── 立体清秀鼻梁与鼻尖 ──
-  const noseTopY = eyeY + 0.006 * s;
-  const noseMidY = eyeY - 0.032 * s;
+  // 武将眉间收紧的两道肌理，让怒意在正面也能辨认。
+  if (opts.frown) {
+    m.paint(skinShade, { c2: opts.skin, line: 0 });
+    m.sym(() => {
+      m.tube(
+        [
+          [0.019 * s, eyeY + 0.038 * s, surf(0.019 * s, eyeY + 0.038 * s) + 0.003 * s, 0.0015 * s],
+          [0.025 * s, eyeY + 0.059 * s, surf(0.025 * s, eyeY + 0.059 * s) + 0.003 * s, 0.002 * s],
+          [0.022 * s, eyeY + 0.077 * s, surf(0.022 * s, eyeY + 0.077 * s) + 0.003 * s, 0.001 * s],
+        ],
+        { seg: 4 },
+      );
+    });
+  }
+
+  // 鼻梁由脸部网格连续塑形，鼻翼与鼻孔只做轻微层次。
   const noseTipY = eyeY - 0.052 * s;
-  m.paint(opts.skin, { c2: skinShade, ao: 0.9, mat: K.skin, line: 0 });
-  m.tube(
-    [
-      [0, noseTopY, surf(0, noseTopY) - 0.002 * s, 0.007 * s, 0.006 * s],
-      [0, noseMidY, surf(0, noseMidY) + 0.01 * s, 0.0085 * s, 0.009 * s],
-      [0, noseTipY, surf(0, noseTipY) + 0.015 * s, 0.0105 * s, 0.0105 * s],
-      [0, noseTipY - 0.009 * s, surf(0, noseTipY - 0.009 * s) + 0.002 * s, 0.0065 * s, 0.006 * s],
-    ],
-    { seg: 5, up: [1, 0, 0], crease: 180 },
-  );
+  m.sym(() => {
+    const x = 0.012 * noseWidth * s;
+    m.paint(opts.skin, { c2: skinShade, ao: 0.94, mat: K.skin, line: 0 });
+    m.ball(x, noseTipY, surf(x, noseTipY) + 0.001 * s, 0.008 * noseWidth * s, 0.006 * s, 0.004 * s, 1);
+    m.paint(skinShade, { c2: opts.skin, line: 0 });
+    m.ball(x * 0.82, noseTipY - 0.006 * s, surf(x * 0.82, noseTipY - 0.006 * s) + 0.003 * s, 0.003 * s, 0.0015 * s, 0.0015 * s, 0);
+  });
+  m.paint(opts.skin, { c2: skinShade, ao: 0.96, mat: K.skin, line: 0 });
+  m.ball(0, noseTipY + 0.002 * s, surf(0, noseTipY + 0.002 * s), 0.014 * noseWidth * s, 0.01 * s, 0.006 * s, 2);
 
   // ── 饱满点绛樱桃唇 / 俊朗薄唇 ──
   const lipY = cy - 0.106 * s;
   const lipZ = surf(0, lipY) + 0.003 * s;
-  const mw = (female ? 0.027 : 0.034) * s;
+  const mw = (female ? 0.031 : 0.035) * s;
   const smile = opts.smile ?? (female ? 0.005 : 0.002);
-  m.paint(opts.lip, { c2: skinShade, line: 0 });
+  const smileAsymmetry = opts.smileAsymmetry ?? 0;
+  if (opts.mouthOpen) {
+    m.paint(0x6e3830, { c2: opts.lip, line: 0 });
+    m.ball(0, lipY + 0.002 * s, lipZ + 0.002 * s, mw * 0.78, opts.mouthOpen * s, 0.003 * s, 2);
+    m.paint(0xf7e9d7, { c2: opts.skin, line: 0, glow: 0.04 });
+    m.ball(0, lipY + 0.003 * s, lipZ + 0.005 * s, mw * 0.55, opts.mouthOpen * 0.35 * s, 0.0018 * s, 1);
+  }
+  m.paint(opts.lip, { c2: opts.skin, line: 0 });
   m.tube(
     [
-      [-mw, lipY + smile * s, lipZ - 0.004 * s, 0.0025 * s],
+      [-mw, lipY + (smile - smileAsymmetry) * s, lipZ - 0.004 * s, 0.0025 * s],
       [-mw * 0.42, lipY + 0.004 * s, lipZ + 0.002 * s, (female ? 0.0062 : 0.005) * s],
       [0, lipY + 0.0025 * s, lipZ + 0.0035 * s, (female ? 0.0055 : 0.0045) * s],
       [mw * 0.42, lipY + 0.004 * s, lipZ + 0.002 * s, (female ? 0.0062 : 0.005) * s],
-      [mw, lipY + smile * s, lipZ - 0.004 * s, 0.0025 * s],
+      [mw, lipY + (smile + smileAsymmetry) * s, lipZ - 0.004 * s, 0.0025 * s],
     ],
     { seg: 4, up: [0, 1, 0] },
   );
-  m.ball(0, lipY - 0.005 * s, lipZ + 0.001 * s, mw * 0.74, (female ? 0.0068 : 0.0054) * s, 0.007 * s, 0);
+  m.ball(0, lipY - 0.004 * s, lipZ + 0.001 * s, mw * 0.72, (female ? 0.0045 : 0.0038) * s, 0.004 * s, 1);
 
   // ── 唐宋额间精细红金花钿（多瓣花形，零黑边） ──
   if (opts.huadian) {
@@ -283,29 +352,29 @@ export function buildSculptedTangSongHead(
     m.sym(() => {
       m.tube(
         [
-          [0.005 * s, lipY + 0.015 * s, surf(0.008 * s, lipY + 0.015 * s) + 0.005 * s, 0.0058 * s],
-          [0.036 * s, lipY + 0.008 * s, surf(0.036 * s, lipY + 0.008 * s) + 0.004 * s, 0.006 * s],
-          [0.056 * s, lipY - 0.02 * s, surf(0.056 * s, lipY - 0.02 * s) + 0.003 * s, 0.0044 * s],
-          [0.04 * s, lipY - 0.056 * s, surf(0.04 * s, lipY - 0.056 * s) + 0.003 * s, 0.0038 * s],
+          [0.003 * s, lipY + 0.017 * s, surf(0.003 * s, lipY + 0.017 * s) + 0.004 * s, 0.0035 * s],
+          [0.018 * s, lipY + 0.019 * s, surf(0.018 * s, lipY + 0.019 * s) + 0.004 * s, 0.005 * s],
+          [0.035 * s, lipY + 0.011 * s, surf(0.035 * s, lipY + 0.011 * s) + 0.003 * s, 0.0035 * s],
+          [0.046 * s, lipY + 0.004 * s, surf(0.046 * s, lipY + 0.004 * s) + 0.002 * s, 0.001 * s],
         ],
-        { seg: 4 },
-      );
-      m.tube(
-        [
-          [0.145 * s, cy - 0.03 * s, 0.02 * s, 0.011 * s],
-          [0.12 * s, cy - 0.125 * s, 0.062 * s, 0.012 * s],
-          [0.055 * s, cy - 0.19 * s, 0.092 * s, 0.012 * s],
-          [0, cy - 0.215 * s, 0.096 * s, 0.014 * s],
-        ],
-        { seg: 5 },
+        { seg: 6 },
       );
     });
-    m.ball(0, cy - 0.188 * s, surf(0, cy - 0.188 * s) + 0.006 * s, 0.046 * s, 0.034 * s, 0.022 * s, 1);
+    for (let strand = -5; strand <= 5; strand++) {
+      const x = strand * 0.005 * s;
+      const startY = cy - (0.15 + Math.abs(strand) * 0.0015) * s;
+      const endY = cy - (0.222 - Math.abs(strand) * 0.004) * s;
+      m.tube([
+        [x, startY, surf(x, startY) + 0.002 * s, 0.0017 * s],
+        [x * 0.9, (startY + endY) / 2, surf(x * 0.9, (startY + endY) / 2) + 0.002 * s, 0.0015 * s],
+        [x * 0.65, endY, surf(x * 0.65, endY) + 0.001 * s, 0.0004 * s],
+      ], { seg: 4 });
+    }
   }
 
   // ── 丰盈发底颅罩（前额发际线顺柔下压，彻底告别方帽高发际线！） ──
-  const hairThick = (female ? 0.034 : 0.03) * s;
-  const hairRows = [-0.19, -0.12, -0.05, 0.02, 0.085, 0.14, 0.195, 0.238, 0.262];
+  const hairThick = (female ? 0.027 : 0.025) * s;
+  const hairRows = [-0.19, -0.15, -0.11, -0.07, -0.03, 0.01, 0.05, 0.085, 0.115, 0.14, 0.17, 0.195, 0.22, 0.238, 0.262];
   const hairPts = hairRows.map((dy) => {
     const r = ring(dy * s);
     const crownBoost = dy > 0.15 ? hairThick * 0.95 : 0;
@@ -314,7 +383,7 @@ export function buildSculptedTangSongHead(
   });
   m.paint(opts.hair, {
     c2: opts.hairHi,
-    gloss: 0.22,
+    gloss: 0.08,
     mat: K.fur,
     pattern: En.fur,
     patternScale: 12,
@@ -322,7 +391,7 @@ export function buildSculptedTangSongHead(
     line: 0.45,
   });
   m.lathe(hairPts, {
-    seg: 22,
+    seg: 48,
     crease: 180,
     cap0: false,
     shape: (ang: number, idx: number) => {
@@ -335,7 +404,8 @@ export function buildSculptedTangSongHead(
           : dFront < 1.36
             ? bt(0.087, -0.12, (dFront - 0.72) / 0.64)
             : -0.22;
-      return dy >= hairline ? 1.0 + (dFront > 1.35 ? 0.06 : 0) : 0.76;
+      const transition = clamp01((dy - hairline + 0.02) / 0.06);
+      return bt(0.76, 1.0 + (dFront > 1.35 ? 0.06 : 0), transition);
     },
   });
 
@@ -368,14 +438,31 @@ export function buildSculptedTangSongHead(
     // 两侧丰盈弧形八字偏分刘海（饱满自然，修饰额角）
     m.tube(
       [
-        [0.012 * s, cy + 0.175 * s, surf(0.012 * s, cy + 0.175 * s) + 0.016 * s, 0.032 * s, 0.016 * s],
-        [0.088 * s, cy + 0.128 * s, surf(0.088 * s, cy + 0.128 * s) + 0.018 * s, 0.028 * s, 0.015 * s],
-        [0.148 * s, cy + 0.055 * s, surf(0.148 * s, cy + 0.055 * s) + 0.014 * s, 0.02 * s, 0.012 * s],
-        [0.168 * s, cy - 0.03 * s, 0.035 * s, 0.008 * s, 0.006 * s],
+        [0.012 * s, cy + 0.175 * s, surf(0.012 * s, cy + 0.175 * s) + 0.016 * s, 0.025 * s, 0.014 * s],
+        [0.088 * s, cy + 0.128 * s, surf(0.088 * s, cy + 0.128 * s) + 0.018 * s, 0.021 * s, 0.012 * s],
+        [0.148 * s, cy + 0.055 * s, surf(0.148 * s, cy + 0.055 * s) + 0.014 * s, 0.014 * s, 0.009 * s],
+        [0.168 * s, cy - 0.03 * s, 0.035 * s, 0.005 * s, 0.004 * s],
       ],
       { seg: 6, crease: 180 },
     );
   });
+
+  // 沿发际留下不对称的细缕，呼应立绘中被风吹散的额发。
+  m.paint(opts.hair, { c2: opts.hairHi, mat: K.fur, line: 0 });
+  const wisps = bang === 'wild'
+    ? [[-0.045, 0.035, 0.035], [0.045, 0.12, 0.045], [-0.105, -0.145, 0.01]]
+    : bang === 'swept'
+      ? [[-0.05, 0.075, 0.055], [0.025, 0.13, 0.03], [-0.1, -0.15, 0.015]]
+      : [[-0.055, -0.13, 0.02], [0.055, 0.145, 0.035]];
+  for (const [startX, endX, endY] of wisps) {
+    const topY = cy + 0.15 * s, tipY = cy + endY * s;
+    const midX = bt(startX, endX, 0.55) * s, midY = cy + 0.095 * s;
+    m.tube([
+      [startX * s, topY, surf(startX * s, topY) + 0.018 * s, 0.008 * s, 0.005 * s],
+      [midX, midY, surf(midX, midY) + 0.019 * s, 0.006 * s, 0.004 * s],
+      [endX * s, tipY, surf(endX * s, tipY) + 0.009 * s, 0.001 * s, 0.001 * s],
+    ], { seg: 6, crease: 180 });
+  }
 
   // 男角豪放偏分大缕斜扫刘海（不居中遮额，改自然斜扫左右眉梢，飒爽帅气！）
   if (bang === 'swept' || bang === 'wild') {
