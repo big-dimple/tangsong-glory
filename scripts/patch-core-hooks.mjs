@@ -12,15 +12,18 @@ const patches = [
     'this.dodge()||this.survive()||(this.finish(),!this.sustain()&&(this.combat()||this.assist()||this.doTask()))',
     'this.dodge()||this.survive()||(this.finish(),!this.sustain()&&(tsConfig.teamTactics?.respond(this)||this.combat()||this.assist()||this.doTask()))',
   ],
+  [
+    '`cast_${kitOf(c.heroId)}_${c.slot}`',
+    '`cast_${r1["cast_"+c.heroId+"_"+c.slot]?c.heroId:kitOf(c.heroId)}_${c.slot}`',
+  ],
 ];
 
-// The checked-in engine is generated from an optional read-only source. Keep
-// these small integration hooks reproducible even in a standalone checkout.
-export function patchCoreTeamwork(source) {
+// Keep integration hooks reproducible when the optional read-only source exists.
+export function patchCoreHooks(source) {
   for (const [before, after] of patches) {
     if (source.includes(after)) continue;
     const pieces = source.split(before);
-    if (pieces.length !== 2) throw new Error(`teamwork hook expected one anchor, found ${pieces.length - 1}`);
+    if (pieces.length !== 2) throw new Error(`core hook expected one anchor, found ${pieces.length - 1}`);
     source = pieces.join(after);
   }
   return source;
@@ -29,8 +32,8 @@ export function patchCoreTeamwork(source) {
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const core = path.join(root, 'src/engine/mobaCore.js');
-  const output = patchCoreTeamwork(fs.readFileSync(core, 'utf8'));
+  const output = patchCoreHooks(fs.readFileSync(core, 'utf8'));
   new vm.Script(output.replace(/^export function /m, 'function '), { filename: 'mobaCore.js' });
   fs.writeFileSync(core, output);
-  console.log('[patch-core-teamwork] AI teamwork hooks ready');
+  console.log('[patch-core-hooks] integration hooks ready');
 }

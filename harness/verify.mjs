@@ -266,7 +266,7 @@ async function run() {
       page,
       () => {
         const s = window.__moba?.audio?.debug?.stats?.();
-        return !!s && s.state === 'running' && s.notes > 0;
+        return !!s && s.state === 'running' && (window.__moba?.audio?.music?.scheduledNotes ?? 0) > 0;
       },
       15_000,
     );
@@ -337,8 +337,32 @@ async function run() {
       const serifLoaded = !!document.fonts?.check('16px TangSongSerif', '唐');
 
       moba.audio.ui('select');
-      const audioStats = moba.audio.debug.stats();
+      const audioStats = { ...moba.audio.debug.stats(), scheduledNotes: moba.audio.music?.scheduledNotes ?? 0 };
       const proceduralAudioInfo = moba.audio.mixer?.__tsAudioDebug?.() ?? null;
+      const renderedSounds = {};
+      for (const sound of ['panyue', 'yeque', 'xingli', 'fengling', 'chijin', 'liue']) {
+        const sampleRate = 22050;
+        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * 3.6), sampleRate);
+        const mixer = new moba.audio.mixer.constructor(ctx);
+        mixer.kit.reseed(42);
+        mixer.setVolumes(.8, .8, .5);
+        for (const [slot, when] of [['s1', .05], ['s2', 1.2], ['ult', 2.3]]) {
+          mixer.play(`cast_${sound}_${slot}`, { when });
+        }
+        const samples = (await ctx.startRendering()).getChannelData(0);
+        const windows = [.05, 1.2, 2.3].map((start) => {
+          let energy = 0, peak = 0, invalid = 0;
+          const from = Math.floor(start * sampleRate);
+          const to = Math.floor((start + .65) * sampleRate);
+          for (let i = from; i < to; i++) {
+            const value = samples[i];
+            if (!Number.isFinite(value)) invalid++;
+            else { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
+          }
+          return { rms: Math.sqrt(energy / (to - from)), peak, invalid };
+        });
+        renderedSounds[sound] = { windows, played: mixer.stats.played };
+      }
 
       return {
         title: document.title,
@@ -365,6 +389,7 @@ async function run() {
         serifLoaded,
         audioStats,
         proceduralAudioInfo,
+        renderedSounds,
       };
     });
 
@@ -393,7 +418,7 @@ async function run() {
     assert.equal(lobbyChecks.iconsDiffer, true, '苏轼与刘娥技能图标必须完全独立！');
     assert.equal(lobbyChecks.audioStats.track, 'menu', `大厅 BGM track 应为 menu，实际 ${lobbyChecks.audioStats.track}`);
     assert(
-      lobbyChecks.audioStats.notes > 0 && lobbyChecks.audioStats.played > 0,
+      lobbyChecks.audioStats.scheduledNotes > 0 && lobbyChecks.audioStats.played > 0,
       `纯程序化唐宋 WebAudio 大厅演奏异常: ${JSON.stringify(lobbyChecks.audioStats)}`,
     );
     assert.equal(
@@ -406,6 +431,11 @@ async function run() {
       0,
       `存在未覆写的旧作 r1 SFX: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
     );
+    for (const [sound, render] of Object.entries(lobbyChecks.renderedSounds)) {
+      assert.equal(render.played, 3, `${sound} 三项施法音效未全部触发`);
+      assert(render.windows.every((window) => window.invalid === 0 && window.rms > .00005 && window.peak <= 1),
+        `${sound} 施法音效出现静音、削波或无效采样: ${JSON.stringify(render.windows)}`);
+    }
     assert(
       (lobbyChecks.proceduralAudioInfo?.patchedSfxCount ?? 0) >= 154,
       `覆写 r1 SFX 数量异常偏少: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
@@ -819,6 +849,13 @@ async function run() {
 
         const fired = {};
         const inkSlots = {};
+        const castSounds = [];
+        const mixer = moba.audio.mixer;
+        const originalPlay = mixer.play;
+        mixer.play = function (key, options) {
+          if (key.startsWith('cast_')) castSounds.push(key);
+          return originalPlay.call(this, key, options);
+        };
         let brushText = '';
         let brushDelays = [];
         for (const slot of ['s1', 's2', 'ult']) {
@@ -838,6 +875,7 @@ async function run() {
             if (evs.length) {
               renderer?.handleEvents?.(evs, state);
               hud?.handleEvents?.(evs, state);
+              moba.audio.handleEvents(evs, state);
               if (evs.some((ev) => ev.type === 'skillCast' && ev.slot === slot && ev.unitId === me.id)) {
                 fired[slot] = true;
               }
@@ -864,6 +902,7 @@ async function run() {
             }
           }
         }
+        mixer.play = originalPlay;
         const cutin = document.querySelector('.ts-eyes-cutin');
         const glance = cutin?.getAnimations()[0];
         if (expectedHero === 'xinqiji' && glance) {
@@ -888,12 +927,13 @@ async function run() {
           movedDist: +movedDist.toFixed(2),
           fired,
           inkSlots,
+          castSounds,
           brushText,
           brushDelays,
           reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
           hasCutin: !!cutin?.querySelector('img')?.naturalWidth,
           brokenImgs: imgs.filter((x) => !x.ok),
-          battleAudioStats: moba.audio.debug.stats(),
+          battleAudioStats: { ...moba.audio.debug.stats(), scheduledNotes: moba.audio.music?.scheduledNotes ?? 0 },
         };
       }, heroId);
 
@@ -910,6 +950,8 @@ async function run() {
       assert.equal(res.fired.ult, true);
       for (const slot of ['s1', 's2', 'ult']) {
         assert(res.inkSlots[slot], `${heroId} ${slot} 未绘制水墨动效`);
+        const soundId = heroId === 'liue' ? 'liue' : KIT_MAP[heroId];
+        assert(res.castSounds.includes(`cast_${soundId}_${slot}`), `${heroId} ${slot} 未使用对应施法音效`);
       }
       if (heroId === 'sushi') {
         assert.equal(res.brushText, lobbyChecks.heroTable.sushi.skills.ult.name, '苏轼大招毛笔字缺失');
@@ -923,17 +965,18 @@ async function run() {
         'battle',
         `局内 BGM track 应为 battle，实际 ${res.battleAudioStats.track}`,
       );
-      if (res.battleAudioStats.notes === 0) {
-        // 当前调度队列可在乐句间短暂为空；等待真实的下一批音符。
+      if (res.battleAudioStats.scheduledNotes === 0) {
+        // 检查本曲目累计调度的音符，避免把乐句间的空队列当成失败。
         const audio = await page.waitForFunction(() => {
           const stats = window.__moba?.audio?.debug?.stats?.();
-          return stats?.track === 'battle' && stats.notes > 0 ? stats : false;
+          const scheduledNotes = window.__moba?.audio?.music?.scheduledNotes ?? 0;
+          return stats?.track === 'battle' && scheduledNotes > 0 ? { ...stats, scheduledNotes } : false;
         }, { timeout: 15_000 });
         res.battleAudioStats = await audio.jsonValue();
         await audio.dispose();
       }
       assert(
-        res.battleAudioStats.notes > 0,
+        res.battleAudioStats.scheduledNotes > 0,
         `局内程序化战鼓乐音符未调度: ${JSON.stringify(res.battleAudioStats)}`,
       );
       assert.equal(res.brokenImgs.length, 0, `存在破损图片: ${JSON.stringify(res.brokenImgs)}`);
