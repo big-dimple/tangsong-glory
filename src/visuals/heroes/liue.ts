@@ -9,6 +9,7 @@
  * - 胸前 pipa 骨骼重塑为纤巧雅致的【悬浮朱金凤印玉圭】，流转皇金微光而不遮挡华美大礼服（100% 兼容 $U 法师动作）。
  */
 
+import { clothFoldDepth } from '../tangsongCloth';
 import { addHeroCompanion } from './companions';
 import {
   buildBlossomHairpin,
@@ -150,7 +151,7 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
       [1.14, 0.162, 0.132],
     ],
     {
-      seg: 28,
+      seg: 56,
       cap0: false,
       cap1: false,
       shape: (ang: number, idx: number) =>
@@ -169,13 +170,15 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   });
   i.sym(() => {
     i.sheet(
-      7,
+      12,
       11,
       (u, v) => {
         // u=0 为靠近中轴的白裙边，u=1 为外侧衔接正红大衫边；明显外浮 +0.035 确保红/黑/白三层界限无比清晰！
         const ang = bt(78 - v * 22, 34 - v * 16, u) * (Math.PI / 180);
-        const rad = bt(0.185, 0.568, v) + 0.024 + Math.sin(u * Math.PI) * 0.02;
-        return [Math.cos(ang) * rad, bt(1.16, 0.09, v), Math.sin(ang) * rad * 0.96];
+        const fold = 0.026 * Math.sin(u * Math.PI) * clothFoldDepth(u, v, 1, 0.8);
+        const rad = bt(0.185, 0.568, v) + 0.024 + Math.sin(u * Math.PI) * 0.02 + fold;
+        const hem = 0.012 * v * v * Math.cos(u * Math.PI * 2);
+        return [Math.cos(ang) * rad, bt(1.16, 0.09, v) + hem, Math.sin(ang) * rad * 0.96];
       },
       true,
       180,
@@ -193,14 +196,16 @@ export function buildLiuEFull(api: FullHeroEngineApi, pal: Record<string, number
   });
   i.sym(() => {
     i.sheet(
-      10,
+      16,
       10,
       (u, v) => {
         // u=0 紧贴黑金宽领襟外缘 (ang ≈ 36°~20°)，向两侧及后方恢弘展开
         const ang = bt(36 - v * 14, -98, u) * (Math.PI / 180);
         const rad = bt(0.19, 0.59, v) + Math.sin(u * Math.PI) * 0.048 * v;
-        const wave = Math.sin(u * Math.PI * 3 + v * 3.5) * 0.022 * v;
-        return [Math.cos(ang) * (rad + wave), bt(1.16, 0.12, v), Math.sin(ang) * (rad * 0.94 + wave)];
+        const wave = Math.sin(u * Math.PI * 3 + v * 3.5) * 0.022 * v
+          + 0.03 * Math.sin(u * Math.PI) * clothFoldDepth(u, v, 2, 1.2);
+        const hem = 0.015 * v * v * Math.sin(u * Math.PI * 3);
+        return [Math.cos(ang) * (rad + wave), bt(1.16, 0.12, v) + hem, Math.sin(ang) * (rad * 0.94 + wave)];
       },
       true,
       180,

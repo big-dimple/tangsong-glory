@@ -14,6 +14,8 @@
  *    - 焦黑石台、折断朱漆殿柱残桩、碎裂琉璃瓦与余烬斜旗
  */
 
+import { clothFoldDepth } from './tangsongCloth';
+
 export interface ArchApi {
   Wa: new () => {
     add(name: string, parent: number, x: number, y: number, z: number): number;
@@ -445,7 +447,11 @@ function buildTower(api: ArchApi, tier: number, team: number) {
     );
     m.box(0.32, hTopCrown + 1.35, 0, 0.68, 0.05, 0.05, 0.01);
     m.paint(th.banner, { c2: th.gold, team: 0.85, mat: K.cloth, pattern: api.En.weave, patternScale: 8 });
-    m.sheet(4, 3, (u, v) => [0.06 + u * 0.56, hTopCrown + 1.32 - v * 0.85 - (u > 0.75 ? 0.16 : 0), Math.sin(u * 4 + v * 3) * 0.05]);
+    m.sheet(12, 6, (u, v) => [
+      0.06 + u * 0.56,
+      hTopCrown + 1.32 - v * (0.85 + 0.16 * u ** 3),
+      0.065 * clothFoldDepth(u, v, 2, 0.6),
+    ]);
   }
 
   // ── 5. 塔顶鎏金龙珠火鼎 (core)、精工古铜祥云环 (rings)、宝葫芦塔刹 (tip/alert) ──
@@ -1004,9 +1010,10 @@ function buildRuin(api: ArchApi, team: number) {
   m.paint(th.woodDark, { mat: K.leather });
   m.limb([1.05, 0.3, 0.5], [1.5, 1.9, 0.26], 0.04, 0.03, { seg: 5 });
   m.paint(th.banner, { team: 0.8, mat: K.cloth, pattern: En.weave, patternScale: 8, patternAmt: 0.35 });
-  m.sheet(3, 2, (u, v) => {
+  m.sheet(10, 6, (u, v) => {
     const k = v > 0.6 ? 0.16 * Math.abs(Math.sin(u * 9)) : 0;
-    return [bt(1.5, 1.24, v) + u * 0.5, 1.9 - v * 0.9 - u * 0.2 + k * 0.3 - k * 0.5, 0.26 + bt(0, 0.14, v) + u * 0.18];
+    const fold = 0.055 * clothFoldDepth(u, v, 2, 2.1);
+    return [bt(1.5, 1.24, v) + u * 0.5 - fold * 0.34, 1.9 - v * 0.9 - u * 0.2 - k * 0.2, 0.26 + bt(0, 0.14, v) + u * 0.18 + fold];
   });
 
   m.bakeGrounding(2.4, 0.7, 0.85);

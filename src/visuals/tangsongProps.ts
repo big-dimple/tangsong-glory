@@ -9,6 +9,7 @@
  */
 
 import type { BeLike, RngLike } from './tangsongFlora';
+import { clothFoldDepth } from './tangsongCloth';
 
 export interface PropsApi {
   Be: new () => BeLike;
@@ -544,6 +545,43 @@ export function createLandmarkPropBuilders(api: PropsApi) {
   const warmAmber = [1, 0.8, 0.38];
   const warmAmberTop = [1, 0.95, 0.76];
 
+  function addBannerFabric(
+    b: BeLike,
+    cols: number,
+    rows: number,
+    point: (u: number, v: number) => [number, number, number],
+    isGold: (u: number, v: number) => boolean,
+    wind: number,
+  ) {
+    const grid = Array.from({ length: rows + 1 }, (_, r) =>
+      Array.from({ length: cols + 1 }, (_, c) => point(c / cols, r / rows)),
+    );
+    const vertices = grid.map((row, r) => row.map(([x, y, z], c) => {
+      const left = row[Math.max(0, c - 1)], right = row[Math.min(cols, c + 1)];
+      const top = grid[Math.max(0, r - 1)][c], bottom = grid[Math.min(rows, r + 1)][c];
+      const ux = right[0] - left[0], uy = right[1] - left[1], uz = right[2] - left[2];
+      const vx = bottom[0] - top[0], vy = bottom[1] - top[1], vz = bottom[2] - top[2];
+      const nx = vy * uz - vz * uy, ny = vz * ux - vx * uz, nz = vx * uy - vy * ux;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      const v = r / rows;
+      const gold = isGold(c / cols, v);
+      const shade = 1 - 0.12 * v;
+      const col = gold ? bronzeGold : [shade, shade, shade];
+      return [1, -1].map(side => b.vertex(
+        x, y, z, col, side * nx / len, side * ny / len, side * nz / len,
+        wind * v * v, gold ? 0.08 : 0, gold ? 0 : 1, 1,
+      ));
+    }));
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tl = vertices[r][c], tr = vertices[r][c + 1];
+        const bl = vertices[r + 1][c], br = vertices[r + 1][c + 1];
+        b.quad(tl[0], bl[0], br[0], tr[0]);
+        b.quad(tl[1], tr[1], br[1], bl[1]);
+      }
+    }
+  }
+
   // 燕尾朱漆大帅旗 / 军幡（双面网格 + 金边框 + maskedTint 可随阵营染色）
   function buildBanner(poleH: number, width: number, length: number) {
     const b = new Be();
@@ -566,46 +604,13 @@ export function createLandmarkPropBuilders(api: PropsApi) {
     );
     Xo(b, 0, poleH + 0.02, 0, 0.36, 0.09, 0, 0, bronzeGold, Ht(bronzeGold, 1.25), 0.16, 5);
 
-    // 燕尾垂幡（主布面 team=1 染色 + 金边 team=0 锁定）
-    const rows = 6;
-    const cols = 4;
-    const yStart = poleH - 0.28;
-    const buildGrid = (zOff: number, flip: boolean) => {
-      const grid: number[][] = [];
-      for (let r = 0; r <= rows; r++) {
-        const vr = r / rows;
-        const rowV: number[] = [];
-        for (let c = 0; c <= cols; c++) {
-          const vc = c / cols;
-          const x = (vc - 0.5) * width;
-          const swallow = r === rows ? (1 - Math.abs(vc - 0.5) * 2) * 0.34 : 0;
-          const y = yStart - vr * length + swallow;
-          const isTrim = Math.abs(vc - 0.5) > 0.38 || r === 0;
-          const tintCol = isTrim ? bronzeGold : [0.88 + 0.12 * (1 - vr), 0.88 + 0.12 * (1 - vr), 0.88 + 0.12 * (1 - vr)];
-          const sway = vr * vr * 0.82;
-          const z = zOff + Math.sin(vr * 4 + vc * 2) * 0.035;
-          rowV.push(b.vertex(x, y, z, tintCol, 0, 0.12, flip ? -1 : 1, sway, isTrim ? 0.08 : 0, isTrim ? 0 : 1, 1));
-        }
-        grid.push(rowV);
-      }
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (!flip) b.quad(grid[r][c], grid[r + 1][c], grid[r + 1][c + 1], grid[r][c + 1]);
-          else b.quad(grid[r][c + 1], grid[r + 1][c + 1], grid[r + 1][c], grid[r][c]);
-        }
-      }
-    };
-    buildGrid(0.055, false);
-    buildGrid(0.035, true);
-
-    // 中央鎏金方印菱纹
-    const midY = yStart - length * 0.4;
-    const d = width * 0.18;
-    const dv0 = b.vertex(0, midY + d * 1.35, 0.075, bronzeGold, 0, 0, 1, 0.16, 0.22);
-    const dv1 = b.vertex(-d, midY, 0.075, bronzeGold, 0, 0, 1, 0.2, 0.22);
-    const dv2 = b.vertex(0, midY - d * 1.35, 0.075, bronzeGold, 0, 0, 1, 0.24, 0.22);
-    const dv3 = b.vertex(d, midY, 0.075, bronzeGold, 0, 0, 1, 0.2, 0.22);
-    b.quad(dv0, dv1, dv2, dv3);
+    // 金印、织边与旗面共用顶点和风权重，褶峰经过方印时花纹仍贴着布。
+    addBannerFabric(b, 16, 20, (u, v) => [
+      (u - 0.5) * width * (1 - 0.035 * v * v),
+      poleH - 0.28 - v * length + 0.34 * v ** 5 * (1 - Math.abs(2 * u - 1)),
+      0.025 + width * (0.10 * clothFoldDepth(u, v, 2, 1.1) + 0.045 * v * Math.sin(v * 5)),
+    ], (u, v) => u <= 0.0625 || u >= 0.9375 || v === 0
+      || Math.abs(u - 0.5) / 0.18 + Math.abs(v - 0.4) / 0.11 <= 1, 0.82);
     return b.build();
   }
 
@@ -621,24 +626,11 @@ export function createLandmarkPropBuilders(api: PropsApi) {
       { sides: 5, c0: lacquerDark, c1: lacquer },
     );
     Xo(b, 0, 2.66, 0, 0.24, 0.065, 0, 0, bronzeGold, Ht(bronzeGold, 1.25), 0.18, 5);
-    const cols = 4;
-    const zStart = 2.48;
-    const dropH = 0.72;
-    const reach = 1.15;
-    let prev: number[] | null = null;
-    for (let i = 0; i <= cols; i++) {
-      const t = i / cols;
-      const hHalf = (dropH * (1 - t * 0.65)) / 2;
-      const f = 0.04 + t * reach;
-      const col = i === 0 ? bronzeGold : [0.9 + 0.1 * (1 - t), 0.9 + 0.1 * (1 - t), 0.9 + 0.1 * (1 - t)];
-      const topV = b.vertex(0, zStart - dropH * 0.5 + hHalf, f, col, 1, 0.1, 0, t * t * 1.1, 0, i === 0 ? 0 : 1, 1);
-      const botV = b.vertex(0, zStart - dropH * 0.5 - hHalf, f, col, 1, 0.1, 0, t * t * 1.1, 0, i === 0 ? 0 : 1, 1);
-      if (prev) {
-        b.quad(prev[0], prev[1], botV, topV);
-        b.quad(topV, botV, prev[1], prev[0]);
-      }
-      prev = [topV, botV];
-    }
+    addBannerFabric(b, 6, 8, (u, reach) => [
+      0.09 * clothFoldDepth(u, reach, 1, 2.4) + 0.10 * reach * Math.sin(6 * reach - 2 * u),
+      2.12 + (0.5 - u) * 0.72 * (1 - 0.65 * reach) - 0.08 * reach * reach,
+      0.04 + 1.15 * reach - 0.08 * reach ** 4 * (1 - Math.abs(2 * u - 1)),
+    ], (_u, reach) => reach === 0, 1.1);
     return b.build();
   }
 
@@ -1026,18 +1018,62 @@ export function createLandmarkPropBuilders(api: PropsApi) {
       ],
       { sides: 8, c0: woodBase, c1: bronzeGold },
     );
-    const center = b.vertex(0, 0.05, 0, bronzeGold, 0, 1, 0);
     for (let i = 0; i < petalCount; i++) {
       const a = (i / petalCount) * TAU + rng.range(-0.1, 0.1);
-      const aL = a - 0.36;
-      const aR = a + 0.36;
-      const vL = b.vertex(Math.cos(aL) * 0.2, 0.1, Math.sin(aL) * 0.2, petalBot, Math.cos(aL) * 0.4, 0.9, Math.sin(aL) * 0.4);
-      const vR = b.vertex(Math.cos(aR) * 0.2, 0.1, Math.sin(aR) * 0.2, petalBot, Math.cos(aR) * 0.4, 0.9, Math.sin(aR) * 0.4);
-      const tip = b.vertex(Math.cos(a) * 0.34, 0.2, Math.sin(a) * 0.34, petalTop, Math.cos(a) * 0.5, 0.85, Math.sin(a) * 0.5, 0, 0.22);
-      b.tri(center, vL, tip);
-      b.tri(center, tip, vR);
-      b.tri(center, tip, vL);
-      b.tri(center, vR, tip);
+      const radial = [Math.cos(a), Math.sin(a)];
+      const tangent = [-radial[1], radial[0]];
+      const point = (v: number, side: number) => {
+        const r = 0.018 + 0.322 * v;
+        const width = 0.11 * Math.sin(Math.PI * v) ** 0.8;
+        return [
+          radial[0] * r + tangent[0] * side * width,
+          0.05 + 0.15 * v * v + 0.055 * Math.sin(Math.PI * v) * (1 - 0.75 * side * side),
+          radial[1] * r + tangent[1] * side * width,
+        ];
+      };
+      const vertex = (v: number, side: number, face: number) => {
+        const p = point(v, side);
+        const before = point(Math.max(0, v - 0.002), side);
+        const after = point(Math.min(1, v + 0.002), side);
+        const left = point(v, Math.max(-1, side - 0.002));
+        const right = point(v, Math.min(1, side + 0.002));
+        const along = after.map((x, k) => x - before[k]);
+        const across = right.map((x, k) => x - left[k]);
+        const normal = [
+          across[1] * along[2] - across[2] * along[1],
+          across[2] * along[0] - across[0] * along[2],
+          across[0] * along[1] - across[1] * along[0],
+        ];
+        const len = Math.hypot(...normal);
+        return b.vertex(
+          p[0], p[1], p[2], Pt(petalBot, petalTop, v),
+          len ? face * normal[0] / len : 0, len ? face * normal[1] / len : face,
+          len ? face * normal[2] / len : 0, 0, 0.22 * v,
+        );
+      };
+      for (const face of [1, -1]) {
+        const root = vertex(0, 0, face);
+        let previous: number[] = [];
+        for (let row = 1; row < 5; row++) {
+          const current = Array.from({ length: 5 }, (_, col) => vertex(row / 5, col / 2 - 1, face));
+          for (let col = 0; col < 4; col++) {
+            if (row === 1) {
+              if (face > 0) b.tri(root, current[col + 1], current[col]);
+              else b.tri(root, current[col], current[col + 1]);
+            } else if (face > 0) {
+              b.quad(previous[col], previous[col + 1], current[col + 1], current[col]);
+            } else {
+              b.quad(previous[col + 1], previous[col], current[col], current[col + 1]);
+            }
+          }
+          previous = current;
+        }
+        const tip = vertex(1, 0, face);
+        for (let col = 0; col < 4; col++) {
+          if (face > 0) b.tri(previous[col], previous[col + 1], tip);
+          else b.tri(previous[col + 1], previous[col], tip);
+        }
+      }
     }
     Ts(b, 0, 0.14, 0, 0.11, 0.13, 0.11, {
       detail: 0,

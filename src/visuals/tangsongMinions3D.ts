@@ -10,6 +10,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { clothFoldDepth } from './tangsongCloth';
+
 export interface MinionEngineApi {
   Wa: any;
   Ls: any;
@@ -52,7 +54,21 @@ const CLOUD_MIST = 0xdbe3df;
 
 function bindCapeChain(joints: number[]) {
   const [j0, j1] = joints;
-  return (u: number) => (u < 0.45 ? [j0, j0, 1] : [j1, j0, Math.min(1, (u - 0.45) / 0.35)]);
+  // sheet 的第四个蒙皮参数沿布长递增，横跨同一排的顶点应跟随同一节骨骼。
+  return (_x: number, _y: number, _z: number, drop: number) => [j1, j0, Math.max(0, Math.min(1, (drop - 0.45) / 0.35))];
+}
+
+function addClothPanel(m: any, top: number, bottom: number, length: number, tip: number, facing: number) {
+  m.sheet(8, 4, (u: number, v: number) => {
+    const side = 2 * u - 1;
+    const width = top + (bottom - top) * v;
+    const depth = 0.008 + 0.035 * v * (1 + 0.65 * clothFoldDepth(u, v, 2, 0.8));
+    return [
+      side * width,
+      0.02 - length * v - tip * v ** 5 * (1 - Math.abs(side)),
+      facing * depth,
+    ];
+  }, true);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -125,12 +141,10 @@ function buildMeleeTigerGuard(api: MinionEngineApi) {
   f.ball(0, 0.77, 0.195, 0.1, 0.1, 0.038, 0);
   // 队色织锦战裙摆
   f.paint(0xffffff, { ...$o });
-  f.g(pt(0, 0.53, 0.185, 8, 0, 0), () =>
-    f.extrude([[-0.13, 0.02], [0.13, 0.02], [0.15, -0.24], [0, -0.3], [-0.15, -0.24]], 0.026, 0.008),
-  );
+  f.g(pt(0, 0.53, 0.185, 8, 0, 0), () => addClothPanel(f, 0.13, 0.15, 0.26, 0.06, 1));
   f.sym(() =>
     f.g(pt(0.22, 0.54, 0, 0, 90, -10), () =>
-      f.extrude([[-0.1, 0.02], [0.1, 0.02], [0.12, -0.22], [-0.12, -0.22]], 0.024, 0.006),
+      addClothPanel(f, 0.1, 0.12, 0.24, 0, 1),
     ),
   );
 
@@ -138,12 +152,12 @@ function buildMeleeTigerGuard(api: MinionEngineApi) {
   f.bind(bindCapeChain([cape0, cape1]));
   f.paint(0xffffff, { ...$o });
   f.sheet(
-    4,
-    3,
-    (u: number, v: number) => [
-      (v - 0.5) * (0.44 + u * 0.26),
-      0.92 - u * 0.58,
-      -0.18 - u * 0.2 + Math.sin(v * Math.PI) * 0.05,
+    12,
+    6,
+    (u: number, drop: number) => [
+      (u - 0.5) * (0.44 + drop * 0.26),
+      0.92 - drop * 0.58 + 0.035 * drop * drop * (2 * u - 1) ** 2,
+      -0.18 - drop * 0.2 + Math.sin(u * Math.PI) * 0.05 - 0.065 * clothFoldDepth(u, drop, 2, 1.4),
     ],
     true,
   );
@@ -382,12 +396,8 @@ function buildRangedCloudScholar(api: MinionEngineApi) {
   );
   // 队色锦缎外袍与云肩
   c.paint(0xffffff, { ...$o });
-  c.g(pt(0, 0.94, 0.15, 7, 0, 0), () =>
-    c.extrude([[-0.14, 0.08], [0.14, 0.08], [0.17, -0.46], [0, -0.58], [-0.17, -0.46]], 0.025, 0.008),
-  );
-  c.g(pt(0, 0.94, -0.15, -7, 0, 0), () =>
-    c.extrude([[-0.14, 0.08], [0.14, 0.08], [0.16, -0.46], [-0.16, -0.46]], 0.025, 0.008),
-  );
+  c.g(pt(0, 1.0, 0.15, 7, 0, 0), () => addClothPanel(c, 0.14, 0.17, 0.54, 0.12, 1));
+  c.g(pt(0, 1.0, -0.15, -7, 0, 0), () => addClothPanel(c, 0.14, 0.16, 0.54, 0, -1));
   c.lathe(
     [
       [0.95, 0.28, 0.2],
@@ -648,12 +658,12 @@ function buildSiegeQilinChariot(api: MinionEngineApi) {
   f.bind(bindCapeChain([flag0, flag1]));
   f.paint(0xffffff, { ...$o });
   f.sheet(
-    5,
-    2,
-    (u: number, v: number) => [
-      Math.sin(u * 5) * 0.035 * v,
-      1.92 - v * 0.46 * (1 - u * 0.28),
-      -0.6 - u * 0.68,
+    6,
+    8,
+    (u: number, reach: number) => [
+      0.065 * clothFoldDepth(u, reach, 1, 0.8) + reach * 0.06 * Math.sin(5 * reach - 2 * u),
+      1.92 - u * 0.46 * (1 - reach * 0.28) - reach * reach * 0.045,
+      -0.6 - reach * 0.68 + 0.11 * reach ** 4 * (1 - Math.abs(2 * u - 1)),
     ],
     true,
   );
@@ -844,15 +854,11 @@ function buildSuperHeavenlyGuardian(api: MinionEngineApi) {
     { seg: 8, phase: 22.5, power: 2.4 },
   );
   p.paint(0xffffff, { ...$o });
-  p.g(pt(0, 0.88, 0.28, 7, 0, 0), () =>
-    p.extrude([[-0.22, 0.02], [0.22, 0.02], [0.2, -0.4], [0, -0.52], [-0.2, -0.4]], 0.036, 0.01),
-  );
-  p.g(pt(0, 0.88, -0.27, -7, 0, 0), () =>
-    p.extrude([[-0.22, 0.02], [0.22, 0.02], [0.19, -0.38], [-0.19, -0.38]], 0.036, 0.01),
-  );
+  p.g(pt(0, 0.88, 0.28, 7, 0, 0), () => addClothPanel(p, 0.22, 0.2, 0.42, 0.12, 1));
+  p.g(pt(0, 0.88, -0.27, -7, 0, 0), () => addClothPanel(p, 0.22, 0.19, 0.4, 0, -1));
   p.sym(() =>
     p.g(pt(0.35, 0.88, 0, 0, 90, -10), () =>
-      p.extrude([[-0.16, 0], [0.16, 0], [0.13, -0.3], [-0.13, -0.3]], 0.035, 0.01),
+      addClothPanel(p, 0.16, 0.13, 0.32, 0, 1),
     ),
   );
 
@@ -890,12 +896,12 @@ function buildSuperHeavenlyGuardian(api: MinionEngineApi) {
   p.bind(bindCapeChain([h, u]));
   p.paint(0xffffff, { ...$o });
   p.sheet(
-    4,
-    3,
-    (uPos: number, vPos: number) => [
-      (vPos - 0.5) * (0.58 + uPos * 0.28),
-      1.74 - uPos * 0.92,
-      -0.34 - uPos * 0.42 + Math.sin(vPos * Math.PI) * 0.06,
+    12,
+    6,
+    (u: number, drop: number) => [
+      (u - 0.5) * (0.58 + drop * 0.28),
+      1.74 - drop * 0.92 + 0.055 * drop * drop * (2 * u - 1) ** 2,
+      -0.34 - drop * 0.42 + Math.sin(u * Math.PI) * 0.06 - 0.09 * clothFoldDepth(u, drop, 2, 2.8),
     ],
     true,
   );

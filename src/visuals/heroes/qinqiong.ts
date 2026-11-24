@@ -166,7 +166,10 @@ export function buildQinQiongFull(api: FullHeroEngineApi, pal: Record<string, nu
       [0.7, 0.26, 0.22],
       [0.94, 0.23, 0.185],
     ],
-    { seg: 16, cap0: false, cap1: false },
+    {
+      seg: 32, cap0: false, cap1: false,
+      shape: (ang: number, idx: number) => 1 + (0.055 - idx * 0.018) * Math.sin(ang * 8),
+    },
   );
   // 左右两片玄铁密排札甲战裙（无跨腿悬空横杠，双腿灯笼裤动作更干净利落）
   i.paint(ironDark, {

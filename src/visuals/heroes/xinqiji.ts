@@ -9,6 +9,7 @@
  * - 右手执修长黑铁鎏金护手唐宋长横刀（带深红长刀穗），左手执雕金黑漆长刀鞘，大招保留隐藏式山河军令图。
  */
 
+import { clothFoldDepth } from '../tangsongCloth';
 import { addHeroCompanion } from './companions';
 import { buildSculptedTangSongHead, buildTatteredCape } from './sculptKit';
 import { clamp01, mixVal, TS_ASSASSIN_RIG, type FullHeroEngineApi } from './types';
@@ -202,13 +203,14 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   // 前中玄黑织纹开衩短战摆（立绘白裤前垂的深墨黑长片）
   i.bind(flapBind).paint(ironDark, { c2: ironMid, mat: K.cloth, pattern: En.weave, patternScale: 10, patternAmt: 0.25, line: 0.5 });
   i.sheet(
-    8,
+    14,
     7,
     (u, v) => {
       const ang = bt(-72, 72, u) * (Math.PI / 180) + Math.PI / 2;
-      const rad = bt(0.18, 0.24, v);
-      const split = Math.abs(u - 0.5) < 0.12 ? v * 0.05 : 0;
-      return [Math.cos(ang) * rad, bt(0.96, 0.42, v) + split, Math.sin(ang) * rad * 0.88];
+      const rad = bt(0.18, 0.24, v) + 0.012 * v * (1 + clothFoldDepth(u, v, 2, 1.3));
+      const split = v * 0.05 * Math.max(0, 1 - Math.abs(u - 0.5) / 0.12);
+      const hem = 0.01 * v * v * Math.cos(u * Math.PI * 4);
+      return [Math.cos(ang) * rad, bt(0.96, 0.42, v) + split + hem, Math.sin(ang) * rad * 0.88];
     },
     true,
   );
@@ -560,9 +562,14 @@ export function buildXinQijiAssassinFull(api: FullHeroEngineApi, pal: Record<str
   i.g(pt(s.shoulderX, s.handY - 0.02, 0), () => {
     i.paint(pal.tube ?? 0x5c221b, { c2: pal.tubeDark ?? 0x33110d, gloss: 0.55, mat: K.leather, line: 0.35 });
     i.tube([[-0.22, 0, 0.03, 0.02], [0.22, 0, 0.03, 0.02]], { seg: 6 });
-    const scrollPt = (u: number, v: number, dz = 0) => [bt(-0.2, 0.2, u), -v * Sp, 0.05 + 0.3 * Math.sin(v * Math.PI * 0.55) + dz];
+    const scrollPt = (u: number, v: number, dz = 0) => [
+      bt(-0.2, 0.2, u),
+      -v * Sp,
+      0.05 + 0.3 * Math.sin(v * Math.PI * 0.55)
+        + 0.012 * Math.sin(u * Math.PI * 2 + 0.5) * Math.sin(v * Math.PI) + dz,
+    ];
     i.bind(furlBind).paint(whiteCloth, { c2: whiteShade, mat: K.cloth, by: (_u: number, yVal: number) => clamp01((s.handY - 0.02 - yVal) / Sp), line: 0.35 });
-    i.sheet(2, io, (u, v) => scrollPt(u, v));
+    i.sheet(8, io, (u, v) => scrollPt(u, v));
     i.paint(red, { mat: K.cloth, line: 0 });
     for (const [yv, amp] of [
       [0.3, 0.06],

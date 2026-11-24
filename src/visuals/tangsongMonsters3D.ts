@@ -24,6 +24,7 @@ export interface MonsterRig {
 export interface MonsterMeshBuilder {
   crease: number;
   rough: number;
+  boneId: number;
   bone: (id: number) => MonsterMeshBuilder;
   bind: (fn: unknown) => MonsterMeshBuilder;
   paint: (hex: number, opts?: Record<string, unknown>) => MonsterMeshBuilder;
@@ -33,6 +34,7 @@ export interface MonsterMeshBuilder {
   ball: (x: number, y: number, z: number, rx: number, ry: number, rz: number, flat?: number, deg?: number) => void;
   box: (x: number, y: number, z: number, w: number, h: number, d: number, bevel?: number) => void;
   extrude: (poly: number[][], depth: number, bevel?: number) => void;
+  sheet: (nu: number, nv: number, point: (u: number, v: number) => number[], doubleSided?: boolean, crease?: number) => MonsterMeshBuilder;
   torus: (r: number, r1: number, r2?: number, seg?: number, tseg?: number, opts?: Record<string, unknown>) => void;
   crystal: (r: number, h: number, seg: number, taper?: number, sharp?: number) => void;
   bakeGrounding: (h?: number, minAo?: number, groundDark?: number) => void;
@@ -393,6 +395,7 @@ export function createTangSongMonsters(api: MonsterEngineApi) {
       const OrigWaAdd = Wa.prototype.add;
       const OrigPaint = Ls.prototype.paint;
       const OrigBuild = Ls.prototype.build;
+      const OrigSheet = Ls.prototype.sheet;
       let ornamentApplied = false;
 
       Wa.prototype.add = function patchedWaAdd(
@@ -432,12 +435,49 @@ export function createTangSongMonsters(api: MonsterEngineApi) {
         return OrigBuild.call(this);
       };
 
+      if (kind === 'glimwing' || kind === 'abyss_drake') {
+        Ls.prototype.sheet = function patchedWingSheet(
+          this: MonsterMeshBuilder,
+          nu: number,
+          nv: number,
+          point: (u: number, v: number) => number[],
+          doubleSided?: boolean,
+          crease?: number,
+        ) {
+          const bone = capturedRigs[0]?.names[this.boneId] ?? '';
+          const birdWing = kind === 'glimwing' && (bone.startsWith('fw') || bone.startsWith('hw'));
+          const dragonWing = kind === 'abyss_drake' && nu === 5 && nv === 4;
+          if (!birdWing && !dragonWing) return OrigSheet.call(this, nu, nv, point, doubleSided, crease);
+
+          return OrigSheet.call(this, 12, 6, (u, v) => {
+            const trailingEdge = birdWing ? v * (1 - 0.045 * Math.sin(Math.PI * u) ** 2 * Math.sin(6 * Math.PI * u) ** 2) : v;
+            const p = point(u, trailingEdge);
+            const left = point(Math.max(0, u - 0.001), trailingEdge);
+            const right = point(Math.min(1, u + 0.001), trailingEdge);
+            const near = point(u, Math.max(0, trailingEdge - 0.001));
+            const far = point(u, Math.min(1, trailingEdge + 0.001));
+            const along = right.map((x, i) => x - left[i]);
+            const across = far.map((x, i) => x - near[i]);
+            const normal = [
+              along[1] * across[2] - along[2] * across[1],
+              along[2] * across[0] - along[0] * across[2],
+              along[0] * across[1] - along[1] * across[0],
+            ];
+            const length = Math.hypot(...normal) || 1;
+            const fold = (birdWing ? 0.045 : 0.08) * Math.sin(Math.PI * u) * Math.sin(Math.PI * v)
+              * (0.8 + 0.2 * Math.cos(2 * Math.PI * u + v));
+            return p.map((x, i) => x + normal[i] / length * fold);
+          }, doubleSided, crease);
+        };
+      }
+
       try {
         return baseBuilder();
       } finally {
         Wa.prototype.add = OrigWaAdd;
         Ls.prototype.paint = OrigPaint;
         Ls.prototype.build = OrigBuild;
+        Ls.prototype.sheet = OrigSheet;
       }
     };
   };

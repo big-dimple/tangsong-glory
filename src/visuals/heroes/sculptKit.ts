@@ -7,6 +7,7 @@
  * 3. 三维立体雕塑鎏金吞口狮头兽面、带刺玄铁流星大锤、梅花金步摇、凤冠珠钗、双节醉翁酒葫芦、竹简与狼毫毛笔。
  */
 
+import { clothFoldDepth } from '../tangsongCloth';
 import {
   clamp01,
   mixVal,
@@ -576,6 +577,8 @@ export function buildTatteredCape(
   const tatterAmp = opts.tatterAmp ?? 0.22;
   const seed = opts.seed ?? 1.7;
   const wave = opts.wave ?? 0.22;
+  // 一条窄带只需一道卷褶；宽披风可从肩头散出两到三道主褶。
+  const pleats = Math.max(1, Math.min(3, Math.ceil(opts.widthFn(0.65) / 0.16)));
 
   const last = pts[pts.length - 1];
   const prev = pts[pts.length - 2];
@@ -587,8 +590,20 @@ export function buildTatteredCape(
   ty /= tLen;
   tz /= tLen;
 
+  // 褶深沿布面的法向展开。斜挂在腰侧的飘带也能鼓起来。
+  const first = pts[0];
+  const dx = last[0] - first[0];
+  const dy = last[1] - first[1];
+  const dz = last[2] - first[2];
+  const nx = axis[1] * dz - axis[2] * dy;
+  const ny = axis[2] * dx - axis[0] * dz;
+  const nz = axis[0] * dy - axis[1] * dx;
+  const normalLength = Math.hypot(nx, ny, nz) || 1;
+  const facing = nx * bow[0] + ny * bow[1] + nz * bow[2] < 0 ? -1 : 1;
+  const depthScale = (0.20 + wave * 0.22) * facing / normalLength;
+
   m.sheet(
-    nu,
+    Math.max(nu, pleats * 7),
     nv,
     (u, v) => {
       const p = Li(pts, v);
@@ -596,20 +611,23 @@ export function buildTatteredCape(
       const w = opts.widthFn(v);
       const arch = 1 - xNorm * xNorm;
       const ripple = wave * Math.sin(v * 8.5 + xNorm * 2.2 + seed) * v;
+      const fold = clothFoldDepth(u, v, pleats, seed) * w * depthScale;
+      const edge = xNorm ** 4 * v * v;
+      const spread = xNorm * w * (1 - 0.075 * edge);
       // 尾缘参差破损裂口（多频正弦叠加）
-      let tailExt = 0;
+      let tailExt = -w * 0.18 * edge;
       if (v > 0.68) {
         const tv = (v - 0.68) / 0.32;
         const jag =
           0.5 +
           0.32 * Math.sin(u * Math.PI * 5 + seed) +
           0.22 * Math.cos(u * Math.PI * 9 - seed * 1.3);
-        tailExt = tv * tv * (jag - 0.45) * tatterAmp;
+        tailExt += tv * tv * (jag - 0.45) * tatterAmp;
       }
       return [
-        p[0] + axis[0] * xNorm * w + bow[0] * (arch + ripple) + tx * tailExt,
-        p[1] + axis[1] * xNorm * w + bow[1] * (arch + ripple) + ty * tailExt,
-        p[2] + axis[2] * xNorm * w + bow[2] * (arch + ripple) + tz * tailExt,
+        p[0] + axis[0] * spread + bow[0] * (arch + ripple) + nx * fold + tx * tailExt,
+        p[1] + axis[1] * spread + bow[1] * (arch + ripple) + ny * fold + ty * tailExt,
+        p[2] + axis[2] * spread + bow[2] * (arch + ripple) + nz * fold + tz * tailExt,
       ];
     },
     true,

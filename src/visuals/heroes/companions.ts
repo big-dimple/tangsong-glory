@@ -2,6 +2,7 @@
  * companions.ts — 六大唐宋名士伴生灵宠精雕版（配色与立绘新色盘统一，站位优雅外移不遮挡主体）
  */
 
+import { buildFeatheredWing } from '../tangsongWings';
 import {
   clamp01,
   type FullHeroEngineApi,
@@ -41,6 +42,25 @@ export function addHeroCompanion(
     const wingL = rig.add('petWingL', petRoot, bx + 0.04, by + 0.02, bz + 0.01);
     const wingR = rig.add('petWingR', petRoot, bx - 0.04, by + 0.02, bz + 0.01);
     const tail = rig.add('petTail', petRoot, bx, by - 0.02, bz - 0.14);
+    const addWings = (span: number, chord: number, rise: number, sweep: number) => {
+      const geometry = buildFeatheredWing(span, chord, rise, sweep);
+      for (const side of [1, -1]) {
+        m.bone(side > 0 ? wingL : wingR);
+        m.g(pt(bx + side * 0.04, by + 0.02, bz + 0.05, 0, 0, 0, side, 1, 1), () =>
+          m.emit(geometry.positions, geometry.indices, geometry.shades, 180),
+        );
+      }
+    };
+    const addTailFan = (rootWidth: number, flare: number, rootY: number, rootZ: number, drop: number, length: number) => {
+      m.sheet(16, 5, (u, v) => {
+        const feather = 0.5 + 0.5 * Math.cos(u * Math.PI * 8);
+        return [
+          bx + (u - 0.5) * (rootWidth + v * flare),
+          by + rootY - v * drop + 0.012 * v * Math.sin(u * Math.PI * 8),
+          bz + rootZ - v * length + 0.014 * v ** 4 * (1 - feather),
+        ];
+      }, true, 180);
+    };
 
     if (kind === 'crane') {
       // 苏轼：水墨丹顶白仙鹤（墨青羽尖呼应苏轼水墨竹袍）
@@ -66,32 +86,14 @@ export function addHeroCompanion(
       m.paint(0x2a313a, { mat: K.leather, line: 0 });
       m.tube([[bx + 0.022, by - 0.045, bz - 0.04, 0.007], [bx + 0.028, by - 0.15, bz - 0.18, 0.004]], { seg: 4 });
       m.tube([[bx - 0.022, by - 0.045, bz - 0.04, 0.007], [bx - 0.028, by - 0.15, bz - 0.18, 0.004]], { seg: 4 });
-      for (const [wb, sgn] of [
-        [wingL, 1],
-        [wingR, -1],
-      ] as [number, number][]) {
-        m.bone(wb).paint(0xf7f5ef, {
-          c2: 0x1d2530,
-          by: (u: number) => clamp01((Math.abs(u - bx) - 0.14) / 0.18),
-          mat: K.fur,
-          pattern: En.vein,
-          patternScale: 8,
-          patternAmt: 0.25,
-          line: 0.35,
-        });
-        m.sheet(
-          8,
-          4,
-          (u, v) => [
-            bx + sgn * (0.04 + u * 0.33),
-            by + 0.02 + Math.sin(u * Math.PI) * 0.065 - v * 0.015,
-            bz + 0.05 - v * 0.18 - u * u * 0.08,
-          ],
-          true,
-        );
-      }
+      m.paint(0xf7f5ef, {
+        c2: 0x1d2530,
+        by: (x: number, _y: number, _z: number, shade: number) => clamp01(Math.max(0, (Math.abs(x - bx) - 0.14) / 0.18) + shade * 0.55),
+        mat: K.fur, pattern: En.vein, patternScale: 8, patternAmt: 0.25, line: 0.35,
+      });
+      addWings(0.33, 0.18, 0.065, 0.08);
       m.bone(tail).paint(0x1e2530, { c2: 0xf4f2ec, mat: K.fur, line: 0.3 });
-      m.sheet(5, 3, (u, v) => [bx + (u - 0.5) * (0.055 + v * 0.08), by - 0.01 - v * 0.045, bz - 0.11 - v * 0.16], true);
+      addTailFan(0.055, 0.08, -0.01, -0.11, 0.045, 0.16);
     } else if (kind === 'phoenix') {
       // 刘娥：皇室朱金点翠金凤雏（正朱红+鎏金尾羽，呼应刘娥大宋礼服）
       m.bone(petRoot).paint(0xb52620, { c2: 0xe8b84e, mat: K.fur, pattern: En.vein, patternScale: 8, patternAmt: 0.3, line: 0.35 });
@@ -107,31 +109,12 @@ export function addHeroCompanion(
       m.paint(0xf2c556, { c2: 0xfff0b2, glow: 0.28, gloss: 0.95, mat: K.metal, line: 0 });
       m.tube([[bx, by + 0.165, bz + 0.16, 0.013], [bx, by + 0.155, bz + 0.22, 0.003]], { seg: 5 });
       m.tube([[bx, by + 0.195, bz + 0.13, 0.009], [bx, by + 0.265, bz + 0.05, 0.005], [bx, by + 0.28, bz - 0.05, 0.002]], { seg: 4 });
-      for (const [wb, sgn] of [
-        [wingL, 1],
-        [wingR, -1],
-      ] as [number, number][]) {
-        m.bone(wb).paint(0xa6201c, {
-          c2: 0xf4cc62,
-          glow: 0.16,
-          by: (u: number) => clamp01((Math.abs(u - bx) - 0.05) / 0.26),
-          mat: K.fur,
-          pattern: En.vein,
-          patternScale: 9,
-          patternAmt: 0.32,
-          line: 0.3,
-        });
-        m.sheet(
-          8,
-          4,
-          (u, v) => [
-            bx + sgn * (0.04 + u * 0.31),
-            by + 0.03 + Math.sin(u * Math.PI * 0.85) * 0.075,
-            bz + 0.05 - v * 0.17 - u * 0.1,
-          ],
-          true,
-        );
-      }
+      m.paint(0xa6201c, {
+        c2: 0xf4cc62, glow: 0.16,
+        by: (x: number, _y: number, _z: number, shade: number) => clamp01((Math.abs(x - bx) - 0.05) / 0.26 - shade * 0.35),
+        mat: K.fur, pattern: En.vein, patternScale: 9, patternAmt: 0.32, line: 0.3,
+      });
+      addWings(0.31, 0.17, 0.075, 0.10);
       m.bone(tail).paint(0xf0c250, { c2: 0xb82420, glow: 0.22, mat: K.fur, line: 0.2 });
       for (const ang of [-0.22, 0, 0.22]) {
         m.tube(
@@ -162,32 +145,14 @@ export function addHeroCompanion(
       m.paint(0xffb838, { glow: 0.55, line: 0 });
       m.ball(bx + 0.024, by + 0.135, bz + 0.145, 0.009, 0.009, 0.009, 0);
       m.ball(bx - 0.024, by + 0.135, bz + 0.145, 0.009, 0.009, 0.009, 0);
-      for (const [wb, sgn] of [
-        [wingL, 1],
-        [wingR, -1],
-      ] as [number, number][]) {
-        m.bone(wb).paint(0x191b22, {
-          c2: 0x9e241e,
-          by: (u: number) => clamp01((Math.abs(u - bx) - 0.2) / 0.15),
-          mat: K.fur,
-          pattern: En.vein,
-          patternScale: 9,
-          patternAmt: 0.28,
-          line: 0.35,
-        });
-        m.sheet(
-          8,
-          4,
-          (u, v) => [
-            bx + sgn * (0.04 + u * 0.34),
-            by + 0.02 + Math.sin(u * Math.PI * 0.72) * 0.055,
-            bz + 0.05 - v * 0.16 - u * 0.14,
-          ],
-          true,
-        );
-      }
+      m.paint(0x191b22, {
+        c2: 0x9e241e,
+        by: (x: number, _y: number, _z: number, shade: number) => clamp01((Math.abs(x - bx) - 0.2) / 0.15 + shade * 0.3),
+        mat: K.fur, pattern: En.vein, patternScale: 9, patternAmt: 0.28, line: 0.35,
+      });
+      addWings(0.34, 0.16, 0.055, 0.14);
       m.bone(tail).paint(0x232630, { c2: 0xa82820, mat: K.fur, line: 0.25 });
-      m.sheet(5, 2, (u, v) => [bx + (u - 0.5) * (0.075 + v * 0.08), by - 0.025 - v * 0.04, bz - 0.1 - v * 0.17], true);
+      addTailFan(0.075, 0.08, -0.025, -0.1, 0.04, 0.17);
     }
 
     return { kind, root: petRoot, a: wingL, b: wingR, c: tail };

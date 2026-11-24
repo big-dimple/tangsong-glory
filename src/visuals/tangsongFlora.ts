@@ -290,24 +290,37 @@ function buildBianheWillow(api: FloraApi, seed: number): unknown {
     const drop = rng.range(0.95, 1.65);
     const outX = Math.cos(ang);
     const outZ = Math.sin(ang);
-    const nx = outX;
-    const nz = outZ;
-    const tx = -outZ * 0.045;
-    const tz = outX * 0.045;
-
-    const p0L = b.vertex(sx - tx, sy, sz - tz, wMid, nx, 0.25, nz, 0.38);
-    const p0R = b.vertex(sx + tx, sy, sz + tz, wMid, nx, 0.25, nz, 0.38);
-    const c1 = Pt(wMid, wLight, 0.45);
-    const p1L = b.vertex(sx + outX * 0.06 - tx * 0.78, sy - drop * 0.45, sz + outZ * 0.06 - tz * 0.78, c1, nx, 0.2, nz, 0.85);
-    const p1R = b.vertex(sx + outX * 0.06 + tx * 0.78, sy - drop * 0.45, sz + outZ * 0.06 + tz * 0.78, c1, nx, 0.2, nz, 0.85);
-    const c2col = Pt(wMid, wLight, 0.85);
-    const p2L = b.vertex(sx + outX * 0.09 - tx * 0.45, sy - drop * 0.78, sz + outZ * 0.09 - tz * 0.45, c2col, nx, 0.15, nz, 1.25);
-    const p2R = b.vertex(sx + outX * 0.09 + tx * 0.45, sy - drop * 0.78, sz + outZ * 0.09 + tz * 0.45, c2col, nx, 0.15, nz, 1.25);
-    const tip = b.vertex(sx + outX * 0.08, sy - drop, sz + outZ * 0.08, wLight, nx, 0.1, nz, 1.58);
-
-    b.quad(p0L, p0R, p1R, p1L);
-    b.quad(p1L, p1R, p2R, p2L);
-    b.tri(p2L, p2R, tip);
+    const tangentX = -outZ;
+    const tangentZ = outX;
+    const rows: number[][] = [];
+    for (let row = 0; row < 5; row++) {
+      const v = row / 5;
+      const width = 0.045 * (1 - 0.7 * v) * (1 + 0.1 * Math.sin(v * Math.PI * 5 + i));
+      const bend = 0.1 * Math.sin(v * Math.PI * 0.62);
+      const color = Pt(wMid, wLight, v);
+      const vertices: number[] = [];
+      for (const side of [-1, 0, 1]) {
+        // 叶脉拱起，两侧随枝条轻微扭转。
+        const rib = 0.018 * (1 - side * side) * (0.4 + 0.6 * v);
+        const twist = 0.008 * side * Math.sin(v * Math.PI * 2 + i * 0.7) * v;
+        const normalTilt = side * 0.45;
+        vertices.push(b.vertex(
+          sx + outX * (bend + rib + twist) + tangentX * side * width,
+          sy - drop * v,
+          sz + outZ * (bend + rib + twist) + tangentZ * side * width,
+          color, outX + tangentX * normalTilt, 0.2, outZ + tangentZ * normalTilt, 0.38 + v * 1.2,
+        ));
+      }
+      if (row > 0) {
+        for (let c = 0; c < 2; c++) {
+          b.quad(rows[row - 1][c], rows[row - 1][c + 1], vertices[c + 1], vertices[c]);
+        }
+      }
+      rows.push(vertices);
+    }
+    const tip = b.vertex(sx + outX * 0.08, sy - drop, sz + outZ * 0.08, wLight, outX, 0.1, outZ, 1.58);
+    b.tri(rows[4][0], rows[4][1], tip);
+    b.tri(rows[4][1], rows[4][2], tip);
   }
 
   return bs(b);

@@ -8,6 +8,7 @@ export interface HeroModelApi {
     bone(id: number): HeroModelApi['m'];
     bind(fn: unknown): HeroModelApi['m'];
     paint(hex: number, opts?: Record<string, unknown>): HeroModelApi['m'];
+    emit(positions: number[], indices: number[], gradient?: number[] | null, crease?: number): void;
     g(mat: unknown, fn: () => void): void;
     sym(fn: (side: number) => void): void;
     lathe(pts: number[][], opts?: Record<string, unknown>): void;

@@ -7,6 +7,8 @@
  * 3. 秋苑翩跹金/青蝶（14 只）：在汴河芦苇、银杏与红枫林间轻快翩飞。
  */
 
+import { buildFeatheredWing } from './tangsongWings';
+
 export interface WildlifeVertexBuilder {
   vertex(
     x: number,
@@ -29,7 +31,7 @@ export interface WildlifeGroup {
   name: string;
   position: { set: (x: number, y: number, z: number) => void; x: number; y: number; z: number };
   rotation: { set: (x: number, y: number, z: number) => void; x: number; y: number; z: number };
-  scale: { setScalar: (s: number) => void };
+  scale: { x: number; setScalar: (s: number) => void };
   add: (child: unknown) => void;
 }
 
@@ -108,14 +110,36 @@ export function createTangSongWildlife(api: WildlifeApi) {
 
   const buildKoiTail = (colA: number[], colB: number[]) => {
     const b = new Be();
-    const v0 = b.vertex(0, 0, 0, colA, 1, 0, 0);
-    const v1 = b.vertex(0, 0.14, -0.26, colB, 1, 0, 0);
-    const v2 = b.vertex(0, -0.14, -0.26, colB, 1, 0, 0);
-    const v3 = b.vertex(0, 0, -0.18, colA, 1, 0, 0);
-    b.tri(v0, v1, v3);
-    b.tri(v0, v3, v2);
-    b.tri(v3, v1, v0);
-    b.tri(v2, v3, v0);
+    // 从尾柄向外张开的鳍条在中间拱起，尾缘留出柔和的分叉。
+    for (const face of [1, -1]) {
+      const root = b.vertex(0, 0, 0, colA, face, 0, 0);
+      let previous: number[] = [];
+      for (let row = 1; row <= 5; row++) {
+        const v = row / 5;
+        const color = colA.map((c, k) => c + (colB[k] - c) * v);
+        const current: number[] = [];
+        for (let col = 0; col <= 8; col++) {
+          const u = col / 8;
+          const side = 2 * u - 1;
+          const x = 0.026 * v * Math.sin(u * Math.PI * 4) + 0.02 * Math.sin(v * Math.PI) * (1 - side * side);
+          const y = 0.14 * side * v;
+          const z = -0.26 * v + 0.08 * (1 - Math.abs(side)) * v ** 4;
+          current.push(b.vertex(x, y, z, color, face, 0, 0));
+        }
+        for (let col = 0; col < 8; col++) {
+          if (row === 1) {
+            if (face > 0) b.tri(root, current[col], current[col + 1]);
+            else b.tri(root, current[col + 1], current[col]);
+          } else if (face > 0) {
+            b.quad(previous[col], current[col], current[col + 1], previous[col + 1]);
+          } else {
+            b.quad(previous[col + 1], current[col + 1], current[col], previous[col]);
+          }
+        }
+        previous = current;
+      }
+    }
+    b.computeNormals?.();
     return b.build();
   };
 
@@ -173,42 +197,41 @@ export function createTangSongWildlife(api: WildlifeApi) {
     return b.build();
   };
 
-  const buildCraneWing = (side: 1 | -1) => {
+  const buildCraneWing = () => {
     const b = new Be();
-    // 展开大羽翼（内白外黑，双面可见）
-    const p0 = b.vertex(0, 0, 0.2, white, 0, 1, 0);
-    const p1 = b.vertex(0, 0, -0.28, white, 0, 1, 0);
-    const p2 = b.vertex(side * 0.65, 0.05, 0.16, white, 0, 1, 0);
-    const p3 = b.vertex(side * 0.6, 0.04, -0.32, black, 0, 1, 0);
-    const p4 = b.vertex(side * 1.25, -0.02, -0.04, black, 0, 1, 0);
-    const p5 = b.vertex(side * 1.18, -0.03, -0.4, black, 0, 1, 0);
-    if (side > 0) {
-      b.quad(p0, p2, p3, p1);
-      b.quad(p2, p4, p5, p3);
-      b.quad(p1, p3, p2, p0);
-      b.quad(p3, p5, p4, p2);
-    } else {
-      b.quad(p1, p3, p2, p0);
-      b.quad(p3, p5, p4, p2);
-      b.quad(p0, p2, p3, p1);
-      b.quad(p2, p4, p5, p3);
+    const span = 1.25;
+    const { positions, indices, shades } = buildFeatheredWing(span, 0.52, 0.18, 0.26);
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i];
+      const ink = Math.min(1, Math.max(0, (x / span - 0.46) * 1.75) + shades[i / 3]);
+      const col = white.map((c, k) => c + (black[k] - c) * ink);
+      b.vertex(x, positions[i + 1], 0.18 + positions[i + 2], col);
     }
+    for (let i = 0; i < indices.length; i += 3) {
+      b.tri(indices[i], indices[i + 1], indices[i + 2]);
+    }
+    b.computeNormals?.();
     return b.build();
   };
 
-  const buildButterflyWing = (side: 1 | -1, cA: number[], cB: number[]) => {
+  const buildButterflyWing = (cA: number[], cB: number[]) => {
     const b = new Be();
-    const q0 = b.vertex(0, 0, 0.05, cA, 0, 1, 0, 0, 0.25);
-    const q1 = b.vertex(0, 0, -0.05, cA, 0, 1, 0, 0, 0.25);
-    const q2 = b.vertex(side * 0.14, 0.02, 0.09, cB, 0, 1, 0, 0, 0.32);
-    const q3 = b.vertex(side * 0.11, 0.01, -0.08, cB, 0, 1, 0, 0, 0.28);
-    if (side > 0) {
-      b.quad(q0, q2, q3, q1);
-      b.quad(q1, q3, q2, q0);
-    } else {
-      b.quad(q1, q3, q2, q0);
-      b.quad(q0, q2, q3, q1);
+    // 蝶翼前瓣稍翘，后瓣圆收；薄边两侧的浅弧各自受光。
+    const outline = [
+      [0, 0, 0.045], [0.080, 0.027, 0.10], [0.14, 0.035, 0.115],
+      [0.15, 0.024, 0.075], [0.095, 0.010, 0.004], [0.12, 0.013, -0.038],
+      [0.097, 0.009, -0.082], [0.054, 0.002, -0.085], [0, 0, -0.035],
+    ];
+    for (const face of [1, -1]) {
+      const vein = b.vertex(0.05, 0.018 + face * 0.008, 0.006, cA, 0, face, 0, 0, 0.25);
+      const rim = outline.map(([x, y, z]) => b.vertex(x, y, z, x === 0 ? cA : cB, 0, face, 0, 0, 0.3));
+      for (let j = 0; j < rim.length; j++) {
+        const next = rim[(j + 1) % rim.length];
+        if (face > 0) b.tri(vein, rim[j], next);
+        else b.tri(vein, next, rim[j]);
+      }
     }
+    b.computeNormals?.();
     return b.build();
   };
 
@@ -217,12 +240,9 @@ export function createTangSongWildlife(api: WildlifeApi) {
   const geoKoiTailRed = buildKoiTail(white, red);
   const geoKoiTailGold = buildKoiTail(gold, red);
   const geoCraneBody = buildCraneBody();
-  const geoCraneWingL = buildCraneWing(1);
-  const geoCraneWingR = buildCraneWing(-1);
-  const geoBflyGoldL = buildButterflyWing(1, gold, yt(0xffe8a6));
-  const geoBflyGoldR = buildButterflyWing(-1, gold, yt(0xffe8a6));
-  const geoBflyBlueL = buildButterflyWing(1, azure, teal);
-  const geoBflyBlueR = buildButterflyWing(-1, azure, teal);
+  const geoCraneWing = buildCraneWing();
+  const geoBflyGold = buildButterflyWing(gold, yt(0xffe8a6));
+  const geoBflyBlue = buildButterflyWing(azure, teal);
 
   // 2. 放置 12 尾汴河锦鲤（避开河道大龙坑正中心太近的位置）
   const riverPts = mapSdf.riverLine;
@@ -301,8 +321,9 @@ export function createTangSongWildlife(api: WildlifeApi) {
     grp.name = `crane_${idx}`;
     grp.scale.setScalar(rng.range(0.68, 0.84));
     const body = new Sn(geoCraneBody, mat);
-    const wingL = new Sn(geoCraneWingL, mat);
-    const wingR = new Sn(geoCraneWingR, mat);
+    const wingL = new Sn(geoCraneWing, mat);
+    const wingR = new Sn(geoCraneWing, mat);
+    wingR.scale.x = -1;
     wingL.position.set(0.11, 0.04, 0.04);
     wingR.position.set(-0.11, 0.04, 0.04);
     grp.add(body);
@@ -348,8 +369,10 @@ export function createTangSongWildlife(api: WildlifeApi) {
     const grp = new Ji();
     grp.name = `butterfly_${i}`;
     grp.scale.setScalar(rng.range(0.9, 1.25));
-    const wL = new Sn(isBlue ? geoBflyBlueL : geoBflyGoldL, mat);
-    const wR = new Sn(isBlue ? geoBflyBlueR : geoBflyGoldR, mat);
+    const wing = isBlue ? geoBflyBlue : geoBflyGold;
+    const wL = new Sn(wing, mat);
+    const wR = new Sn(wing, mat);
+    wR.scale.x = -1;
     grp.add(wL);
     grp.add(wR);
     root.add(grp);
@@ -396,11 +419,13 @@ export function createTangSongWildlife(api: WildlifeApi) {
       const vz = Math.cos(a) * c.rz * c.speed;
       const flapCycle = (simTime * 0.5 + i * 0.7) % 1;
       const flapEnv = flapCycle < 0.55 ? Math.sin((flapCycle / 0.55) * Math.PI) : 0;
-      const flap = Math.sin(simTime * 7.2 + c.phase) * 0.55 * flapEnv + 0.08;
+      const stroke = simTime * 7.2 + c.phase;
+      const flap = Math.sin(stroke) * 0.55 * flapEnv + 0.08;
+      const pitch = Math.cos(stroke) * 0.13 * flapEnv;
       c.group.position.set(x, c.cy + Math.sin(simTime * 0.9 + c.phase) * 0.65, z);
       c.group.rotation.set(-0.04, Math.atan2(vx, vz), c.speed > 0 ? 0.18 : -0.18);
-      c.wingL.rotation.set(0, 0, flap);
-      c.wingR.rotation.set(0, 0, -flap);
+      c.wingL.rotation.set(pitch, 0, flap);
+      c.wingR.rotation.set(pitch, 0, -flap);
     }
 
     // 彩蝶花间翩跹
@@ -425,12 +450,9 @@ export function createTangSongWildlife(api: WildlifeApi) {
       geoKoiTailRed,
       geoKoiTailGold,
       geoCraneBody,
-      geoCraneWingL,
-      geoCraneWingR,
-      geoBflyGoldL,
-      geoBflyGoldR,
-      geoBflyBlueL,
-      geoBflyBlueR,
+      geoCraneWing,
+      geoBflyGold,
+      geoBflyBlue,
     ].forEach((g) => g.dispose?.());
     mat.dispose?.();
   }

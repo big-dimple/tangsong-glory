@@ -9,6 +9,7 @@
  * - 左手捧竹简诗卷（绑于 pipa 骨骼），右手执狼毫大毛笔（绑于 handR 骨骼），完美兼容 $U 施法挥毫动作！
  */
 
+import { clothFoldDepth } from '../tangsongCloth';
 import { addHeroCompanion } from './companions';
 import {
   buildSculptedTangSongHead,
@@ -148,7 +149,7 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
       [1.02, 0.184, 0.146],
     ],
     {
-      seg: 24,
+      seg: 40,
       cap0: false,
       cap1: false,
       shape: (ang: number, idx: number) =>
@@ -167,14 +168,16 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
   });
   i.sym(() => {
     i.sheet(
-      10,
+      16,
       9,
       (u, v) => {
         // u=0 为前开襟边缘 (ang ≈ 68°)，u=1 为后侧 (ang ≈ -110°)
         const ang = bt(66, -98, u) * (Math.PI / 180);
         const flare = bt(0.205, 0.48, v) + Math.sin(u * Math.PI) * v * 0.09;
-        const wave = Math.sin(u * Math.PI * 3 + v * 4) * 0.022 * v;
-        return [Math.cos(ang) * (flare + wave), bt(1.0, 0.16, v), Math.sin(ang) * (flare * 0.86 + wave)];
+        const wave = Math.sin(u * Math.PI * 3 + v * 4) * 0.022 * v
+          + 0.028 * Math.sin(u * Math.PI) * clothFoldDepth(u, v, 2, 1.8);
+        const hem = 0.014 * v * v * Math.sin(u * Math.PI * 3);
+        return [Math.cos(ang) * (flare + wave), bt(1.0, 0.16, v) + hem, Math.sin(ang) * (flare * 0.86 + wave)];
       },
       true,
       180,

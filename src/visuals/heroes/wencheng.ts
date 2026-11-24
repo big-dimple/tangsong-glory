@@ -10,6 +10,7 @@
  * - 配象牙白玉×朱红漆×鎏金雕凤反曲角弓与朱红织金箭箙（100% 兼容 PU 拉弦射箭动画）。
  */
 
+import { clothFoldDepth } from '../tangsongCloth';
 import { addHeroCompanion } from './companions';
 import {
   buildBlossomHairpin,
@@ -122,7 +123,7 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
       [1.04, 0.168, 0.136],
     ],
     {
-      seg: 24,
+      seg: 56,
       cap0: false,
       cap1: false,
       shape: (ang: number, idx: number) =>
@@ -183,14 +184,15 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
   // 2c. 中前对称垂落的两条宽幅朱红织金绸带外摆（充分外浮远离白裙表面，零穿模零 Z-fighting！）
   i.sym(() => {
     i.sheet(
-      5,
+      10,
       10,
       (u, v) => {
         const xOff = mixVal(0.075, 0.35, v) + (u - 0.5) * mixVal(0.052, 0.095, v);
-        const yOff = bt(1.13, 0.22, v);
+        const yOff = bt(1.13, 0.22, v) + 0.012 * v * v * Math.sin(u * Math.PI);
         // 严格高于白裙前表面弧线 (+0.045 净空)
         const baseZ = mixVal(0.165, 0.48, Math.pow(v, 1.05));
-        const zOff = baseZ + 0.032 - Math.abs(xOff) * 0.28 + (u - 0.5) * 0.01;
+        const zOff = baseZ + 0.032 - Math.abs(xOff) * 0.28 + (u - 0.5) * 0.01
+          + 0.01 * v * (1 + clothFoldDepth(u, v, 1, 0.8));
         return [xOff, yOff, zOff];
       },
       true,
