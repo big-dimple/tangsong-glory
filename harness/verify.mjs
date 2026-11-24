@@ -923,6 +923,15 @@ async function run() {
         'battle',
         `局内 BGM track 应为 battle，实际 ${res.battleAudioStats.track}`,
       );
+      if (res.battleAudioStats.notes === 0) {
+        // 当前调度队列可在乐句间短暂为空；等待真实的下一批音符。
+        const audio = await page.waitForFunction(() => {
+          const stats = window.__moba?.audio?.debug?.stats?.();
+          return stats?.track === 'battle' && stats.notes > 0 ? stats : false;
+        }, { timeout: 15_000 });
+        res.battleAudioStats = await audio.jsonValue();
+        await audio.dispose();
+      }
       assert(
         res.battleAudioStats.notes > 0,
         `局内程序化战鼓乐音符未调度: ${JSON.stringify(res.battleAudioStats)}`,
