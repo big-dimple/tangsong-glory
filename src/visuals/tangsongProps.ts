@@ -605,11 +605,11 @@ export function createLandmarkPropBuilders(api: PropsApi) {
     Xo(b, 0, poleH + 0.02, 0, 0.36, 0.09, 0, 0, bronzeGold, Ht(bronzeGold, 1.25), 0.16, 5);
 
     // 金印、织边与旗面共用顶点和风权重，褶峰经过方印时花纹仍贴着布。
-    addBannerFabric(b, 16, 20, (u, v) => [
+    addBannerFabric(b, 8, 10, (u, v) => [
       (u - 0.5) * width * (1 - 0.035 * v * v),
       poleH - 0.28 - v * length + 0.34 * v ** 5 * (1 - Math.abs(2 * u - 1)),
       0.025 + width * (0.10 * clothFoldDepth(u, v, 2, 1.1) + 0.045 * v * Math.sin(v * 5)),
-    ], (u, v) => u <= 0.0625 || u >= 0.9375 || v === 0
+    ], (u, v) => u <= 0.125 || u >= 0.875 || v === 0
       || Math.abs(u - 0.5) / 0.18 + Math.abs(v - 0.4) / 0.11 <= 1, 0.82);
     return b.build();
   }
@@ -626,7 +626,7 @@ export function createLandmarkPropBuilders(api: PropsApi) {
       { sides: 5, c0: lacquerDark, c1: lacquer },
     );
     Xo(b, 0, 2.66, 0, 0.24, 0.065, 0, 0, bronzeGold, Ht(bronzeGold, 1.25), 0.18, 5);
-    addBannerFabric(b, 6, 8, (u, reach) => [
+    addBannerFabric(b, 4, 6, (u, reach) => [
       0.09 * clothFoldDepth(u, reach, 1, 2.4) + 0.10 * reach * Math.sin(6 * reach - 2 * u),
       2.12 + (0.5 - u) * 0.72 * (1 - 0.65 * reach) - 0.08 * reach * reach,
       0.04 + 1.15 * reach - 0.08 * reach ** 4 * (1 - Math.abs(2 * u - 1)),

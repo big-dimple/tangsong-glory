@@ -334,7 +334,6 @@ export function buildWenchengFull(api: FullHeroEngineApi, pal: Record<string, nu
     browThickness: 0.85,
     browArch: 0.009,
     smile: 0.011,
-    mouthOpen: 0.005,
     huadian: 0xd9382c,
     bangStyle: 'noble',
     sideLockLen: 0.17,

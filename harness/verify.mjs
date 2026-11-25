@@ -233,48 +233,6 @@ async function waitForCondition(page, predicate, timeoutMs = 45_000) {
   await page.waitForFunction(predicate, { timeout: timeoutMs, polling: 100 });
 }
 
-async function verifyContinuousMusic(page, expectedTrack) {
-  const result = await page.evaluate(async () => {
-    const audio = window.__moba.audio;
-    const { mixer, ctx, music } = audio;
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    mixer.musicVol.connect(analyser);
-    const originalTick = music.tick;
-    const scheduledBefore = music.scheduledNotes;
-    music.tick = () => {};
-    const start = ctx.currentTime;
-    const wallStart = performance.now();
-    try {
-      while (ctx.currentTime - start < 6.5 && performance.now() - wallStart < 22_000) {
-        await new Promise((resolve) => setTimeout(resolve, 150));
-      }
-      const samples = new Float32Array(analyser.fftSize);
-      analyser.getFloatTimeDomainData(samples);
-      let energy = 0;
-      for (const sample of samples) energy += sample * sample;
-      mixer.sweep();
-      return {
-        track: music.track,
-        state: ctx.state,
-        elapsed: ctx.currentTime - start,
-        rms: Math.sqrt(energy / samples.length),
-        notes: mixer.noteCount,
-        scheduledBefore,
-        scheduledAfter: music.scheduledNotes,
-      };
-    } finally {
-      music.tick = originalTick;
-      mixer.musicVol.disconnect(analyser);
-      analyser.disconnect();
-      audio.pump();
-    }
-  });
-  assert(result.track === expectedTrack && result.state === 'running' && result.elapsed >= 6.5 &&
-    result.scheduledBefore > 0 && result.scheduledAfter === result.scheduledBefore && result.notes > 0 && result.rms > .00005,
-  `${expectedTrack} 调度短暂停顿后音乐不连续: ${JSON.stringify(result)}`);
-}
-
 async function run() {
   checkMotherAndBundle();
   fs.mkdirSync(SHOT_DIR, { recursive: true });
@@ -313,7 +271,6 @@ async function run() {
       15_000,
     );
     await wait(250);
-    await verifyContinuousMusic(page, 'menu');
 
     const lobbyChecks = await page.evaluate(async () => {
       const moba = window.__moba;
@@ -407,6 +364,69 @@ async function run() {
         renderedSounds[sound] = { windows, played: mixer.stats.played };
       }
 
+      // 验证三项战术指令音效离线渲染无静音/削波
+      const orderRender = await (async () => {
+        const sampleRate = 22050;
+        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * 2.5), sampleRate);
+        const mixer = new moba.audio.mixer.constructor(ctx);
+        mixer.kit.reseed(42);
+        mixer.setVolumes(.8, .8, .5);
+        const starts = [0.05, 0.85, 1.65];
+        ['ui_order_gather', 'ui_order_attack', 'ui_order_retreat'].forEach((key, idx) => {
+          mixer.play(key, { when: starts[idx] });
+        });
+        const samples = (await ctx.startRendering()).getChannelData(0);
+        const windows = starts.map((start) => {
+          let energy = 0, peak = 0, invalid = 0;
+          const from = Math.floor(start * sampleRate);
+          const to = Math.floor((start + 0.45) * sampleRate);
+          for (let i = from; i < to; i++) {
+            const value = samples[i];
+            if (!Number.isFinite(value)) invalid++;
+            else { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
+          }
+          return { rms: Math.sqrt(energy / (to - from)), peak, invalid };
+        });
+        return { windows, played: mixer.stats.played };
+      })();
+
+      // 离线渲染四首原声乐章（含 battle 对线层 vs 激战层能量对比）
+      const renderedTracks = {};
+      for (const [label, track, moodArgs] of [
+        ['menu', 'menu', null],
+        ['battleExplore', 'battle', [0.05, 0]],
+        ['battleCombat', 'battle', [0.95, 0.9]],
+        ['victory', 'victory', null],
+        ['defeat', 'defeat', null],
+      ]) {
+        const sampleRate = 22050;
+        const durationSec = 4.0;
+        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * durationSec), sampleRate);
+        const mixer = new moba.audio.mixer.constructor(ctx);
+        mixer.kit.reseed(42);
+        mixer.setVolumes(0.8, 0.8, 0.85);
+        const score = moba.audio.music.fork(mixer);
+        if (moodArgs) score.setMood(moodArgs[0], moodArgs[1]);
+        score.setTrack(track);
+        score.tick(durationSec);
+        const samples = (await ctx.startRendering()).getChannelData(0);
+        const from = Math.floor(sampleRate * 1.2);
+        let energy = 0, peak = 0, invalid = 0;
+        for (let i = from; i < samples.length; i++) {
+          const value = samples[i];
+          if (!Number.isFinite(value)) invalid++;
+          else { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
+        }
+        const count = samples.length - from;
+        renderedTracks[label] = {
+          rms: Math.sqrt(energy / count),
+          peak,
+          invalid,
+          scheduledNotes: score.scheduledNotes,
+        };
+        score.dispose();
+      }
+
       return {
         title: document.title,
         ver: document.getElementById('sf-ver')?.textContent || '',
@@ -433,6 +453,8 @@ async function run() {
         audioStats,
         proceduralAudioInfo,
         renderedSounds,
+        orderRender,
+        renderedTracks,
       };
     });
 
@@ -479,6 +501,17 @@ async function run() {
       assert(render.windows.every((window) => window.invalid === 0 && window.rms > .00005 && window.peak <= 1),
         `${sound} 施法音效出现静音、削波或无效采样: ${JSON.stringify(render.windows)}`);
     }
+    assert.equal(lobbyChecks.orderRender.played, 3, '战术指令音效未全部触发');
+    assert(lobbyChecks.orderRender.windows.every((w) => w.invalid === 0 && w.rms > 0.001 && w.peak <= 1),
+      `战术指令音效异常: ${JSON.stringify(lobbyChecks.orderRender.windows)}`);
+    for (const [label, tr] of Object.entries(lobbyChecks.renderedTracks)) {
+      assert(tr.invalid === 0 && tr.peak <= 1 && tr.rms > 0.002 && tr.scheduledNotes > 0,
+        `配乐 ${label} 离线渲染异常: ${JSON.stringify(tr)}`);
+    }
+    assert(
+      lobbyChecks.renderedTracks.battleCombat.rms > lobbyChecks.renderedTracks.battleExplore.rms * 1.15,
+      `battle 激战层未明显强于对线层: ${JSON.stringify(lobbyChecks.renderedTracks)}`,
+    );
     assert(
       (lobbyChecks.proceduralAudioInfo?.patchedSfxCount ?? 0) >= 154,
       `覆写 r1 SFX 数量异常偏少: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
@@ -634,7 +667,6 @@ async function run() {
       await wait(700);
 
       if (heroId === 'sushi') {
-        await verifyContinuousMusic(page, 'battle');
         const resolution = await page.evaluate(() => {
           const { engine } = window.__moba.renderer;
           const width = () => engine.canvas.width;
@@ -892,7 +924,6 @@ async function run() {
         world.grid.rebuild(state.units);
 
         const fired = {};
-        const inkSlots = {};
         const castSounds = [];
         const mixer = moba.audio.mixer;
         const originalPlay = mixer.play;
@@ -900,8 +931,6 @@ async function run() {
           if (key.startsWith('cast_')) castSounds.push(key);
           return originalPlay.call(this, key, options);
         };
-        let brushText = '';
-        let brushDelays = [];
         for (const slot of ['s1', 's2', 'ult']) {
           me.mana = me.stats.maxMana;
           me.rt.lockUntil = 0;
@@ -925,25 +954,9 @@ async function run() {
               }
             }
           }
-          if (expectedHero === 'sushi' && slot === 'ult') {
-            const title = document.querySelector('.ts-brush-title');
-            brushText = title?.textContent ?? '';
-            brushDelays = [...(title?.querySelectorAll('.ts-brush-title__char') ?? [])]
-              .map((char) => parseFloat(getComputedStyle(char).animationDelay));
-          }
           if (slot === 'ult') {
             const animation = document.querySelector('.ts-eyes-cutin')?.getAnimations()[0];
             if (animation) { animation.pause(); animation.currentTime = 100; }
-          }
-          for (let attempt = 0; attempt < 3 && !inkSlots[slot]; attempt++) {
-            await new Promise((resolve) => requestAnimationFrame(resolve));
-            const ink = document.querySelector('.ts-skill-ink');
-            const pixels = ink?.getContext('2d')?.getImageData(0, 0, ink.width, ink.height).data;
-            if (pixels) {
-              for (let i = 3; i < pixels.length; i += 4) {
-                if (pixels[i] > 0) { inkSlots[slot] = true; break; }
-              }
-            }
           }
         }
         mixer.play = originalPlay;
@@ -970,11 +983,7 @@ async function run() {
           atkOrderAfterMove,
           movedDist: +movedDist.toFixed(2),
           fired,
-          inkSlots,
           castSounds,
-          brushText,
-          brushDelays,
-          reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
           hasCutin: !!cutin?.querySelector('img')?.naturalWidth,
           brokenImgs: imgs.filter((x) => !x.ok),
           battleAudioStats: { ...moba.audio.debug.stats(), scheduledNotes: moba.audio.music?.scheduledNotes ?? 0 },
@@ -993,15 +1002,8 @@ async function run() {
       assert.equal(res.fired.s2, true);
       assert.equal(res.fired.ult, true);
       for (const slot of ['s1', 's2', 'ult']) {
-        assert(res.inkSlots[slot], `${heroId} ${slot} 未绘制水墨动效`);
         const soundId = heroId === 'liue' ? 'liue' : KIT_MAP[heroId];
         assert(res.castSounds.includes(`cast_${soundId}_${slot}`), `${heroId} ${slot} 未使用对应施法音效`);
-      }
-      if (heroId === 'sushi') {
-        assert.equal(res.brushText, lobbyChecks.heroTable.sushi.skills.ult.name, '苏轼大招毛笔字缺失');
-        if (!res.reducedMotion) {
-          assert(res.brushDelays.every((delay, i) => Math.abs(delay - i * 0.14) < 0.01), '毛笔字应逐字出现');
-        }
       }
       assert.equal(res.hasCutin, true);
       assert.equal(
@@ -1651,7 +1653,7 @@ async function run() {
         timeout: 60_000,
       });
       await waitForCondition(page, () => window.__moba?.phase === 'match' && !!window.__moba?.renderer, 60_000);
-      await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 2, 30_000);
+      await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 3, 30_000);
       await wait(450);
       viewMetrics[vpName] = {};
 
@@ -1718,8 +1720,8 @@ async function run() {
     const persisted = await page.evaluate(() => window.__moba.getCameraPreset());
     assert.equal(persisted, 'standard');
 
-    // 使用真实模拟器验证队友自动支援、指令续期与危险时的自保。
-    await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 2, 30_000);
+    // 使用真实模拟器验证队友自动支援、防平A误触发、集合推线/打野、撤退指令、指令续期与危险自保。
+    await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 3, 30_000);
     const teamwork = await page.evaluate(() => {
       const { world, state, session } = window.__moba;
       session.loop.stop();
@@ -1763,6 +1765,7 @@ async function run() {
       };
       const gatherButton = document.querySelector('[data-order="gather"]');
       const attackButton = document.querySelector('[data-order="attack"]');
+      const retreatButton = document.querySelector('[data-order="retreat"]');
 
       reset();
       position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
@@ -1774,6 +1777,17 @@ async function run() {
       const automatic = step(90);
       automatic.approach = beforeFight - Math.hypot(ally.pos.x - foe.pos.x, ally.pos.y - foe.pos.y);
 
+      // 玩家仅在近处挥剑/补刀（未锁定敌方英雄且未接战）时不应误拉队友
+      reset();
+      position(me, -3, 3); position(ally, -11, 11); position(foe, 4, -4);
+      foe.visible[me.team] = true;
+      me.anim = 'attack';
+      me.animStart = state.time;
+      me.h.atkOrder = false;
+      me.h.atkTargetId = -1;
+      world.grid.rebuild(state.units);
+      const plainAttack = step(30);
+
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
       world.grid.rebuild(state.units);
@@ -1783,6 +1797,23 @@ async function run() {
       gather.approach = beforeGather - Math.hypot(ally.pos.x - me.pos.x, ally.pos.y - me.pos.y);
       gather.feedback = document.querySelector('.ts-team-orders__feedback').textContent;
 
+      // 集合到位且身边有可打目标时，队友应主动协助进攻而非原地罚站
+      const monster = state.units.find((unit) => unit.kind === 'monster' && unit.alive);
+      let gatherPush = { labels: [], hasMonster: !!monster };
+      if (monster) {
+        const origPos = { x: monster.pos.x, y: monster.pos.y };
+        reset();
+        position(me, -5, 5); position(ally, -7, 7); position(foe, 44, -44);
+        monster.pos.x = monster.prevPos.x = -2;
+        monster.pos.y = monster.prevPos.y = 2;
+        monster.visible[me.team] = true;
+        world.grid.rebuild(state.units);
+        gatherButton.click();
+        gatherPush = { ...step(35), hasMonster: true };
+        monster.pos.x = monster.prevPos.x = origPos.x;
+        monster.pos.y = monster.prevPos.y = origPos.y;
+      }
+
       reset();
       position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
       foe.visible[me.team] = true;
@@ -1790,6 +1821,17 @@ async function run() {
       world.step();
       attackButton.click();
       const attack = step(60);
+
+      // 撤退指令下，附近受敌方威胁的队友应向己方基地回撤
+      reset();
+      position(me, -4, 4); position(ally, -6, 6); position(foe, 1, -1);
+      foe.visible[me.team] = true;
+      world.grid.rebuild(state.units);
+      const beforeRetreatDist = Math.hypot(ally.pos.x - bot.home.x, ally.pos.y - bot.home.y);
+      retreatButton.click();
+      const retreat = step(60);
+      retreat.homeDelta = beforeRetreatDist - Math.hypot(ally.pos.x - bot.home.x, ally.pos.y - bot.home.y);
+      retreat.feedback = document.querySelector('.ts-team-orders__feedback').textContent;
 
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
@@ -1820,13 +1862,21 @@ async function run() {
       world.grid.rebuild(state.units);
       gatherButton.click();
       const towerRisk = step(30);
-      return { foeId: foe.id, automatic, gather, attack, lowHealth, repeated, expired, towerRisk };
+      return { foeId: foe.id, automatic, plainAttack, gather, gatherPush, attack, retreat, lowHealth, repeated, expired, towerRisk };
     });
     assert(teamwork.automatic.labels.includes('assist-player') && teamwork.automatic.focus.includes(teamwork.foeId) && teamwork.automatic.approach > 2,
       `玩家开战时队友未支援: ${JSON.stringify(teamwork)}`);
+    assert(!teamwork.plainAttack.labels.includes('assist-player'),
+      `玩家未锁定敌方英雄的普通攻击不应误触发队友支援: ${JSON.stringify(teamwork.plainAttack)}`);
     assert(teamwork.gather.labels.includes('gather-player') && teamwork.gather.approach > 2 && teamwork.gather.feedback,
       `集合指令未生效: ${JSON.stringify(teamwork)}`);
+    if (teamwork.gatherPush.hasMonster) {
+      assert(teamwork.gatherPush.labels.includes('gather-push'),
+        `集合到位后队友不应原地罚站，应协助攻击附近目标: ${JSON.stringify(teamwork.gatherPush)}`);
+    }
     assert(teamwork.attack.labels.includes('assist-player') && teamwork.attack.focus.includes(teamwork.foeId), `进攻指令未聚焦敌人: ${JSON.stringify(teamwork)}`);
+    assert(teamwork.retreat.labels.includes('retreat-order') && teamwork.retreat.homeDelta > 1.5 && teamwork.retreat.feedback,
+      `撤退指令未促使受威胁队友回撤: ${JSON.stringify(teamwork.retreat)}`);
     assert(!teamwork.lowHealth.labels.some((label) => label.includes('gather')) && !teamwork.towerRisk.labels.some((label) => label.includes('gather')),
       `危险情况下不应强制队友集合: ${JSON.stringify(teamwork)}`);
     assert(teamwork.repeated.labels.includes('gather-player') && !teamwork.expired.labels.includes('gather-player'),

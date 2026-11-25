@@ -449,7 +449,7 @@ export function createTangSongMonsters(api: MonsterEngineApi) {
           const dragonWing = kind === 'abyss_drake' && nu === 5 && nv === 4;
           if (!birdWing && !dragonWing) return OrigSheet.call(this, nu, nv, point, doubleSided, crease);
 
-          return OrigSheet.call(this, 12, 6, (u, v) => {
+          return OrigSheet.call(this, 8, 4, (u, v) => {
             const trailingEdge = birdWing ? v * (1 - 0.045 * Math.sin(Math.PI * u) ** 2 * Math.sin(6 * Math.PI * u) ** 2) : v;
             const p = point(u, trailingEdge);
             const left = point(Math.max(0, u - 0.001), trailingEdge);

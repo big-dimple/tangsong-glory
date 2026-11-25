@@ -447,7 +447,7 @@ function buildTower(api: ArchApi, tier: number, team: number) {
     );
     m.box(0.32, hTopCrown + 1.35, 0, 0.68, 0.05, 0.05, 0.01);
     m.paint(th.banner, { c2: th.gold, team: 0.85, mat: K.cloth, pattern: api.En.weave, patternScale: 8 });
-    m.sheet(12, 6, (u, v) => [
+    m.sheet(6, 4, (u, v) => [
       0.06 + u * 0.56,
       hTopCrown + 1.32 - v * (0.85 + 0.16 * u ** 3),
       0.065 * clothFoldDepth(u, v, 2, 0.6),
@@ -1010,7 +1010,7 @@ function buildRuin(api: ArchApi, team: number) {
   m.paint(th.woodDark, { mat: K.leather });
   m.limb([1.05, 0.3, 0.5], [1.5, 1.9, 0.26], 0.04, 0.03, { seg: 5 });
   m.paint(th.banner, { team: 0.8, mat: K.cloth, pattern: En.weave, patternScale: 8, patternAmt: 0.35 });
-  m.sheet(10, 6, (u, v) => {
+  m.sheet(6, 4, (u, v) => {
     const k = v > 0.6 ? 0.16 * Math.abs(Math.sin(u * 9)) : 0;
     const fold = 0.055 * clothFoldDepth(u, v, 2, 2.1);
     return [bt(1.5, 1.24, v) + u * 0.5 - fold * 0.34, 1.9 - v * 0.9 - u * 0.2 - k * 0.2, 0.26 + bt(0, 0.14, v) + u * 0.18 + fold];

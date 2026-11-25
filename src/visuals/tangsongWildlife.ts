@@ -114,19 +114,19 @@ export function createTangSongWildlife(api: WildlifeApi) {
     for (const face of [1, -1]) {
       const root = b.vertex(0, 0, 0, colA, face, 0, 0);
       let previous: number[] = [];
-      for (let row = 1; row <= 5; row++) {
-        const v = row / 5;
+      for (let row = 1; row <= 3; row++) {
+        const v = row / 3;
         const color = colA.map((c, k) => c + (colB[k] - c) * v);
         const current: number[] = [];
-        for (let col = 0; col <= 8; col++) {
-          const u = col / 8;
+        for (let col = 0; col <= 4; col++) {
+          const u = col / 4;
           const side = 2 * u - 1;
-          const x = 0.026 * v * Math.sin(u * Math.PI * 4) + 0.02 * Math.sin(v * Math.PI) * (1 - side * side);
+          const x = 0.024 * v * Math.sin(u * Math.PI * 4) + 0.018 * Math.sin(v * Math.PI) * (1 - side * side);
           const y = 0.14 * side * v;
           const z = -0.26 * v + 0.08 * (1 - Math.abs(side)) * v ** 4;
           current.push(b.vertex(x, y, z, color, face, 0, 0));
         }
-        for (let col = 0; col < 8; col++) {
+        for (let col = 0; col < 4; col++) {
           if (row === 1) {
             if (face > 0) b.tri(root, current[col], current[col + 1]);
             else b.tri(root, current[col + 1], current[col]);

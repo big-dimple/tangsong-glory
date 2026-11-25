@@ -1,13 +1,13 @@
 /**
- * tangsongAudio.ts — 《唐宋荣耀》v5.0 纯程序化 WebAudio 唐宋配乐与音效引擎
+ * tangsongAudio.ts — 《唐宋荣耀》v5.1 纯程序化 WebAudio 唐宋配乐与音效引擎
  *
  * 与原版引擎使用完全同款的 WebAudio 节点合成手法（L1 微合成器 + 分层步进调度 +
- * 立体声乒乓延迟 + 卷积混响总线 + 音量/闪避/阵亡低通全兼容），从零重谱四首唐宋原创配乐，
- * 并全量重塑 r1 内核音效表（五声古琴、古筝、琵琶轮指、洞箫竹笛、二胡滑音、建鼓编钟、大锣丝竹）：
- * 1. menu   — 《长安月夜 · 丝竹雅集》(68 BPM, D 徵调五声)
- * 2. battle — 《山河入阵》(112 BPM, 五声主题与行弦、战鼓动态交织)
- * 3. victory— 《凯旋长安 · 礼乐大典》(132 BPM, D 宫调编钟华彩)
- * 4. defeat — 《孤城残照 · 洞箫挽歌》(84 BPM, D 羽调孤钟洞箫二胡)
+ * 立体声乒乓延迟 + 卷积混响总线 + 音量/闪避/阵亡低通全兼容），谱写四首唐宋原创配乐，
+ * 并全量重塑 r1 内核音效表（五声古琴、古筝、琵琶轮指、洞箫竹笛、二胡滑音、堂鼓建鼓、编钟玉磬）：
+ * 1. menu   — 《长安月夜 · 丝竹雅集》(72 BPM, D 徵调五声)
+ * 2. battle — 《山河入阵 · 汴京点兵》(116 BPM, D 羽调对线/激战双层动态交织)
+ * 3. victory— 《凯旋长安 · 礼乐大典》(128 BPM, D 宫调编钟华彩)
+ * 4. defeat — 《孤城残照 · 洞箫挽歌》(78 BPM, D 羽调孤钟洞箫二胡)
  */
 import { playPluckedString } from './pluckedString';
 
@@ -120,6 +120,7 @@ export interface MusicController {
   setTrack(track: string): void;
   setMood(intensity: number, tension: number): void;
   tick(lookahead?: number): void;
+  fork(mixer: AudioMixerLike): MusicController;
   dispose(): void;
 }
 
@@ -142,7 +143,7 @@ function indexMelody(notes: MelNote[], loopSteps: number): MelNote[][] {
 // 1. 纯程序化唐宋民族乐器合奏库 (基于引擎 L1 节点微合成器)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 山水空灵铺底（纯五度 / 九度开放声部，柔和低通包络） */
+/** 山水空灵铺底（纯五度 / 九度开放声部，干净正弦与微弱泛音，给主旋律留足呼吸空间） */
 function playInkPad(
   p: SynthPatchLike,
   freqs: number[],
@@ -151,27 +152,30 @@ function playInkPad(
   vel: number,
   bright = 1.0,
 ): void {
-  const f = p.filt('lowpass', 420 * bright, 0.65);
+  const f = p.filt('lowpass', 380 * bright, 0.55);
   p.ramp(f.frequency, [
-    [t, 440 * bright],
-    [t + dur * 0.42, 1650 * bright],
-    [t + dur + 1.1, 680 * bright],
+    [t, 380 * bright],
+    [t + dur * 0.45, 1150 * bright],
+    [t + dur + 0.9, 460 * bright],
   ]);
-  const l = p.pan(-0.52, f);
-  const r = p.pan(0.52, f);
-  const a = Math.min(0.85, dur * 0.34);
+  const l = p.pan(-0.45, f);
+  const r = p.pan(0.45, f);
+  const a = Math.min(0.8, dur * 0.34);
   const h = Math.max(0, dur - a);
   for (let i = 0; i < freqs.length; i++) {
     const hz = safeHz(freqs[i]);
-    const g = (0.072 * vel) / (1 + i * 0.14);
-    const ti = t + i * 0.008;
-    p.osc({ w: 'softsaw', f: hz, det: -8, t: ti, a, h, d: 1.25, g, to: l });
-    p.osc({ w: 'softsaw', f: hz, det: 8, t: ti + 0.01, a: a * 1.08, h, d: 1.25, g, to: r });
+    const g = (0.048 * vel) / (1 + i * 0.16);
+    const ti = t + i * 0.01;
+    const dest = i % 2 === 0 ? l : r;
+    p.osc({ w: 'sine', f: hz, det: i % 2 === 0 ? -3 : 3, t: ti, a, h, d: 1.05, g, to: dest });
+    if (i >= freqs.length - 2) {
+      p.osc({ w: 'triangle', f: safeHz(hz * 2), t: ti + 0.04, a: a * 1.15, h: Math.max(0, h * 0.7), d: 0.7, g: 0.012 * vel, to: dest });
+    }
   }
-  p.osc({ w: 'sine', f: safeHz(freqs[0] * 0.5), t, a, h, d: 1.1, g: 0.04 * vel, to: f });
+  p.osc({ w: 'sine', f: safeHz(freqs[0] * 0.5), t, a, h, d: 0.95, g: 0.032 * vel, to: f });
 }
 
-/** 古筝拨奏：明丽弦身 + 指甲脆响 + 共振腔余韵 */
+/** 古筝拨奏：物理丝弦 + 指甲清脆触弦 + 温润共鸣 */
 function playGuzheng(
   p: SynthPatchLike,
   f: number,
@@ -180,18 +184,34 @@ function playGuzheng(
   vel: number,
 ): void {
   const hz = safeHz(f);
-  const lpf = p.filt('lowpass', 720, 1.35);
+  const lpf = p.filt('lowpass', 820, 1.05);
   p.ramp(lpf.frequency, [
-    [t, Math.min(8200, 1400 + 4600 * vel)],
-    [t + 0.09, Math.max(480, hz * 2.3)],
-    [t + dur + 0.28, Math.max(320, hz * 1.15)],
+    [t, Math.min(7200, 1600 + 4200 * vel)],
+    [t + 0.1, Math.max(520, hz * 2.5)],
+    [t + dur + 0.28, Math.max(340, hz * 1.2)],
   ]);
-  playPluckedString(p, hz, t, dur, 0.5 * vel, 0.72, lpf);
-  p.osc({ w: 'sine', f: safeHz(hz * 2), t, a: 0.003, d: Math.min(0.18, dur * 0.5), g: 0.035 * vel, to: lpf });
-  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(4500, Math.max(1400, hz * 3)), q: 1.2, t, a: 0.002, d: 0.012, g: 0.022 * vel });
+  playPluckedString(p, hz, t, dur, 0.48 * vel, 0.72, lpf, undefined, 0.17);
+  p.osc({ w: 'sine', f: safeHz(hz * 2), t, a: 0.003, d: Math.min(0.16, dur * 0.45), g: 0.028 * vel, to: lpf });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(4200, Math.max(1500, hz * 2.8)), q: 1.1, t, a: 0.001, d: 0.011, g: 0.018 * vel });
 }
 
-/** 琵琶弹挑 / 轮指：高颗粒感短衰减拨弦 + 清脆木板膛音 */
+/** 古筝五声轻拂刮奏（用于乐句过渡与凯旋华彩） */
+function playGuzhengGliss(
+  p: SynthPatchLike,
+  notes: number[],
+  t: number,
+  stepSec: number,
+  dur: number,
+  vel: number,
+): void {
+  notes.forEach((m, idx) => {
+    const ti = t + idx * stepSec;
+    const v = vel * (0.68 + 0.32 * (idx / Math.max(1, notes.length - 1)));
+    playGuzheng(p, midi(m), ti, dur, v);
+  });
+}
+
+/** 琵琶弹挑 / 轮指：近品脆拨 + 清晰木腔颗粒子 */
 function playPipa(
   p: SynthPatchLike,
   f: number,
@@ -202,17 +222,17 @@ function playPipa(
 ): void {
   const hz = safeHz(f);
   const hits = tremolo ? 3 : 1;
-  const step = Math.min(0.048, dur * 0.28);
+  const step = Math.min(0.046, dur * 0.28);
   for (let i = 0; i < hits; i++) {
     const ti = t + i * step;
-    const vi = vel * (i === 0 ? 1 : 0.72 - i * 0.12);
-    const body = p.filt('lowpass', Math.min(4600, hz * 4 + 900), 0.65);
-    playPluckedString(p, hz, ti, Math.max(0.12, dur * 0.58), 0.52 * vi, 0.82, body);
-    p.noise({ k: 'pink', flt: 'bandpass', fc: 1900, q: 1.1, t: ti, a: 0.002, d: 0.014, g: 0.035 * vi });
+    const vi = vel * (i === 0 ? 1 : 0.74 - i * 0.11);
+    const body = p.filt('lowpass', Math.min(4600, hz * 3.8 + 900), 0.65);
+    playPluckedString(p, hz, ti, Math.max(0.11, dur * 0.56), 0.50 * vi, 0.82, body, undefined, 0.12);
+    p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, q: 1.1, t: ti, a: 0.002, d: 0.013, g: 0.032 * vi });
   }
 }
 
-/** 古琴低音 / 泛音（含标志性走手音滑弦） */
+/** 古琴低音 / 泛音（温厚走手音滑弦，靠内侧拨弦） */
 function playGuqin(
   p: SynthPatchLike,
   f: number,
@@ -223,17 +243,27 @@ function playGuqin(
 ): void {
   const hz = safeHz(f);
   const fStart = slideFrom ? safeHz(slideFrom) : hz;
-  const lpf = p.filt('lowpass', 950, 0.9);
+  const lpf = p.filt('lowpass', 920, 0.82);
   p.ramp(lpf.frequency, [
-    [t, Math.min(3400, hz * 4.5 + 800 * vel)],
-    [t + 0.18, Math.max(240, hz * 2.2)],
-    [t + dur + 0.35, Math.max(180, hz * 1.3)],
+    [t, Math.min(3200, hz * 4.2 + 700 * vel)],
+    [t + 0.18, Math.max(240, hz * 2.1)],
+    [t + dur + 0.32, Math.max(180, hz * 1.25)],
   ]);
-  playPluckedString(p, hz, t, dur, 0.58 * vel, 0.32, lpf, slideFrom ? fStart : undefined);
-  p.osc({ w: 'sine', f: safeHz(fStart * 0.5), f1: slideFrom ? safeHz(hz * 0.5) : undefined, ft: 0.16, t, a: 0.012, h: dur * 0.35, d: dur * 0.65 + 0.2, g: 0.095 * vel });
+  playPluckedString(p, hz, t, dur, 0.56 * vel, 0.34, lpf, slideFrom ? fStart : undefined, 0.24);
+  p.osc({
+    w: 'sine',
+    f: safeHz(fStart * 0.5),
+    f1: slideFrom ? safeHz(hz * 0.5) : undefined,
+    ft: 0.16,
+    t,
+    a: 0.012,
+    h: dur * 0.35,
+    d: dur * 0.65 + 0.2,
+    g: 0.088 * vel,
+  });
 }
 
-/** 洞箫：温润竹腔 + 起吹气声 + 婉转吟揉 */
+/** 洞箫：温润竹腔 + 柔气声 + 婉转吟揉 */
 function playXiao(
   p: SynthPatchLike,
   f: number,
@@ -243,29 +273,29 @@ function playXiao(
   slideFrom?: number,
 ): void {
   const hz = safeHz(f);
-  const fStart = slideFrom ? safeHz(slideFrom) : hz * 0.994;
-  const lpf = p.filt('lowpass', Math.min(4400, hz * 3.4), 0.7);
+  const fStart = slideFrom ? safeHz(slideFrom) : hz * 0.993;
+  const lpf = p.filt('lowpass', Math.min(4000, hz * 3.2), 0.65);
   const h = Math.max(0, dur - 0.09);
   p.osc({
     w: 'sine',
     f: fStart,
     f1: hz,
-    ft: Math.min(0.095, dur * 0.3),
+    ft: Math.min(0.1, dur * 0.3),
     t,
-    a: 0.065,
+    a: 0.068,
     h,
     d: 0.26,
-    g: 0.22 * vel,
-    vib: 7,
-    vr: 4.8,
-    vd: 0.24,
+    g: 0.21 * vel,
+    vib: 6.5,
+    vr: 4.6,
+    vd: 0.22,
     to: lpf,
   });
-  p.osc({ w: 'triangle', f: safeHz(hz * 2), t, a: 0.09, h: Math.max(0, h - 0.04), d: 0.16, g: 0.024 * vel, to: lpf });
-  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(3200, hz * 2), q: 1.1, t, a: 0.035, h: Math.max(0, h * 0.3), d: 0.13, g: 0.024 * vel });
+  p.osc({ w: 'triangle', f: safeHz(hz * 2), t: t + 0.02, a: 0.09, h: Math.max(0, h - 0.05), d: 0.16, g: 0.02 * vel, to: lpf });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(2800, hz * 1.9), q: 1.0, t, a: 0.035, h: Math.max(0, h * 0.32), d: 0.13, g: 0.02 * vel });
 }
 
-/** 竹笛：清越明亮、带笛膜清脆震颤泛音 */
+/** 竹笛：清越明亮、笛膜泛音克制不刺耳 */
 function playDizi(
   p: SynthPatchLike,
   f: number,
@@ -275,42 +305,42 @@ function playDizi(
   slideFrom?: number,
 ): void {
   const hz = safeHz(f);
-  const fStart = slideFrom ? safeHz(slideFrom) : hz * 0.997;
+  const fStart = slideFrom ? safeHz(slideFrom) : hz * 0.996;
   const h = Math.max(0, dur - 0.055);
-  const bore = p.filt('lowpass', Math.min(3400, hz * 3.8), 0.68);
+  const bore = p.filt('lowpass', Math.min(3400, hz * 3.5), 0.65);
   p.osc({
     w: 'sine',
     f: fStart,
     f1: hz,
     ft: Math.min(0.065, dur * 0.24),
     t,
-    a: 0.024,
+    a: 0.022,
     h,
     d: 0.18,
-    g: 0.21 * vel,
-    vib: 7,
-    vr: 5.8,
+    g: 0.2 * vel,
+    vib: 6.5,
+    vr: 5.6,
     vd: 0.16,
     to: bore,
   });
   p.osc({
     w: 'reed',
     f: hz,
-    det: 5,
-    t: t + 0.01,
+    det: 4,
+    t: t + 0.012,
     a: 0.04,
     h: Math.max(0, h - 0.02),
     d: 0.15,
-    g: 0.052 * vel,
-    vib: 7,
-    vr: 5.8,
-    vd: 0.17,
+    g: 0.038 * vel,
+    vib: 6.5,
+    vr: 5.6,
+    vd: 0.18,
     to: bore,
   });
-  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(4000, hz * 2.4), q: 1.1, t, a: 0.01, d: 0.09, g: 0.045 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(3600, hz * 2.2), q: 1.1, t, a: 0.008, d: 0.075, g: 0.035 * vel });
 }
 
-/** 二胡：双琴筒共振峰 + 深情滑音揉弦 */
+/** 二胡：双琴筒共振峰 + 柔润起弓 + 深情揉弦 */
 function playErhu(
   p: SynthPatchLike,
   f: number,
@@ -323,15 +353,15 @@ function playErhu(
   const fStart = slideFrom ? safeHz(slideFrom) : hz * 0.992;
   const out = p.gain(0.95);
   const f1 = p.filt('bandpass', 780, 1.9, out);
-  const f2 = p.filt('bandpass', 2150, 2.2, p.gain(0.45, out));
+  const f2 = p.filt('bandpass', 2150, 2.2, p.gain(0.42, out));
   const h = Math.max(0, dur - 0.08);
   const ft = Math.min(0.14, dur * 0.36);
-  p.osc({ w: 'softsaw', f: fStart, f1: hz, ft, det: -4, t, a: 0.055, h, d: 0.22, g: 0.19 * vel, vib: 16, vr: 5.4, vd: 0.14, to: f1 });
-  p.osc({ w: 'reed', f: fStart, f1: hz, ft, det: 5, t, a: 0.06, h, d: 0.2, g: 0.14 * vel, vib: 16, vr: 5.4, vd: 0.14, to: f2 });
-  p.noise({ k: 'pink', flt: 'bandpass', fc: 1900, q: 1.6, t, a: 0.02, d: 0.07, g: 0.028 * vel });
+  p.osc({ w: 'softsaw', f: fStart, f1: hz, ft, det: -3, t, a: 0.068, h, d: 0.24, g: 0.18 * vel, vib: 12, vr: 5.2, vd: 0.18, to: f1 });
+  p.osc({ w: 'reed', f: fStart, f1: hz, ft, det: 4, t, a: 0.072, h, d: 0.22, g: 0.12 * vel, vib: 12, vr: 5.2, vd: 0.18, to: f2 });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: 1850, q: 1.5, t, a: 0.024, d: 0.065, g: 0.024 * vel });
 }
 
-/** 盛唐礼乐号角（铜管+唢呐合奏质感，仅用于凯旋或战斗副歌） */
+/** 盛唐礼乐号角（温暖厚实铜管/唢呐合奏质感，控制高频不刺耳） */
 function playTangHorn(
   p: SynthPatchLike,
   f: number,
@@ -340,19 +370,19 @@ function playTangHorn(
   vel: number,
 ): void {
   const hz = safeHz(f);
-  const lpf = p.filt('lowpass', 700, 1.0);
+  const lpf = p.filt('lowpass', 580, 0.85);
   p.ramp(lpf.frequency, [
-    [t, 640],
-    [t + 0.075, 2200 + 1800 * vel],
-    [t + dur * 0.65, 1450 + 1100 * vel],
-    [t + dur + 0.18, 720],
+    [t, 580],
+    [t + 0.08, 1850 + 1350 * vel],
+    [t + dur * 0.65, 1300 + 850 * vel],
+    [t + dur + 0.18, 620],
   ]);
   const h = Math.max(0, dur - 0.09);
-  p.osc({ w: 'brass', f: hz, det: -4, t, a: 0.045, h, d: 0.22, g: 0.19 * vel, vib: 7, vr: 5.0, vd: 0.24, to: lpf });
-  p.osc({ w: 'reed', f: hz, det: 5, t, a: 0.055, h, d: 0.2, g: 0.11 * vel, to: lpf });
+  p.osc({ w: 'brass', f: hz, det: -3, t, a: 0.05, h, d: 0.22, g: 0.17 * vel, vib: 6, vr: 4.8, vd: 0.24, to: lpf });
+  p.osc({ w: 'reed', f: hz, det: 4, t, a: 0.06, h, d: 0.2, g: 0.095 * vel, to: lpf });
 }
 
-/** 青铜编钟 / 玉磬：谐和古铜钟韵 */
+/** 青铜编钟 / 玉磬：青铜泛音击槌 + 庄严基音余韵 */
 function playBianzhong(
   p: SynthPatchLike,
   f: number,
@@ -361,17 +391,25 @@ function playBianzhong(
   vel: number,
 ): void {
   const hz = safeHz(f);
-  p.fm({ f: hz, ratio: 2.0, idx: 0.42 + 1.45 * vel, idx1: 0.03, idt: Math.min(0.4, dur * 0.5), t, a: 0.002, d: dur, g: 0.21 * vel });
-  p.osc({ w: 'sine', f: safeHz(hz * 2), t, a: 0.002, d: dur * 0.42, g: 0.055 * vel });
-  p.osc({ w: 'sine', f: safeHz(hz * 3.01), t, a: 0.001, d: 0.07, g: 0.03 * vel });
+  p.fm({ f: hz, ratio: 2.42, idx: 0.45 + 1.15 * vel, idx1: 0.02, idt: Math.min(0.14, dur * 0.25), t, a: 0.002, d: dur, g: 0.16 * vel });
+  p.osc({ w: 'sine', f: hz, t, a: 0.002, d: dur * 0.92, g: 0.14 * vel });
+  p.osc({ w: 'sine', f: safeHz(hz * 2), t, a: 0.002, d: dur * 0.36, g: 0.042 * vel });
 }
 
-/** 唐代建鼓 / 堂鼓与梆子击边 */
+/** 唐代大建鼓（激战重鼓与大招低频冲击） */
 function playWarDrum(p: SynthPatchLike, t: number, vel: number, pitchScale = 1.0): void {
-  const base = 112 * pitchScale;
-  p.osc({ f: safeHz(base), f1: safeHz(76 * pitchScale), ft: 0.09, t, a: 0.004, d: 0.4, g: 0.5 * vel });
-  p.osc({ w: 'triangle', f: safeHz(base * 1.53), f1: safeHz(base * 1.35), ft: 0.1, t, a: 0.003, d: 0.18, g: 0.19 * vel });
-  p.noise({ k: 'brown', flt: 'lowpass', fc: 950, fc1: 320, t, a: 0.002, d: 0.055, g: 0.16 * vel });
+  const base = 98 * pitchScale;
+  p.osc({ f: safeHz(base), f1: safeHz(52 * pitchScale), ft: 0.11, t, a: 0.004, d: 0.42, g: 0.48 * vel });
+  p.osc({ w: 'triangle', f: safeHz(base * 1.55), f1: safeHz(base), ft: 0.09, t, a: 0.003, d: 0.16, g: 0.18 * vel });
+  p.noise({ k: 'brown', flt: 'lowpass', fc: 820, fc1: 240, t, a: 0.002, d: 0.06, g: 0.16 * vel });
+}
+
+/** 宋代堂鼓（对线巡阵与号令轻鼓，清脆不浑浊） */
+function playTanggu(p: SynthPatchLike, t: number, vel: number, pitchScale = 1.0): void {
+  const base = 156 * pitchScale;
+  p.osc({ f: safeHz(base), f1: safeHz(106 * pitchScale), ft: 0.07, t, a: 0.002, d: 0.22, g: 0.36 * vel });
+  p.osc({ w: 'triangle', f: safeHz(base * 1.5), f1: safeHz(base * 1.2), ft: 0.05, t, a: 0.002, d: 0.1, g: 0.14 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, q: 0.9, t, a: 0.001, d: 0.025, g: 0.12 * vel });
 }
 
 function playWoodblock(p: SynthPatchLike, t: number, vel: number, hi = true): void {
@@ -381,13 +419,13 @@ function playWoodblock(p: SynthPatchLike, t: number, vel: number, hi = true): vo
 }
 
 function playSnareRoll(p: SynthPatchLike, t: number, vel: number): void {
-  p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, q: 0.75, t, a: 0.001, d: 0.14, g: 0.36 * vel });
-  p.osc({ w: 'triangle', f: 196, f1: 138, ft: 0.05, t, a: 0.001, d: 0.075, g: 0.26 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, q: 0.75, t, a: 0.001, d: 0.14, g: 0.34 * vel });
+  p.osc({ w: 'triangle', f: 196, f1: 138, ft: 0.05, t, a: 0.001, d: 0.075, g: 0.24 * vel });
 }
 
 function playGongCrash(p: SynthPatchLike, t: number, vel: number, dur = 2.4): void {
-  p.ring(88, [1, 1.38, 1.91, 2.57, 3.31], { t, a: 0.015, d: dur, g: 0.18 * vel });
-  p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, fc1: 320, q: 0.7, t, a: 0.02, d: dur * 0.85, g: 0.28 * vel });
+  p.ring(88, [1, 1.38, 1.91, 2.57, 3.31], { t, a: 0.015, d: dur, g: 0.17 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, fc1: 320, q: 0.7, t, a: 0.02, d: dur * 0.85, g: 0.26 * vel });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -402,7 +440,6 @@ abstract class TangSongScore {
   protected wetOut: GainNode;
   protected delayIn: GainNode;
   protected nodes: AudioNode[] = [];
-  private sustained: { patch: SynthPatchLike; tones: OscillatorNode[]; breath: OscillatorNode } | null = null;
   chanNames: string[] = [];
   scheduledNotes = 0;
 
@@ -424,8 +461,8 @@ abstract class TangSongScore {
     dR.delayTime.value = delaySec;
     const fbL = this.keep(ctx.createGain());
     const fbR = this.keep(ctx.createGain());
-    fbL.gain.value = 0.24;
-    fbR.gain.value = 0.24;
+    fbL.gain.value = 0.22;
+    fbR.gain.value = 0.22;
     const lp = this.keep(ctx.createBiquadFilter());
     lp.type = 'lowpass';
     lp.frequency.value = 2400;
@@ -511,52 +548,6 @@ abstract class TangSongScore {
     this.scheduledNotes++;
   }
 
-  // 柔和的根音与五度随和声缓慢变化，给旋律留白，也能跨过主线程短暂停顿。
-  protected startSustain(ch: AudioNode, time: number, pitches: [number, number]): void {
-    const patch = this.m.note(ch, time);
-    const ctx = this.m.ctx;
-    const filter = this.keep(ctx.createBiquadFilter());
-    filter.type = 'lowpass';
-    filter.frequency.value = 850;
-    filter.Q.value = 0.5;
-    const breathing = this.keep(ctx.createGain());
-    breathing.gain.value = 0.84;
-    const breath = this.keep(ctx.createOscillator());
-    const breathDepth = this.keep(ctx.createGain());
-    breath.frequency.value = 0.08;
-    breathDepth.gain.value = 0.1;
-    breath.connect(breathDepth);
-    breathDepth.connect(breathing.gain);
-    breath.start(time);
-    const envelope = this.keep(ctx.createGain());
-    envelope.gain.setValueAtTime(0, time);
-    envelope.gain.linearRampToValueAtTime(1, time + 1.4);
-    filter.connect(breathing);
-    breathing.connect(envelope);
-    envelope.connect(patch.out);
-    const tones = pitches.map((pitch, index) => {
-      const voice = this.keep(ctx.createOscillator());
-      const level = this.keep(ctx.createGain());
-      voice.type = index === 0 ? 'sine' : 'triangle';
-      voice.frequency.setValueAtTime(safeHz(pitch), time);
-      voice.detune.value = index === 0 ? -2 : 2;
-      level.gain.value = index === 0 ? 0.085 : 0.035;
-      voice.connect(level);
-      level.connect(filter);
-      voice.start(time);
-      return voice;
-    });
-    // 这是实际发声的持续音，主旋律的调度计数仍独立检查。
-    patch.end = Infinity;
-    this.sustained = { patch, tones, breath };
-  }
-
-  protected tuneSustain(pitches: [number, number], time: number): void {
-    this.sustained?.tones.forEach((voice, index) => {
-      voice.frequency.setTargetAtTime(safeHz(pitches[index]), Math.max(time, this.m.now()), 0.35);
-    });
-  }
-
   protected rnd(): number {
     return this.m.kit.rnd();
   }
@@ -576,7 +567,6 @@ abstract class TangSongScore {
       const skip = Math.ceil((now - this.nextT) / dur);
       this.step += skip;
       this.nextT += skip * dur;
-      this.resync(this.step, now);
     }
     while (this.nextT < now + lookahead) {
       const sd = this.stepDur();
@@ -588,17 +578,9 @@ abstract class TangSongScore {
 
   abstract stepDur(): number;
   abstract onStep(step: number, time: number, sd: number): void;
-  protected resync(_step: number, _time: number): void {}
   mood(_intensity: number, _tension: number): void {}
 
   dispose(): void {
-    if (this.sustained) {
-      const now = this.m.now();
-      for (const voice of this.sustained.tones) voice.stop(now);
-      this.sustained.breath.stop(now);
-      this.sustained.patch.end = now - 1;
-      this.sustained = null;
-    }
     for (const n of this.nodes) {
       try {
         n.disconnect();
@@ -611,20 +593,20 @@ abstract class TangSongScore {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. 四首原创唐宋乐章
+// 3. 四首原创唐宋乐章（起承转合分明，留白与能量层次贴合实际场景）
 // ─────────────────────────────────────────────────────────────────────────────
 
-// 《长安月夜 · 丝竹雅集》68 BPM, 16小节=128八分音符 (D徵调五声: D E G A B)
+// 《长安月夜 · 丝竹雅集》72 BPM, 16小节=128八分音符 (D徵调五声: D E G A B)
 const MENU_CHORDS = [
   { bass: 38, pad: [50, 57, 62, 64] }, // D5sus2
   { bass: 43, pad: [55, 62, 67, 69] }, // G5sus2
-  { bass: 40, pad: [52, 59, 64, 67] }, // Em7(no5) -> 清雅商音
+  { bass: 40, pad: [52, 59, 64, 67] }, // Em7(no5)
   { bass: 45, pad: [57, 64, 69, 71] }, // A5sus2
   { bass: 38, pad: [50, 57, 62, 67] }, // Dadd11
   { bass: 43, pad: [55, 62, 67, 71] }, // G6
   { bass: 40, pad: [52, 57, 64, 69] }, // E-A-E-A
   { bass: 45, pad: [57, 62, 64, 69] }, // Asus4->2
-  { bass: 47, pad: [59, 62, 66, 71] }, // Bm pentatonic flavor
+  { bass: 47, pad: [59, 62, 66, 71] }, // Bm7
   { bass: 43, pad: [55, 62, 67, 69] }, // Gadd9
   { bass: 38, pad: [50, 57, 62, 64] }, // Dsus2
   { bass: 45, pad: [57, 62, 64, 69] }, // Asus4
@@ -635,25 +617,28 @@ const MENU_CHORDS = [
 ];
 
 const MENU_MELODY: MelNote[] = [
-  // A 段 (0..63): 洞箫与古筝夜吟长安月色
-  [0, 74, 3, 0.82, 71], [3, 76, 1, 0.65], [4, 79, 4, 0.9], [8, 81, 3, 0.86], [11, 79, 1, 0.62], [12, 76, 4, 0.78],
-  [16, 74, 2, 0.76], [18, 71, 2, 0.68], [20, 74, 4, 0.84], [24, 76, 3, 0.78], [27, 74, 1, 0.58], [28, 69, 4, 0.74],
-  [32, 74, 3, 0.85, 72], [35, 76, 1, 0.66], [36, 79, 2, 0.84], [38, 81, 2, 0.88], [40, 83, 4, 0.94, 81], [44, 81, 4, 0.82],
-  [48, 79, 2, 0.78], [50, 76, 2, 0.7], [52, 74, 4, 0.8], [56, 76, 6, 0.78], [62, 74, 2, 0.62],
-  // B 段 (64..127): 二胡接过缠绵曲调，再合洞箫归于平远
-  [64, 86, 3, 0.9, 83], [67, 83, 1, 0.68], [68, 81, 4, 0.86], [72, 79, 2, 0.78], [74, 81, 2, 0.82], [76, 83, 4, 0.88],
-  [80, 79, 3, 0.82], [83, 76, 1, 0.64], [84, 74, 4, 0.8], [88, 76, 2, 0.74], [90, 79, 2, 0.8], [92, 81, 4, 0.86],
-  [96, 83, 3, 0.9, 81], [99, 86, 1, 0.76], [100, 88, 4, 0.92], [104, 86, 2, 0.8], [106, 83, 2, 0.74], [108, 81, 4, 0.82],
-  [112, 79, 3, 0.78], [115, 76, 1, 0.6], [116, 74, 4, 0.78], [120, 76, 3, 0.72], [123, 74, 5, 0.76],
+  // 起 (0..31): 洞箫清吟，留白呼吸
+  [0, 74, 3, 0.8, 71], [3, 76, 1, 0.62], [4, 79, 4, 0.88], [8, 81, 3, 0.84], [11, 79, 1, 0.6], [12, 76, 4, 0.74],
+  [16, 74, 2, 0.74], [18, 71, 2, 0.66], [20, 74, 4, 0.82], [24, 76, 3, 0.76], [28, 69, 4, 0.72],
+  // 承 (32..63): 昂扬上行，入云见月
+  [32, 74, 3, 0.84, 72], [35, 76, 1, 0.66], [36, 79, 2, 0.84], [38, 81, 2, 0.86], [40, 83, 4, 0.9, 81], [44, 81, 4, 0.8],
+  [48, 79, 2, 0.76], [50, 76, 2, 0.68], [52, 74, 4, 0.78], [56, 76, 5, 0.74],
+  // 转 (64..95): 二胡深情接过B段
+  [64, 86, 3, 0.88, 83], [67, 83, 1, 0.68], [68, 81, 4, 0.84], [72, 79, 2, 0.76], [74, 81, 2, 0.8], [76, 83, 4, 0.86],
+  [80, 79, 3, 0.8], [83, 76, 1, 0.62], [84, 74, 4, 0.78], [88, 76, 2, 0.72], [90, 79, 2, 0.78], [92, 81, 4, 0.84],
+  // 合 (96..127): 箫筝合奏归于平远
+  [96, 83, 3, 0.86, 81], [99, 86, 1, 0.74], [100, 88, 4, 0.88], [104, 86, 2, 0.78], [106, 83, 2, 0.72], [108, 81, 4, 0.8],
+  [112, 79, 3, 0.76], [115, 76, 1, 0.58], [116, 74, 4, 0.76], [120, 76, 2, 0.68], [122, 74, 6, 0.74],
 ];
 
-// 次轮在第 5–8、13–16 小节应答，让尾句回到首音下方的属音。
+// 次轮于 5-8、13-16 小节柔和变奏应答，耐听不腻
 const MENU_REPLY: MelNote[] = [
-  [32, 67, 5, .70], [38, 71, 2, .55], [40, 74, 5, .75], [47, 71, 1, .48],
-  [48, 69, 3, .65], [52, 67, 3, .62], [56, 69, 5, .66],
-  [96, 79, 4, .74], [101, 76, 2, .58], [104, 74, 6, .71, 76],
-  [112, 71, 3, .68], [116, 69, 3, .60], [121, 69, 4, .54],
+  [32, 67, 4, 0.68], [36, 69, 2, 0.64], [38, 71, 2, 0.68], [40, 74, 5, 0.74], [46, 71, 2, 0.54],
+  [48, 69, 3, 0.64], [52, 67, 3, 0.6], [56, 69, 5, 0.64],
+  [96, 79, 4, 0.72], [100, 76, 3, 0.62], [104, 74, 5, 0.7, 76],
+  [112, 71, 3, 0.66], [116, 69, 3, 0.58], [120, 74, 6, 0.64],
 ];
+
 const GUZHENG_PATTERNS = [
   [0, -1, 2, 3, -1, 1, 2, -1],
   [0, -1, 1, -1, 2, 3, -1, -1],
@@ -661,26 +646,20 @@ const GUZHENG_PATTERNS = [
 ];
 
 class MenuMusic extends TangSongScore {
-  cSustain = this.chan('ts-menu-sustain', 0.17, { rev: 0.15 });
-  cPad = this.chan('ts-ink-pad', 0.42, { rev: 0.42 });
-  cBass = this.chan('ts-guqin', 0.28, { rev: 0.18 });
-  cGuzheng = this.chan('ts-guzheng', 0.73, { rev: 0.27, dly: 0.17, pan: -0.26 });
-  cXiao = this.chan('ts-xiao', 0.64, { rev: 0.48, dly: 0.22, pan: 0.16 });
-  cErhu = this.chan('ts-erhu', 0.56, { rev: 0.44, dly: 0.22, pan: -0.14 });
-  cChime = this.chan('ts-bianzhong', 0.72, { rev: 0.58, dly: 0.32, pan: 0.32 });
+  cPad = this.chan('ts-ink-pad', 0.34, { rev: 0.38 });
+  cBass = this.chan('ts-guqin', 0.3, { rev: 0.18 });
+  cGuzheng = this.chan('ts-guzheng', 0.74, { rev: 0.28, dly: 0.16, pan: -0.26 });
+  cXiao = this.chan('ts-xiao', 0.66, { rev: 0.46, dly: 0.2, pan: 0.16 });
+  cErhu = this.chan('ts-erhu', 0.58, { rev: 0.42, dly: 0.2, pan: -0.14 });
+  cChime = this.chan('ts-bianzhong', 0.68, { rev: 0.54, dly: 0.28, pan: 0.3 });
   mel = indexMelody(MENU_MELODY, 128);
   reply = indexMelody(MENU_REPLY, 128);
 
   constructor(mixer: AudioMixerLike, startAt: number) {
-    super(mixer, startAt, (60 / 68) * 0.75);
-    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
+    super(mixer, startAt, (60 / 72) * 0.75);
   }
   stepDur() {
-    return 60 / 68 / 2;
-  }
-  protected resync(step: number, time: number): void {
-    const chord = MENU_CHORDS[Math.floor(step / 8) % MENU_CHORDS.length];
-    this.tuneSustain([midi(chord.pad[0]), midi(chord.pad[1])], time);
+    return 60 / 72 / 2;
   }
   onStep(step: number, t: number, sd: number) {
     const cycle = Math.floor(step / 128);
@@ -690,19 +669,20 @@ class MenuMusic extends TangSongScore {
     const ch = MENU_CHORDS[bar];
 
     if (beat === 0) {
-      this.tuneSustain([midi(ch.pad[0]), midi(ch.pad[1])], t);
-      this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 8, 0.82, 0.92));
+      this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 8, 0.76, 0.92));
       this.play(this.cBass, t, (p) => playGuqin(p, midi(ch.bass), 0, sd * 6.5, 0.78, bar > 0 ? midi(ch.bass - 2) : undefined));
       if (bar === 4 || (bar === 12 && cycle % 2 === 0)) {
-        this.play(this.cChime, t, (p) => playBianzhong(p, midi(ch.pad[2] + 12), 0, sd * 6, 0.44));
+        this.play(this.cChime, t, (p) => playBianzhong(p, midi(ch.pad[2] + 12), 0, sd * 6, 0.42));
       }
     }
     if (beat === 4 && bar % 2 === 1) {
       this.play(this.cBass, t, (p) => playGuqin(p, midi(ch.bass + 7), 0, sd * 3.2, 0.46));
     }
 
-    // 古筝流水分解
-    if (cycle > 0 || bar >= 2) {
+    // 古筝流水分解与第7小节五声轻拂过渡
+    if (bar === 7 && beat === 6) {
+      this.play(this.cGuzheng, t, (p) => playGuzhengGliss(p, [69, 71, 74, 76, 79], 0, sd * 0.34, sd * 2.2, 0.48));
+    } else if (cycle > 0 || bar >= 1) {
       const pat = GUZHENG_PATTERNS[(cycle + (bar >> 2)) % GUZHENG_PATTERNS.length];
       const tone = pat[beat];
       if (tone >= 0 && (bar !== 15 || beat < 5)) {
@@ -724,17 +704,17 @@ class MenuMusic extends TangSongScore {
       }
     }
 
-    // 月夜星点泛音与拍板点缀
-    if (beat === 6 && bar % 4 === 2 && this.rnd() < 0.5) {
-      const harmonic = ch.pad[Math.floor(this.rnd() * ch.pad.length)] + 24;
-      this.play(this.cChime, t, (p) => playGuqin(p, midi(harmonic), 0, 1.15, 0.22));
+    // 泛音点缀收束
+    if (beat === 6 && (bar === 3 || bar === 11 || bar === 15)) {
+      const harmonic = ch.pad[bar === 15 ? 2 : 1] + 24;
+      this.play(this.cChime, t, (p) => playGuqin(p, midi(harmonic), 0, 1.15, 0.24));
     }
   }
 }
 
-// 《山河入阵》112 BPM，十六小节以短动机、留白和应答构成完整循环。
+// 《山河入阵 · 汴京点兵》116 BPM, 16小节=256十六分音符 (D羽调五声: D F G A C + E)
 const BATTLE_CHORDS = [
-  { bass: 38, pad: [50, 57, 62, 65] }, // Dm7(no3+4)->D5m
+  { bass: 38, pad: [50, 57, 62, 65] }, // Dm7(no3+4)
   { bass: 38, pad: [50, 57, 62, 67] },
   { bass: 36, pad: [48, 55, 60, 62] }, // Csus2
   { bass: 36, pad: [48, 55, 60, 64] },
@@ -753,74 +733,70 @@ const BATTLE_CHORDS = [
 ];
 
 const BATTLE_MELODY: MelNote[] = [
-  [0, 74, 3, .76], [3, 77, 2, .64], [6, 81, 4, .82], [11, 79, 3, .7],
-  [16, 77, 4, .76], [21, 74, 3, .65], [25, 72, 6, .72],
-  [32, 69, 3, .7], [36, 72, 3, .72], [40, 74, 5, .8], [46, 77, 2, .6],
-  [48, 79, 4, .78], [53, 77, 3, .66], [57, 74, 6, .78],
-  [64, 74, 3, .8], [67, 77, 2, .66], [70, 81, 4, .86], [75, 84, 3, .72],
-  [80, 81, 4, .82], [85, 79, 3, .7], [89, 77, 6, .76],
-  [96, 79, 3, .76], [100, 77, 3, .72], [104, 74, 4, .76], [109, 72, 3, .64],
-  [112, 74, 10, .84], [124, 69, 3, .56],
-  [128, 81, 3, .86], [131, 84, 2, .72], [134, 81, 4, .82], [139, 79, 3, .7],
-  [144, 77, 4, .78], [149, 79, 3, .72], [153, 81, 6, .84],
-  [160, 84, 4, .86], [165, 81, 3, .74], [169, 79, 4, .78], [174, 77, 2, .62],
-  [176, 74, 5, .8], [182, 77, 3, .7], [186, 81, 5, .84],
-  [192, 84, 3, .88], [195, 81, 2, .72], [198, 79, 4, .8], [203, 77, 3, .7],
-  [208, 74, 4, .76], [213, 72, 3, .68], [217, 69, 6, .72],
-  [224, 72, 3, .7], [228, 74, 3, .76], [232, 77, 4, .8], [237, 72, 3, .62],
-  [240, 74, 12, .82],
+  // A 段：英挺行阵主调 (0..127)
+  [0, 74, 4, 0.84, 72], [4, 77, 4, 0.8], [8, 79, 4, 0.86], [12, 81, 4, 0.9],
+  [16, 79, 6, 0.84], [22, 77, 2, 0.7], [24, 74, 8, 0.86],
+  [32, 72, 4, 0.78], [36, 74, 4, 0.8], [40, 77, 6, 0.86], [46, 74, 2, 0.68],
+  [48, 72, 4, 0.76], [52, 69, 4, 0.72], [56, 72, 8, 0.82],
+  [64, 74, 3, 0.84], [67, 77, 1, 0.65], [68, 79, 4, 0.86], [72, 81, 4, 0.9, 79], [76, 84, 4, 0.92],
+  [80, 81, 6, 0.86], [86, 79, 2, 0.72], [88, 77, 8, 0.84],
+  [96, 79, 4, 0.82], [100, 77, 4, 0.78], [104, 74, 4, 0.82], [108, 72, 4, 0.76],
+  [112, 74, 14, 0.88],
+  // B 段：山河破阵副歌 (128..255)
+  [128, 86, 4, 0.92, 84], [132, 84, 2, 0.8], [134, 81, 2, 0.76], [136, 79, 4, 0.84], [140, 81, 4, 0.88],
+  [144, 84, 6, 0.9], [150, 81, 2, 0.76], [152, 79, 8, 0.86],
+  [160, 77, 4, 0.84], [164, 79, 4, 0.86], [168, 81, 4, 0.9], [172, 84, 4, 0.92],
+  [176, 86, 8, 0.95, 84], [184, 84, 4, 0.84], [188, 81, 4, 0.82],
+  [192, 89, 4, 0.96, 86], [196, 86, 4, 0.88], [200, 84, 4, 0.86], [204, 81, 4, 0.82],
+  [208, 84, 6, 0.88], [214, 81, 2, 0.74], [216, 79, 8, 0.84],
+  [224, 81, 4, 0.86], [228, 79, 4, 0.82], [232, 77, 4, 0.8], [236, 79, 4, 0.84],
+  [240, 81, 8, 0.88], [248, 74, 8, 0.9],
 ];
 
-// 第二遍的前四小节与收束句留给低一组的竹笛、弦乐对答。
+// 次轮前四小节与收束句留给低一组竹笛与弦乐对答，拉开循环张力
 const BATTLE_REPLY: MelNote[] = [
-  [0, 69, 5, .66], [7, 74, 5, .72], [16, 72, 4, .65], [22, 69, 6, .62],
-  [32, 67, 4, .62], [38, 72, 4, .68], [48, 74, 5, .72], [55, 69, 6, .64],
-  [192, 77, 5, .7], [199, 74, 4, .64], [208, 72, 5, .66], [215, 69, 5, .6],
-  [224, 69, 4, .64], [230, 72, 4, .67], [240, 74, 10, .74],
+  [0, 69, 6, 0.72], [8, 74, 6, 0.78], [16, 77, 6, 0.75], [24, 74, 5, 0.68],
+  [32, 72, 8, 0.74], [42, 67, 4, 0.62], [48, 69, 6, 0.68], [56, 72, 5, 0.7],
+  [192, 77, 8, 0.76], [202, 74, 4, 0.64], [208, 72, 9, 0.72], [220, 67, 3, 0.58],
+  [224, 69, 6, 0.74], [232, 74, 5, 0.68], [240, 77, 4, 0.7], [246, 74, 8, 0.72],
 ];
 
-const EXPLORE_DRUM = [0.72, 0, 0, 0, 0, 0, 0.31, 0, 0.46, 0, 0, 0, 0, 0, 0, 0];
-const COMBAT_KICK = [1, 0, 0, 0.6, 0, 0, 0.85, 0, 1, 0, 0, 0.55, 0, 0, 0.8, 0];
-const COMBAT_SNARE = [0, 0, 0, 0, 0.92, 0, 0, 0.35, 0, 0, 0, 0, 0.95, 0, 0.35, 0.5];
-const PIPA_ACCENT = [0.9, 0.45, 0.75, 0.5, 0.85, 0.48, 0.7, 0.5, 0.92, 0.45, 0.75, 0.52, 0.88, 0.5, 0.78, 0.62];
+const EXPLORE_DRUM = [0.68, 0, 0, 0, 0, 0, 0.34, 0, 0.48, 0, 0, 0, 0, 0, 0, 0];
+const COMBAT_KICK = [1, 0, 0, 0.62, 0, 0, 0.86, 0, 1, 0, 0, 0.58, 0, 0, 0.82, 0];
+const COMBAT_SNARE = [0, 0, 0, 0, 0.9, 0, 0, 0.36, 0, 0, 0, 0, 0.94, 0, 0.36, 0.52];
+const PIPA_ACCENT = [0.88, 0.45, 0.74, 0.5, 0.84, 0.48, 0.7, 0.5, 0.9, 0.45, 0.74, 0.52, 0.86, 0.5, 0.78, 0.62];
 
 class BattleMusic extends TangSongScore {
   lExplore = this.layer(1);
   lCombat = this.layer(0);
-  cSustain = this.chan('ts-battle-sustain', 0.14, { rev: 0.12 });
-  cPad = this.chan('ts-battle-pad', 0.36, { rev: 0.35 });
-  eGuqin = this.chan('ts-explore-guqin', 0.3, { layer: this.lExplore, rev: 0.14 });
-  ePipa = this.chan('ts-explore-pipa', 0.95, { layer: this.lExplore, rev: 0.25, dly: 0.28, pan: -0.26 });
-  eDizi = this.chan('ts-explore-dizi', 0.72, { layer: this.lExplore, rev: 0.44, dly: 0.2, pan: 0.14 });
-  eChime = this.chan('ts-explore-chime', 0.68, { layer: this.lExplore, rev: 0.5, dly: 0.28, pan: 0.26 });
-  ePerc = this.chan('ts-explore-perc', 0.64, { layer: this.lExplore, rev: 0.16 });
-  cBass = this.chan('ts-combat-bass', 0.34, { layer: this.lCombat });
-  cDrum = this.chan('ts-combat-drum', 0.82, { layer: this.lCombat, rev: 0.2 });
-  cPipa = this.chan('ts-combat-pipa', 0.92, { layer: this.lCombat, rev: 0.24, dly: 0.22, pan: -0.32 });
-  cHorn = this.chan('ts-combat-horn', 0.68, { layer: this.lCombat, rev: 0.38, dly: 0.18, pan: 0.16 });
-  cErhu = this.chan('ts-combat-erhu', 0.62, { layer: this.lCombat, rev: 0.36, dly: 0.18, pan: -0.18 });
+  cPad = this.chan('ts-battle-pad', 0.3, { rev: 0.34 });
+  eGuqin = this.chan('ts-explore-guqin', 0.28, { layer: this.lExplore, rev: 0.14 });
+  ePipa = this.chan('ts-explore-pipa', 0.76, { layer: this.lExplore, rev: 0.24, dly: 0.24, pan: -0.26 });
+  eDizi = this.chan('ts-explore-dizi', 0.62, { layer: this.lExplore, rev: 0.42, dly: 0.18, pan: 0.14 });
+  eChime = this.chan('ts-explore-chime', 0.56, { layer: this.lExplore, rev: 0.48, dly: 0.26, pan: 0.26 });
+  ePerc = this.chan('ts-explore-perc', 0.48, { layer: this.lExplore, rev: 0.14 });
+  cBass = this.chan('ts-combat-bass', 0.38, { layer: this.lCombat });
+  cDrum = this.chan('ts-combat-drum', 0.94, { layer: this.lCombat, rev: 0.2 });
+  cPipa = this.chan('ts-combat-pipa', 0.92, { layer: this.lCombat, rev: 0.22, dly: 0.2, pan: -0.3 });
+  cHorn = this.chan('ts-combat-horn', 0.78, { layer: this.lCombat, rev: 0.36, dly: 0.16, pan: 0.16 });
+  cErhu = this.chan('ts-combat-erhu', 0.74, { layer: this.lCombat, rev: 0.34, dly: 0.16, pan: -0.18 });
   mel = indexMelody(BATTLE_MELODY, 256);
   reply = indexMelody(BATTLE_REPLY, 256);
   private tVal = 0;
   private applied = -1;
 
   constructor(mixer: AudioMixerLike, startAt: number) {
-    super(mixer, startAt, (60 / 112) * 0.75);
-    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
+    super(mixer, startAt, (60 / 116) * 0.75);
   }
   stepDur() {
-    return 60 / 112 / 4;
-  }
-  protected resync(step: number, time: number): void {
-    const chord = BATTLE_CHORDS[Math.floor(step / 16) % BATTLE_CHORDS.length];
-    this.tuneSustain([midi(chord.pad[0]), midi(chord.pad[1])], time);
+    return 60 / 116 / 4;
   }
   mood(intensity: number, tension: number) {
     this.tVal = clamp01(tension);
     const driver = Math.max(clamp01(intensity), this.tVal * 1.15);
-    const combatMix = clamp01((driver - 0.26) / 0.42);
+    const combatMix = clamp01((driver - 0.24) / 0.42);
     if (Math.abs(combatMix - this.applied) < 0.025 && this.applied >= 0) return;
-    const tau = combatMix > this.applied ? 0.42 : 1.2;
+    const tau = combatMix > this.applied ? 0.38 : 1.15;
     this.applied = combatMix;
     this.setLayer(this.lExplore, 1 - combatMix, tau);
     this.setLayer(this.lCombat, combatMix, tau);
@@ -833,27 +809,26 @@ class BattleMusic extends TangSongScore {
     const ch = BATTLE_CHORDS[bar];
     const m = this.applied >= 0 ? this.applied : 0;
     const phrase = cycle % 2 === 1 && (bar < 4 || bar >= 12) ? this.reply : this.mel;
-    const heavy = bar === 7;
+    const heavy = bar === 7 || bar === 15;
     const j = () => (this.rnd() - 0.5) * 0.008;
 
     if (sub === 0) {
-      this.tuneSustain([midi(ch.pad[0]), midi(ch.pad[1])], t);
-      this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 16, 0.75 + m * 0.25, 0.85 + m * 0.5));
+      this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 16, 0.7 + m * 0.25, 0.85 + m * 0.45));
     }
 
-    // 对线/巡逻层 (Pipa + Dizi + Guqin + Light Tanggu)
+    // 对线/巡逻层 (堂鼓 + 琵琶点奏 + 竹笛 + 编钟)
     if (m < 0.98) {
       if (sub === 0 || (sub === 8 && bar % 2 === 1)) {
         const octave = sub === 8 ? 12 : 0;
-        this.play(this.eGuqin, t, (p) => playGuqin(p, midi(ch.bass + octave), 0, sd * 3.5, sub === 0 ? 0.8 : 0.52));
+        this.play(this.eGuqin, t, (p) => playGuqin(p, midi(ch.bass + octave), 0, sd * 3.5, sub === 0 ? 0.78 : 0.5));
       }
       if ((sub === 0 || sub === 6 || sub === 10) && bar % 4 !== 3) {
         const idx = sub === 0 ? 0 : sub === 6 ? 2 : 1;
         const pitch = ch.pad[idx] + 12;
-        this.play(this.ePipa, t + j(), (p) => playPipa(p, midi(pitch), 0, sd * 2.2, PIPA_ACCENT[sub] * 0.65, sub === 0 && bar % 4 === 0));
+        this.play(this.ePipa, t + j(), (p) => playPipa(p, midi(pitch), 0, sd * 2.2, PIPA_ACCENT[sub] * 0.64, sub === 0 && bar % 4 === 0));
       }
       if (EXPLORE_DRUM[sub] > 0) {
-        this.play(this.ePerc, t, (p) => playWarDrum(p, 0, EXPLORE_DRUM[sub] * 0.48, 1.05));
+        this.play(this.ePerc, t, (p) => playTanggu(p, 0, EXPLORE_DRUM[sub] * 0.62, 1.0));
       }
       if (sub === 12 && bar % 2 === 1) {
         this.play(this.ePerc, t + j(), (p) => playWoodblock(p, 0, 0.34, false));
@@ -865,28 +840,28 @@ class BattleMusic extends TangSongScore {
         if (bar % 8 < 4) {
           this.play(this.eDizi, t, (p) => playDizi(p, hz, 0, dur * 0.94, note[3], sl));
         } else {
-          this.play(this.eChime, t, (p) => playBianzhong(p, hz, 0, Math.max(0.75, dur * 1.25), note[3] * 0.82));
+          this.play(this.eChime, t, (p) => playBianzhong(p, hz, 0, Math.max(0.7, dur * 1.2), note[3] * 0.82));
         }
       }
     }
 
-    // 激战高潮层 (War Drums + Gong + Tang Horn + Pipa Rapid + Urgent Erhu)
+    // 激战高潮层 (大建鼓 + 军鼓 + 琵琶疾拨 + 二胡 + 盛唐号角 + 大锣)
     if (m > 0.04) {
       if (sub === 0 || sub === 8 || (sub === 14 && bar % 2 === 1)) {
         this.play(this.cBass, t, (p) => playGuqin(p, midi(ch.bass + (sub % 4 === 2 ? 12 : 0)), 0, sd * 1.8, sub % 4 === 0 ? 0.86 : 0.62));
       }
       const isFill = heavy && sub >= 12;
       if (!isFill && COMBAT_KICK[sub] > 0) {
-        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, COMBAT_KICK[sub] * 0.95, 0.92));
+        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, COMBAT_KICK[sub] * 0.92, 0.92));
       }
       if (!isFill && COMBAT_SNARE[sub] > 0) {
         this.play(this.cDrum, t, (p) => playSnareRoll(p, 0, COMBAT_SNARE[sub] * 0.85));
       }
       if (isFill) {
-        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, 0.55 + (sub - 12) * 0.14, 1.15));
+        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, 0.55 + (sub - 12) * 0.14, 1.12));
       }
-      if (sub === 0 && bar === 8 && cycle % 2 === 0 && m > 0.72) {
-        this.play(this.cDrum, t, (p) => playGongCrash(p, 0, 0.51, 1.8));
+      if (sub === 0 && (bar === 8 || (bar === 0 && cycle > 0 && cycle % 2 === 0)) && m > 0.68) {
+        this.play(this.cDrum, t, (p) => playGongCrash(p, 0, 0.48, 1.8));
       }
       if ((sub & 3) === 0 || (heavy && sub === 14)) {
         const pNote = ch.pad[(sub >> 1) % ch.pad.length] + 12;
@@ -905,29 +880,24 @@ class BattleMusic extends TangSongScore {
   }
 }
 
-// 《凯旋长安 · 礼乐大典》132 BPM, D宫调 (D E F# A B)
+// 《凯旋长安 · 礼乐大典》128 BPM, D宫调 (D E F# A B)
 const VICTORY_MELODY: MelNote[] = [
   [4, 74, 2, 0.9], [6, 76, 2, 0.88], [8, 78, 4, 0.94], [12, 81, 4, 0.96],
-  [16, 86, 4, 1.0, 83], [20, 83, 2, 0.9], [22, 81, 2, 0.88], [24, 86, 12, 1.0],
+  [16, 86, 4, 0.98, 83], [20, 83, 2, 0.88], [22, 81, 2, 0.86], [24, 86, 12, 0.98],
 ];
 
 class VictoryMusic extends TangSongScore {
-  cSustain = this.chan('ts-win-sustain', 0.12, { rev: 0.16 });
-  cPad = this.chan('ts-win-pad', 0.45, { rev: 0.42 });
-  cHorn = this.chan('ts-win-horn', 0.58, { rev: 0.4, dly: 0.14 });
-  cChime = this.chan('ts-win-chime', 0.95, { rev: 0.58, dly: 0.28 });
-  cDrum = this.chan('ts-win-drum', 0.75, { rev: 0.22 });
+  cPad = this.chan('ts-win-pad', 0.36, { rev: 0.4 });
+  cHorn = this.chan('ts-win-horn', 0.56, { rev: 0.38, dly: 0.14 });
+  cChime = this.chan('ts-win-chime', 0.9, { rev: 0.54, dly: 0.26 });
+  cDrum = this.chan('ts-win-drum', 0.74, { rev: 0.22 });
   mel = indexMelody(VICTORY_MELODY, 38);
 
   constructor(mixer: AudioMixerLike, startAt: number) {
-    super(mixer, startAt, (60 / 132) * 0.75);
-    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
+    super(mixer, startAt, (60 / 128) * 0.75);
   }
   stepDur() {
-    return 60 / 132 / 2;
-  }
-  protected resync(step: number, time: number): void {
-    this.tuneSustain(step >= 16 && step < 24 ? [midi(55), midi(62)] : [midi(50), midi(57)], time);
+    return 60 / 128 / 2;
   }
   onStep(step: number, t: number, sd: number) {
     if (step < 36) {
@@ -938,13 +908,12 @@ class VictoryMusic extends TangSongScore {
         });
       }
       if (step === 0 || step === 8 || step === 16 || step === 24) {
-        const root = step === 16 ? 43 : step === 24 ? 38 : 38;
+        const root = step === 16 ? 43 : 38;
         const chord = step === 16 ? [55, 62, 67, 71] : [50, 57, 62, 66];
-        this.tuneSustain([midi(chord[0]), midi(chord[1])], t);
-        this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.92, 1.35));
-        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, step === 24 ? 0.95 : 0.7, 0.9));
-        if (step === 24) this.play(this.cDrum, t, (p) => playGongCrash(p, 0, 0.82, 2.8));
-        this.play(this.cHorn, t, (p) => playGuqin(p, midi(root), 0, sd * 7, 0.72));
+        this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.84, 1.2));
+        this.play(this.cDrum, t, (p) => playWarDrum(p, 0, step === 24 ? 0.92 : 0.7, 0.9));
+        if (step === 24) this.play(this.cDrum, t, (p) => playGongCrash(p, 0, 0.78, 2.6));
+        this.play(this.cHorn, t, (p) => playGuqin(p, midi(root), 0, sd * 7, 0.7));
       }
       for (const note of this.mel[step]) {
         const dur = note[2] * sd;
@@ -952,28 +921,26 @@ class VictoryMusic extends TangSongScore {
           playTangHorn(p, midi(note[1] - 12), 0, dur * 0.92, note[3]);
           playDizi(p, midi(note[1]), 0, dur * 0.92, note[3] * 0.85);
         });
-        this.play(this.cChime, t, (p) => playBianzhong(p, midi(note[1] + 12), 0, Math.max(0.95, dur * 1.4), note[3] * 0.72));
+        this.play(this.cChime, t, (p) => playBianzhong(p, midi(note[1] + 12), 0, Math.max(0.95, dur * 1.35), note[3] * 0.72));
       }
-      if (step >= 26 && step <= 30) {
-        const pent = [74, 76, 78, 81, 86];
-        this.play(this.cChime, t, (p) => playBianzhong(p, midi(pent[step - 26]), 0, 1.65, 0.66));
+      if (step === 26) {
+        this.play(this.cChime, t, (p) => playGuzhengGliss(p, [74, 76, 78, 81, 86], 0, sd * 0.45, 1.4, 0.62));
       }
       return;
     }
     const tail = step - 36;
     if (tail % 16 === 0) {
-      this.tuneSustain([midi(50), midi(57)], t);
-      this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 66, 74].map(midi), 0, sd * 17, 0.65, 1.1));
+      this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 66, 74].map(midi), 0, sd * 17, 0.6, 1.05));
     }
     if (this.rnd() < 0.24) {
       const notes = [74, 76, 78, 81, 83, 86, 90];
       const m = notes[Math.floor(this.rnd() * notes.length)];
-      this.play(this.cChime, t, (p) => playGuzheng(p, midi(m), 0, 1.2, 0.24 + this.rnd() * 0.18));
+      this.play(this.cChime, t, (p) => playGuzheng(p, midi(m), 0, 1.2, 0.24 + this.rnd() * 0.16));
     }
   }
 }
 
-// 《孤城残照 · 洞箫挽歌》84 BPM, D羽调 (D F G A C)
+// 《孤城残照 · 洞箫挽歌》78 BPM, D羽调 (D F G A C)
 const DEFEAT_MELODY: MelNote[] = [
   [1, 69, 3, 0.8, 72], [4, 67, 2, 0.72], [6, 65, 2, 0.7], [8, 62, 4, 0.78],
   [12, 64, 2, 0.64], [14, 65, 2, 0.68], [16, 67, 3, 0.78, 65], [19, 65, 1, 0.6],
@@ -981,34 +948,27 @@ const DEFEAT_MELODY: MelNote[] = [
 ];
 
 class DefeatMusic extends TangSongScore {
-  cSustain = this.chan('ts-loss-sustain', 0.12, { rev: 0.18 });
-  cPad = this.chan('ts-loss-pad', 0.5, { rev: 0.48 });
-  cXiao = this.chan('ts-loss-xiao', 0.65, { rev: 0.55, dly: 0.22 });
-  cErhu = this.chan('ts-loss-erhu', 0.52, { rev: 0.5, dly: 0.18 });
-  cChime = this.chan('ts-loss-chime', 0.85, { rev: 0.62, dly: 0.3 });
-  cDrum = this.chan('ts-loss-drum', 0.55, { rev: 0.28 });
+  cPad = this.chan('ts-loss-pad', 0.4, { rev: 0.44 });
+  cXiao = this.chan('ts-loss-xiao', 0.66, { rev: 0.52, dly: 0.2 });
+  cErhu = this.chan('ts-loss-erhu', 0.52, { rev: 0.48, dly: 0.18 });
+  cChime = this.chan('ts-loss-chime', 0.82, { rev: 0.58, dly: 0.28 });
+  cDrum = this.chan('ts-loss-drum', 0.52, { rev: 0.26 });
   mel = indexMelody(DEFEAT_MELODY, 32);
 
   constructor(mixer: AudioMixerLike, startAt: number) {
-    super(mixer, startAt, (60 / 84) * 1.25);
-    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
+    super(mixer, startAt, (60 / 78) * 1.25);
   }
   stepDur() {
-    return 60 / 84 / 2;
-  }
-  protected resync(step: number, time: number): void {
-    const chord = step >= 8 && step < 16 ? [46, 53] : step >= 16 && step < 24 ? [48, 55] : [50, 57];
-    this.tuneSustain([midi(chord[0]), midi(chord[1])], time);
+    return 60 / 78 / 2;
   }
   onStep(step: number, t: number, sd: number) {
     if (step < 32) {
       if (step === 0 || step === 8 || step === 16 || step === 24) {
         const chord = step === 8 ? [46, 53, 58, 62] : step === 16 ? [48, 55, 60, 62] : [50, 57, 62, 65];
-        this.tuneSustain([midi(chord[0]), midi(chord[1])], t);
-        this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.85, 0.65));
+        this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.76, 0.7));
         if (step === 0 || step === 24) {
-          this.play(this.cDrum, t, (p) => playWarDrum(p, 0, 0.56, 0.76));
-          this.play(this.cChime, t, (p) => playBianzhong(p, midi(50), 0, 2.8, 0.62));
+          this.play(this.cDrum, t, (p) => playWarDrum(p, 0, 0.54, 0.76));
+          this.play(this.cChime, t, (p) => playBianzhong(p, midi(50), 0, 2.6, 0.6));
         }
       }
       for (const note of this.mel[step]) {
@@ -1021,11 +981,10 @@ class DefeatMusic extends TangSongScore {
     }
     const tail = step - 32;
     if (tail % 16 === 0) {
-      this.tuneSustain([midi(50), midi(57)], t);
-      this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 64].map(midi), 0, sd * 17, 0.65, 0.55));
+      this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 64].map(midi), 0, sd * 17, 0.58, 0.6));
     }
     if (tail % 32 === 8) {
-      this.play(this.cChime, t, (p) => playBianzhong(p, midi(62), 0, 3.0, 0.34));
+      this.play(this.cChime, t, (p) => playBianzhong(p, midi(62), 0, 2.8, 0.34));
     }
   }
 }
@@ -1089,6 +1048,9 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
         }
       }
     },
+    fork(otherMixer: AudioMixerLike) {
+      return createTangSongMusic(otherMixer);
+    },
     dispose() {
       curScore?.dispose();
       curScore = null;
@@ -1146,6 +1108,13 @@ export function attachTangSongSfx(
       const shared = r1[`cast_xingli_${slot}`];
       if (shared) r1[`cast_liue_${slot}`] = { ...shared };
     }
+    // 局内战术信号音效（集合 / 进攻 / 撤退）
+    const orderBase = r1.ui_confirm;
+    if (orderBase) {
+      for (const orderKey of ['ui_order_gather', 'ui_order_attack', 'ui_order_retreat']) {
+        if (!r1[orderKey]) r1[orderKey] = { ...orderBase };
+      }
+    }
     // ── UI 全系：白玉碰磬 + 宣纸翻卷 + 五声古筝 ──
     patch('ui_hover', (p) => {
       playGuqin(p, midi(74), 0, 0.075, 0.18);
@@ -1185,6 +1154,21 @@ export function attachTangSongSfx(
     patch('ui_countdown', (p) => {
       playWoodblock(p, 0, 0.72, true);
       playBianzhong(p, midi(79), 0, 0.35, 0.5);
+    });
+    patch('ui_order_gather', (p) => {
+      playBianzhong(p, midi(74), 0, 0.3, 0.65);
+      playGuzheng(p, midi(81), 0.045, 0.36, 0.68);
+    });
+    patch('ui_order_attack', (p) => {
+      playTanggu(p, 0, 0.72, 1.0);
+      playWarDrum(p, 0.055, 0.72, 0.95);
+      playPipa(p, midi(74), 0.03, 0.22, 0.74);
+    });
+    patch('ui_order_retreat', (p) => {
+      playWoodblock(p, 0, 0.62, true);
+      playWoodblock(p, 0.065, 0.56, false);
+      playBianzhong(p, midi(81), 0.02, 0.26, 0.54);
+      playBianzhong(p, midi(76), 0.09, 0.36, 0.56);
     });
 
     // ── 秦琼 (panyue)：熟铜四棱双锏 + 玄甲重盾 + 建鼓振岳 ──
@@ -1372,7 +1356,7 @@ export function attachTangSongSfx(
       p.noise({ k: 'pink', flt: 'bandpass', fc: 900, fc1: 1600, q: 2.0, a: 0.02, d: 0.1, g: 0.28 });
     });
     patch('atk_fengling_launch', (p) => {
-      p.osc({ w: 'triangle', f: 340, f1: 165, ft: 0.075, a: 0.001, d: 0.12, g: 0.42 });
+      playPluckedString(p, 260, 0, 0.14, 0.45, 0.25, undefined, 330, 0.22);
       p.noise({ flt: 'bandpass', fc: 3200, fc1: 5800, q: 1.8, a: 0.001, d: 0.065, g: 0.32 });
     });
     patch('atk_fengling_hit', (p) => {

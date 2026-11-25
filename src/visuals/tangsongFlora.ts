@@ -293,34 +293,27 @@ function buildBianheWillow(api: FloraApi, seed: number): unknown {
     const tangentX = -outZ;
     const tangentZ = outX;
     const rows: number[][] = [];
-    for (let row = 0; row < 5; row++) {
-      const v = row / 5;
-      const width = 0.045 * (1 - 0.7 * v) * (1 + 0.1 * Math.sin(v * Math.PI * 5 + i));
-      const bend = 0.1 * Math.sin(v * Math.PI * 0.62);
+    for (let row = 0; row < 3; row++) {
+      const v = row / 3;
+      const width = 0.044 * (1 - 0.68 * v);
+      const bend = 0.095 * Math.sin(v * Math.PI * 0.62);
       const color = Pt(wMid, wLight, v);
       const vertices: number[] = [];
-      for (const side of [-1, 0, 1]) {
-        // 叶脉拱起，两侧随枝条轻微扭转。
-        const rib = 0.018 * (1 - side * side) * (0.4 + 0.6 * v);
+      for (const side of [-1, 1]) {
         const twist = 0.008 * side * Math.sin(v * Math.PI * 2 + i * 0.7) * v;
-        const normalTilt = side * 0.45;
+        const normalTilt = side * 0.38;
         vertices.push(b.vertex(
-          sx + outX * (bend + rib + twist) + tangentX * side * width,
+          sx + outX * (bend + twist) + tangentX * side * width,
           sy - drop * v,
-          sz + outZ * (bend + rib + twist) + tangentZ * side * width,
+          sz + outZ * (bend + twist) + tangentZ * side * width,
           color, outX + tangentX * normalTilt, 0.2, outZ + tangentZ * normalTilt, 0.38 + v * 1.2,
         ));
       }
-      if (row > 0) {
-        for (let c = 0; c < 2; c++) {
-          b.quad(rows[row - 1][c], rows[row - 1][c + 1], vertices[c + 1], vertices[c]);
-        }
-      }
+      if (row > 0) b.quad(rows[row - 1][0], rows[row - 1][1], vertices[1], vertices[0]);
       rows.push(vertices);
     }
     const tip = b.vertex(sx + outX * 0.08, sy - drop, sz + outZ * 0.08, wLight, outX, 0.1, outZ, 1.58);
-    b.tri(rows[4][0], rows[4][1], tip);
-    b.tri(rows[4][1], rows[4][2], tip);
+    b.tri(rows[2][0], rows[2][1], tip);
   }
 
   return bs(b);

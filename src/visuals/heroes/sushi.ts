@@ -324,7 +324,6 @@ export function buildSuShiFull(api: FullHeroEngineApi, pal: Record<string, numbe
     noseWidth: 0.92,
     smile: 0.012,
     smileAsymmetry: 0.003,
-    mouthOpen: 0.004,
     beard: 'none',
     bangStyle: 'swept',
     sideLockLen: 0.16,

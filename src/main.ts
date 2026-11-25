@@ -72,7 +72,6 @@ import { TANGSONG_COMBAT_FEEL } from './config/combatFeel';
 import { createBattleViewDrag } from './ui/battleViewDrag';
 import { mountTeamCommands, teamTactics, type TeamState } from './engine/teamTactics';
 import { hasTeamSight, teamVision } from './visuals/teamVision';
-import { showSkillInk, type SkillInkHud } from './visuals/skillInk';
 import { RenderResolution } from './visuals/renderResolution';
 import { createMatchAssetLoader } from './platform/matchAssets';
 import {
@@ -158,12 +157,14 @@ interface HudEventLike {
   dir?: { x: number; y: number };
 }
 
-interface HudCtxLike extends SkillInkHud {
-  host?: SkillInkHud['host'] & { getSettings?: () => { eyesCutin?: boolean } };
+interface HudCtxLike {
+  root?: HTMLElement;
+  me?: { id?: number; heroId?: string };
+  host?: { getSettings?: () => { eyesCutin?: boolean } };
+  hero?: (id: number) => { heroId?: string } | undefined;
 }
 
 function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
-  showSkillInk(events, hudCtx);
   const settings = hudCtx.host?.getSettings?.();
   if (settings && settings.eyesCutin === false) return;
 

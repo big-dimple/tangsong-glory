@@ -15,9 +15,9 @@
 
 对战加载时，`src/platform/matchAssets.ts` 与场景构建、WebGL 预热并行准备本局图片和字体。HUD 图片解码完成后才开始对局。下载或解码失败时保留当前阵容与已完成资源，在加载页退避重试。断网后等待网络恢复，也可以手动立即重试。
 
-技能施放事件经 HUD 交给 `src/visuals/skillInk.ts` 绘制水墨笔势，不参与技能数值或命中判定。`src/engine/teamTactics.ts` 处理队友支援和局内指令；`scripts/patch-core-hooks.mjs` 为生成引擎接入 AI 与英雄专属音效钩子，`build-core.mjs` 重建时会自动应用。
+技能施放由内核 3D 特效与粒子图集统一承载。`src/engine/teamTactics.ts` 处理队友主动支援与「集合 / 进攻 / 撤退」三项局内战术指令；`scripts/patch-core-hooks.mjs` 为生成引擎接入 AI 与英雄专属音效钩子，`build-core.mjs` 重建时会自动应用。
 
-程序化拨弦使用 SFX Brew 的 MIT 授权物理建模算法，许可见 `THIRD_PARTY_NOTICES.md`。各曲目以随和声变化的持续音衔接乐句，切换后随旧曲释放；验收同时检查实际持续输出与当前曲目累计调度，六位英雄的三项施法音效通过离线渲染检查。
+程序化拨弦使用 SFX Brew 的 MIT 授权物理建模算法，许可见 `THIRD_PARTY_NOTICES.md`，并采用拨弦位置梳状滤波与平滑起止包络消除爆音。四首原声乐章通过 `OfflineAudioContext` 离线性检查（含对线/激战分层能量跃迁），六位英雄的三项施法音效与三项战术指令音效同步通过离线渲染检查。
 
 战斗、小地图与野区状态共用己方英雄、兵线和建筑的视野。草丛按同丛、近身或显形状态判断。移动镜头只改变观察位置，阵亡拖镜会保持观察点，复活后恢复跟随。
 
