@@ -402,6 +402,7 @@ abstract class TangSongScore {
   protected wetOut: GainNode;
   protected delayIn: GainNode;
   protected nodes: AudioNode[] = [];
+  private sustained: { patch: SynthPatchLike; tones: OscillatorNode[]; breath: OscillatorNode } | null = null;
   chanNames: string[] = [];
   scheduledNotes = 0;
 
@@ -510,6 +511,52 @@ abstract class TangSongScore {
     this.scheduledNotes++;
   }
 
+  // 柔和的根音与五度随和声缓慢变化，给旋律留白，也能跨过主线程短暂停顿。
+  protected startSustain(ch: AudioNode, time: number, pitches: [number, number]): void {
+    const patch = this.m.note(ch, time);
+    const ctx = this.m.ctx;
+    const filter = this.keep(ctx.createBiquadFilter());
+    filter.type = 'lowpass';
+    filter.frequency.value = 850;
+    filter.Q.value = 0.5;
+    const breathing = this.keep(ctx.createGain());
+    breathing.gain.value = 0.84;
+    const breath = this.keep(ctx.createOscillator());
+    const breathDepth = this.keep(ctx.createGain());
+    breath.frequency.value = 0.08;
+    breathDepth.gain.value = 0.1;
+    breath.connect(breathDepth);
+    breathDepth.connect(breathing.gain);
+    breath.start(time);
+    const envelope = this.keep(ctx.createGain());
+    envelope.gain.setValueAtTime(0, time);
+    envelope.gain.linearRampToValueAtTime(1, time + 1.4);
+    filter.connect(breathing);
+    breathing.connect(envelope);
+    envelope.connect(patch.out);
+    const tones = pitches.map((pitch, index) => {
+      const voice = this.keep(ctx.createOscillator());
+      const level = this.keep(ctx.createGain());
+      voice.type = index === 0 ? 'sine' : 'triangle';
+      voice.frequency.setValueAtTime(safeHz(pitch), time);
+      voice.detune.value = index === 0 ? -2 : 2;
+      level.gain.value = index === 0 ? 0.085 : 0.035;
+      voice.connect(level);
+      level.connect(filter);
+      voice.start(time);
+      return voice;
+    });
+    // 这是实际发声的持续音，主旋律的调度计数仍独立检查。
+    patch.end = Infinity;
+    this.sustained = { patch, tones, breath };
+  }
+
+  protected tuneSustain(pitches: [number, number], time: number): void {
+    this.sustained?.tones.forEach((voice, index) => {
+      voice.frequency.setTargetAtTime(safeHz(pitches[index]), Math.max(time, this.m.now()), 0.35);
+    });
+  }
+
   protected rnd(): number {
     return this.m.kit.rnd();
   }
@@ -529,6 +576,7 @@ abstract class TangSongScore {
       const skip = Math.ceil((now - this.nextT) / dur);
       this.step += skip;
       this.nextT += skip * dur;
+      this.resync(this.step, now);
     }
     while (this.nextT < now + lookahead) {
       const sd = this.stepDur();
@@ -540,9 +588,17 @@ abstract class TangSongScore {
 
   abstract stepDur(): number;
   abstract onStep(step: number, time: number, sd: number): void;
+  protected resync(_step: number, _time: number): void {}
   mood(_intensity: number, _tension: number): void {}
 
   dispose(): void {
+    if (this.sustained) {
+      const now = this.m.now();
+      for (const voice of this.sustained.tones) voice.stop(now);
+      this.sustained.breath.stop(now);
+      this.sustained.patch.end = now - 1;
+      this.sustained = null;
+    }
     for (const n of this.nodes) {
       try {
         n.disconnect();
@@ -605,6 +661,7 @@ const GUZHENG_PATTERNS = [
 ];
 
 class MenuMusic extends TangSongScore {
+  cSustain = this.chan('ts-menu-sustain', 0.17, { rev: 0.15 });
   cPad = this.chan('ts-ink-pad', 0.42, { rev: 0.42 });
   cBass = this.chan('ts-guqin', 0.28, { rev: 0.18 });
   cGuzheng = this.chan('ts-guzheng', 0.73, { rev: 0.27, dly: 0.17, pan: -0.26 });
@@ -616,9 +673,14 @@ class MenuMusic extends TangSongScore {
 
   constructor(mixer: AudioMixerLike, startAt: number) {
     super(mixer, startAt, (60 / 68) * 0.75);
+    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
   }
   stepDur() {
     return 60 / 68 / 2;
+  }
+  protected resync(step: number, time: number): void {
+    const chord = MENU_CHORDS[Math.floor(step / 8) % MENU_CHORDS.length];
+    this.tuneSustain([midi(chord.pad[0]), midi(chord.pad[1])], time);
   }
   onStep(step: number, t: number, sd: number) {
     const cycle = Math.floor(step / 128);
@@ -628,6 +690,7 @@ class MenuMusic extends TangSongScore {
     const ch = MENU_CHORDS[bar];
 
     if (beat === 0) {
+      this.tuneSustain([midi(ch.pad[0]), midi(ch.pad[1])], t);
       this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 8, 0.82, 0.92));
       this.play(this.cBass, t, (p) => playGuqin(p, midi(ch.bass), 0, sd * 6.5, 0.78, bar > 0 ? midi(ch.bass - 2) : undefined));
       if (bar === 4 || (bar === 12 && cycle % 2 === 0)) {
@@ -724,6 +787,7 @@ const PIPA_ACCENT = [0.9, 0.45, 0.75, 0.5, 0.85, 0.48, 0.7, 0.5, 0.92, 0.45, 0.7
 class BattleMusic extends TangSongScore {
   lExplore = this.layer(1);
   lCombat = this.layer(0);
+  cSustain = this.chan('ts-battle-sustain', 0.14, { rev: 0.12 });
   cPad = this.chan('ts-battle-pad', 0.36, { rev: 0.35 });
   eGuqin = this.chan('ts-explore-guqin', 0.3, { layer: this.lExplore, rev: 0.14 });
   ePipa = this.chan('ts-explore-pipa', 0.95, { layer: this.lExplore, rev: 0.25, dly: 0.28, pan: -0.26 });
@@ -742,9 +806,14 @@ class BattleMusic extends TangSongScore {
 
   constructor(mixer: AudioMixerLike, startAt: number) {
     super(mixer, startAt, (60 / 112) * 0.75);
+    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
   }
   stepDur() {
     return 60 / 112 / 4;
+  }
+  protected resync(step: number, time: number): void {
+    const chord = BATTLE_CHORDS[Math.floor(step / 16) % BATTLE_CHORDS.length];
+    this.tuneSustain([midi(chord.pad[0]), midi(chord.pad[1])], time);
   }
   mood(intensity: number, tension: number) {
     this.tVal = clamp01(tension);
@@ -768,6 +837,7 @@ class BattleMusic extends TangSongScore {
     const j = () => (this.rnd() - 0.5) * 0.008;
 
     if (sub === 0) {
+      this.tuneSustain([midi(ch.pad[0]), midi(ch.pad[1])], t);
       this.play(this.cPad, t, (p) => playInkPad(p, ch.pad.map(midi), 0, sd * 16, 0.75 + m * 0.25, 0.85 + m * 0.5));
     }
 
@@ -842,6 +912,7 @@ const VICTORY_MELODY: MelNote[] = [
 ];
 
 class VictoryMusic extends TangSongScore {
+  cSustain = this.chan('ts-win-sustain', 0.12, { rev: 0.16 });
   cPad = this.chan('ts-win-pad', 0.45, { rev: 0.42 });
   cHorn = this.chan('ts-win-horn', 0.58, { rev: 0.4, dly: 0.14 });
   cChime = this.chan('ts-win-chime', 0.95, { rev: 0.58, dly: 0.28 });
@@ -850,9 +921,13 @@ class VictoryMusic extends TangSongScore {
 
   constructor(mixer: AudioMixerLike, startAt: number) {
     super(mixer, startAt, (60 / 132) * 0.75);
+    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
   }
   stepDur() {
     return 60 / 132 / 2;
+  }
+  protected resync(step: number, time: number): void {
+    this.tuneSustain(step >= 16 && step < 24 ? [midi(55), midi(62)] : [midi(50), midi(57)], time);
   }
   onStep(step: number, t: number, sd: number) {
     if (step < 36) {
@@ -865,6 +940,7 @@ class VictoryMusic extends TangSongScore {
       if (step === 0 || step === 8 || step === 16 || step === 24) {
         const root = step === 16 ? 43 : step === 24 ? 38 : 38;
         const chord = step === 16 ? [55, 62, 67, 71] : [50, 57, 62, 66];
+        this.tuneSustain([midi(chord[0]), midi(chord[1])], t);
         this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.92, 1.35));
         this.play(this.cDrum, t, (p) => playWarDrum(p, 0, step === 24 ? 0.95 : 0.7, 0.9));
         if (step === 24) this.play(this.cDrum, t, (p) => playGongCrash(p, 0, 0.82, 2.8));
@@ -886,6 +962,7 @@ class VictoryMusic extends TangSongScore {
     }
     const tail = step - 36;
     if (tail % 16 === 0) {
+      this.tuneSustain([midi(50), midi(57)], t);
       this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 66, 74].map(midi), 0, sd * 17, 0.65, 1.1));
     }
     if (this.rnd() < 0.24) {
@@ -904,6 +981,7 @@ const DEFEAT_MELODY: MelNote[] = [
 ];
 
 class DefeatMusic extends TangSongScore {
+  cSustain = this.chan('ts-loss-sustain', 0.12, { rev: 0.18 });
   cPad = this.chan('ts-loss-pad', 0.5, { rev: 0.48 });
   cXiao = this.chan('ts-loss-xiao', 0.65, { rev: 0.55, dly: 0.22 });
   cErhu = this.chan('ts-loss-erhu', 0.52, { rev: 0.5, dly: 0.18 });
@@ -913,14 +991,20 @@ class DefeatMusic extends TangSongScore {
 
   constructor(mixer: AudioMixerLike, startAt: number) {
     super(mixer, startAt, (60 / 84) * 1.25);
+    this.startSustain(this.cSustain, startAt, [midi(50), midi(57)]);
   }
   stepDur() {
     return 60 / 84 / 2;
+  }
+  protected resync(step: number, time: number): void {
+    const chord = step >= 8 && step < 16 ? [46, 53] : step >= 16 && step < 24 ? [48, 55] : [50, 57];
+    this.tuneSustain([midi(chord[0]), midi(chord[1])], time);
   }
   onStep(step: number, t: number, sd: number) {
     if (step < 32) {
       if (step === 0 || step === 8 || step === 16 || step === 24) {
         const chord = step === 8 ? [46, 53, 58, 62] : step === 16 ? [48, 55, 60, 62] : [50, 57, 62, 65];
+        this.tuneSustain([midi(chord[0]), midi(chord[1])], t);
         this.play(this.cPad, t, (p) => playInkPad(p, chord.map(midi), 0, sd * 8, 0.85, 0.65));
         if (step === 0 || step === 24) {
           this.play(this.cDrum, t, (p) => playWarDrum(p, 0, 0.56, 0.76));
@@ -937,6 +1021,7 @@ class DefeatMusic extends TangSongScore {
     }
     const tail = step - 32;
     if (tail % 16 === 0) {
+      this.tuneSustain([midi(50), midi(57)], t);
       this.play(this.cPad, t, (p) => playInkPad(p, [50, 57, 62, 64].map(midi), 0, sd * 17, 0.65, 0.55));
     }
     if (tail % 32 === 8) {
@@ -987,13 +1072,14 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
       nextScore.mood(intensity, tension);
       nextScore.fade(1, endScreen ? 0.04 : 0.32);
       curScore = nextScore;
+      nextScore.schedule(now, 0.9);
     },
     setMood(i: number, t: number) {
       intensity = i;
       tension = t;
       curScore?.mood(i, t);
     },
-    tick(lookahead = 0.3) {
+    tick(lookahead = 0.9) {
       const now = mixer.now();
       curScore?.schedule(now, lookahead);
       for (let i = dying.length - 1; i >= 0; i--) {

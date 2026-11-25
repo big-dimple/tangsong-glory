@@ -233,6 +233,48 @@ async function waitForCondition(page, predicate, timeoutMs = 45_000) {
   await page.waitForFunction(predicate, { timeout: timeoutMs, polling: 100 });
 }
 
+async function verifyContinuousMusic(page, expectedTrack) {
+  const result = await page.evaluate(async () => {
+    const audio = window.__moba.audio;
+    const { mixer, ctx, music } = audio;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    mixer.musicVol.connect(analyser);
+    const originalTick = music.tick;
+    const scheduledBefore = music.scheduledNotes;
+    music.tick = () => {};
+    const start = ctx.currentTime;
+    const wallStart = performance.now();
+    try {
+      while (ctx.currentTime - start < 6.5 && performance.now() - wallStart < 22_000) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      const samples = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(samples);
+      let energy = 0;
+      for (const sample of samples) energy += sample * sample;
+      mixer.sweep();
+      return {
+        track: music.track,
+        state: ctx.state,
+        elapsed: ctx.currentTime - start,
+        rms: Math.sqrt(energy / samples.length),
+        notes: mixer.noteCount,
+        scheduledBefore,
+        scheduledAfter: music.scheduledNotes,
+      };
+    } finally {
+      music.tick = originalTick;
+      mixer.musicVol.disconnect(analyser);
+      analyser.disconnect();
+      audio.pump();
+    }
+  });
+  assert(result.track === expectedTrack && result.state === 'running' && result.elapsed >= 6.5 &&
+    result.scheduledBefore > 0 && result.scheduledAfter === result.scheduledBefore && result.notes > 0 && result.rms > .00005,
+  `${expectedTrack} 调度短暂停顿后音乐不连续: ${JSON.stringify(result)}`);
+}
+
 async function run() {
   checkMotherAndBundle();
   fs.mkdirSync(SHOT_DIR, { recursive: true });
@@ -271,6 +313,7 @@ async function run() {
       15_000,
     );
     await wait(250);
+    await verifyContinuousMusic(page, 'menu');
 
     const lobbyChecks = await page.evaluate(async () => {
       const moba = window.__moba;
@@ -591,6 +634,7 @@ async function run() {
       await wait(700);
 
       if (heroId === 'sushi') {
+        await verifyContinuousMusic(page, 'battle');
         const resolution = await page.evaluate(() => {
           const { engine } = window.__moba.renderer;
           const width = () => engine.canvas.width;
