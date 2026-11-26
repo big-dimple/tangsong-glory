@@ -7,7 +7,7 @@
 - **`src/config/`**：品牌文案（`brand.ts`）、镜头预设（`camera.ts`）、跑打操作手感参数（`combatFeel.ts`）、六位英雄资料与技能配置（`heroes.ts`）。所有英雄配置以 `heroes.ts` 为唯一真相源，严禁在 UI 或渲染层硬编码英雄名、台词或属性。
 - **`src/visuals/`**：唐宋建筑（`tangsongArchitecture.ts`）、植被（`tangsongFlora.ts`）、3D 英雄与灵宠骨骼（`tangsongHeroes3D.ts`）、矿彩技能图标映射（`tangsongIcons.ts`）、兵线/野怪/生态（`tangsongMinions3D.ts`、`tangsongMonsters3D.ts`、`tangsongWildlife.ts`）、地表与水墨特效着色器（`tangsongTerrain.ts`、`tangsongVfx.ts`、`tangsongProps.ts`、`tangsongWorld.ts`）。
 - **`src/ui/` & `src/styles/`**：唐宋手卷开场大厅与宣纸主题样式。
-- **`src/audio/`**：纯程序化 WebAudio 音乐与音效控制器；不得引入外置 `.ogg`/`.mp3` 音频包（`npm run verify:content` 会主动拦截 `public/assets/audio`）。
+- **`src/audio/`**：4 首实录原声背景配乐随机轮播（`public/assets/audio/bgm/*.ogg|mp3`）与纯程序化 WebAudio 音效控制器；不得引入额外外置 SFX 音频包。
 - **`src/platform/buildMetadata.ts` & `scripts/build-info.ts`**：构建元数据与 git 工作区洁净度校验。
 - **`src/engine/mobaCore.js`**：核心 MOBA 模拟、物理、AI 与 HUD 运行时桥接；改动任何数值或技能判定前，须确认 `harness/verify.mjs` 的技能基线比对仍保持零偏差。
 
@@ -16,10 +16,10 @@
 提交任何改动前，必须确保以下检查全部通过且不改动已跟踪源码的哈希快照（`scripts/check-runner.mjs` 会在每步前后校验工作区洁净度）：
 
 1. `npm run typecheck` —— TypeScript 严格类型校验无错误。
-2. `npm run verify:content` —— 6 英雄、76 项美术/图标与字体资产齐备、无旧作遗留命名或敏感信息泄露。
+2. `npm run verify:content` —— 6 英雄、84 项美术/图标/字体与 BGM 资产齐备、无旧作遗留命名或敏感信息泄露。
 3. `python3 -B -m unittest discover -s tests -p "test_*.py"` —— 发布清单打包、下载重试边界、GitHub Release 编排与服务端接收逻辑单元测试全部通过。
 4. `npm run build` —— 输出洁净 `dist/` 与 `dist/build-info.json`。
-5. `npm run verify:smoke` —— 无头 Chromium WebGL2 启动、字体加载、纯程序化 WebAudio、6 英雄与野怪/小兵 3D 模型三角面检查、对局 3 档视角及关键场景截图全部通过。
+5. `npm run verify:smoke` —— 无头 Chromium WebGL2 启动、字体加载、实录 BGM 随机轮播与程序化 WebAudio SFX、6 英雄与野怪/小兵 3D 模型三角面检查、对局 3 档视角及关键场景截图全部通过。
 
 ## 三、CI 与发布铁律
 

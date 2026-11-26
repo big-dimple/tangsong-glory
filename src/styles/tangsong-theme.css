@@ -651,7 +651,7 @@ body .sf-root .sf-hcard.is-active {
 
 .ts-select__pc-wrap {
   position: absolute;
-  inset: calc(var(--sf-u, 1px) * 10) 8% calc(var(--sf-u, 1px) * 4) 8%;
+  inset: calc(var(--sf-u, 1px) * 4) 6% calc(var(--sf-u, 1px) * 4) 6%;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -660,11 +660,6 @@ body .sf-root .sf-hcard.is-active {
   opacity: 1;
   transform: scale(1) translateY(0);
   transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-}
-@media (min-width: 900px) and (orientation: landscape) {
-  .ts-select__pc-wrap {
-    padding-left: 10%;
-  }
 }
 .sf-select__stage.is-3d-mode .ts-select__pc-wrap {
   opacity: 0;
@@ -683,7 +678,7 @@ body .sf-root .sf-hcard.is-active {
   width: auto;
   height: 100%;
   object-fit: contain;
-  object-position: 50% 92%;
+  object-position: 50% 96%;
   filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 24px color-mix(in srgb, var(--hero, #e9bd62) 34%, transparent));
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
@@ -694,7 +689,10 @@ body .sf-root .sf-hcard.is-active {
   50% { transform: translateY(-4px); }
 }
 
-.sf-select__plate { z-index: 3; }
+.sf-select__plate {
+  z-index: 3;
+  max-width: 38%;
+}
 .sf-select__nav { z-index: 4; }
 .ts-select__era-pill {
   display: inline-flex;
@@ -712,7 +710,7 @@ body .sf-root .sf-hcard.is-active {
 }
 .ts-select__motto {
   margin: calc(var(--sf-u, 1px) * 2) 0 0;
-  max-width: 24em;
+  max-width: 16em;
   font-size: var(--sf-fs-sm);
   color: rgba(255, 244, 214, 0.92);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
@@ -721,7 +719,8 @@ body .sf-root .sf-hcard.is-active {
 .ts-stage-toggle {
   position: absolute;
   right: calc(var(--sf-u, 1px) * 8);
-  top: calc(var(--sf-u, 1px) * 8);
+  top: auto;
+  bottom: calc(var(--sf-u, 1px) * 8);
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -754,11 +753,12 @@ body .sf-root .sf-hcard.is-active {
     display: none;
   }
   .ts-select__pc-wrap {
-    inset: calc(var(--sf-u, 1px) * 6) 4% calc(var(--sf-u, 1px) * 2) 4%;
+    inset: calc(var(--sf-u, 1px) * 4) 4% calc(var(--sf-u, 1px) * 2) 4%;
   }
   .ts-stage-toggle {
-    top: calc(var(--sf-u, 1px) * 2);
-    right: calc(var(--sf-u, 1px) * 2);
+    top: auto;
+    bottom: calc(var(--sf-u, 1px) * 3);
+    right: calc(var(--sf-u, 1px) * 4);
   }
 }
 
@@ -790,20 +790,33 @@ body .sf-root .sf-hcard.is-active {
     display: none;
   }
   .ts-select__pc-wrap {
-    inset: 4px 2% 0 37%;
+    inset: 2px 0 0 35%;
   }
   .sf-select__stage { overflow: hidden; }
   body .sf-root .sf-select__plate {
     top: 8px;
     right: auto;
-    width: 43%;
+    width: 41%;
+    max-width: 41%;
+  }
+  .ts-stage-toggle {
+    top: auto;
+    bottom: 4px;
+    right: 4px;
+    padding: 2px;
+  }
+  .ts-stage-toggle button {
+    padding: 3px 9px;
+    font-size: 11px;
   }
   body .sf-root .sf-select__name { font-size: clamp(23px, 7vw, 32px); }
   body .sf-root .sf-select__name-role { display: none; }
-  .sf-select__rings { left: 35%; }
-  body .sf-root .sf-select__stage.is-3d-mode .sf-select__plate { width: 36%; }
-  .sf-select__stage.is-3d-mode .sf-select__canvas {
-    inset: -16% auto auto 0;
+  body .sf-root .sf-select__rings { left: 35%; right: 0; }
+  body .sf-root .sf-select__glow { left: 35%; right: 2%; }
+  body .sf-root .sf-select__stage.is-3d-mode .sf-select__plate { width: 36%; max-width: 36%; }
+  body .sf-root .sf-select__stage.is-3d-mode .sf-select__canvas {
+    inset: -16% 0 auto 35%;
+    width: 65%;
     height: 135%;
   }
 }
@@ -1005,60 +1018,144 @@ body .sf-root .sf-hud__sk.is-atk .sf-hud__sk-face {
 .ts-eyes-cutin__hero { font: 500 12px/1.2 var(--ts-font-serif); }
 .ts-eyes-cutin__label { font: 600 clamp(14px, 2.2vh, 18px)/1.35 var(--ts-font-serif); }
 
-/* 战术指令与商店同排，快捷购买出现时自然让位。 */
-.ts-team-orders {
-  position: relative;
-  flex: none;
-  display: flex;
-  gap: 5px;
-  pointer-events: auto;
-}
-.ts-team-orders button {
-  min-width: 44px;
-  min-height: 40px;
-  padding: 4px 8px;
-  border: 1px solid rgba(230, 190, 112, .8);
-  border-radius: 6px;
-  background: linear-gradient(180deg, rgba(44, 29, 20, .94), rgba(24, 16, 11, .96));
-  color: #fff0ce;
-  font: 600 13px/1 var(--ts-font-ui);
-  cursor: pointer;
-  touch-action: manipulation;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .45);
-  transition: transform .12s ease, border-color .16s ease, background .16s ease;
-}
-.ts-team-orders button:active {
-  transform: scale(0.95);
-  background: #8f3222;
-}
-.ts-team-orders button.is-active {
-  border-color: #ffe39a;
-  background: linear-gradient(180deg, rgba(128, 52, 28, .96), rgba(74, 28, 16, .96));
-  color: #fff8e2;
-}
-.ts-team-orders__feedback {
+/* 右手技能轮盘上方「集合」朱漆鎏金将令圆钮（支持边走边点与 PC C 键） */
+.ts-rally-wrap {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  color: #ffedc1;
-  font: 12px/1.3 var(--ts-font-ui);
-  text-shadow: 0 1px 3px #000;
-  white-space: nowrap;
+  right: calc(var(--hud-r, 10px) + var(--hud-sk, 56px) * 0.12);
+  bottom: calc(var(--hud-b, 6px) + var(--hud-lift, 0px) + var(--hud-sk, 56px) * 3.18);
+  z-index: 4;
+  display: flex;
+  align-items: center;
   pointer-events: none;
 }
-.sf-hud.is-over .ts-team-orders { display: none; }
-@media (max-width: 520px), (orientation: portrait) {
-  body .sf-root .sf-hud__shopbar {
-    gap: 8px;
-  }
-  .ts-team-orders {
-    gap: 4px;
-  }
-  .ts-team-orders button {
-    min-width: 38px;
-    min-height: 36px;
-    padding: 3px 6px;
-    font-size: 12px;
+.ts-rally-btn {
+  --rally-d: clamp(48px, calc(var(--hud-sk, 56px) * 0.86), 64px);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--rally-d);
+  height: var(--rally-d);
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #fff3d2;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.1s var(--sf-ease-out), filter 0.16s ease;
+}
+.ts-rally-btn:hover {
+  filter: brightness(1.08);
+}
+.ts-rally-btn:active {
+  transform: scale(0.92);
+}
+.ts-rally-btn__face {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 224, 152, 0.24), transparent 52%),
+    radial-gradient(circle at 50% 42%, #8e2e20 0%, #52170f 64%, #260a06 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 244, 210, 0.48),
+    inset 0 -4px 8px rgba(14, 4, 2, 0.65),
+    0 0 0 1.5px #21100a,
+    0 0 0 3px rgba(235, 192, 112, 0.85),
+    0 6px 16px rgba(0, 0, 0, 0.62);
+}
+.ts-rally-btn__ico {
+  width: 44%;
+  height: 44%;
+  color: #ffe39b;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75));
+}
+.ts-rally-btn__label {
+  font-family: var(--ts-font-ui);
+  font-size: max(11px, calc(var(--rally-d) * 0.215));
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
+  color: #fff4d8;
+  text-shadow: 0 1px 3px rgba(10, 3, 2, 0.95);
+}
+.ts-rally-btn__ring {
+  position: absolute;
+  inset: -4px;
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  border: 2px solid #ffe599;
+  box-shadow: 0 0 14px rgba(255, 212, 118, 0.72);
+  transition: opacity 0.2s ease;
+}
+.ts-rally-btn.is-active .ts-rally-btn__ring {
+  opacity: 1;
+}
+.ts-rally-btn.is-active .ts-rally-btn__face {
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 236, 178, 0.36), transparent 54%),
+    radial-gradient(circle at 50% 42%, #b53f2a 0%, #6f1d13 66%, #340c08 100%);
+}
+.ts-rally-btn__ripple {
+  position: absolute;
+  inset: -3px;
+  z-index: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 224, 146, 0.85);
+  opacity: 0;
+  pointer-events: none;
+}
+.ts-rally-btn.is-pulsing .ts-rally-btn__ripple {
+  animation: ts-rally-wave 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes ts-rally-wave {
+  0% { transform: scale(0.95); opacity: 0.92; }
+  100% { transform: scale(1.48); opacity: 0; }
+}
+.ts-rally-btn > .sf-hud__key {
+  left: -4px;
+  top: -4px;
+}
+.ts-rally-feedback {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(24, 14, 10, 0.9);
+  border: 1px solid rgba(235, 192, 112, 0.6);
+  color: #ffeec2;
+  font: 500 12px/1.25 var(--ts-font-ui);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px #000;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.18s ease;
+}
+.ts-rally-feedback:empty {
+  opacity: 0;
+}
+.sf-hud.is-over .ts-rally-wrap {
+  display: none;
+}
+@media (orientation: portrait) {
+  .ts-rally-wrap {
+    right: calc(var(--hud-r, 10px) + var(--hud-sk, 54px) * 0.14);
+    bottom: calc(var(--hud-b, 6px) + var(--hud-lift, 0px) + var(--hud-sk, 54px) * 4.25);
   }
 }
 

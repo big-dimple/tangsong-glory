@@ -34,6 +34,8 @@ const ART_FILES = [
   'assets/fonts/tangsongpai-score-numbers.woff',
 ];
 
+const BGM_TRACKS = ['tianhu-begin', 'moon-shop', 'go-cake', 'vsboss'];
+
 const FORBIDDEN_TERMS = [
   '王者农药',
   'WANGZHE',
@@ -96,6 +98,9 @@ function main() {
   for (const key of ['recall', 'heal', 'flash', 'attack']) {
     requiredAssets.push(`assets/icons/summoner/${key}.webp`);
   }
+  for (const track of BGM_TRACKS) {
+    requiredAssets.push(`assets/audio/bgm/${track}.ogg`, `assets/audio/bgm/${track}.mp3`);
+  }
 
   for (const rel of requiredAssets) {
     const full = path.join(ROOT, 'public', rel);
@@ -104,7 +109,6 @@ function main() {
     assert(sz > 0, `运行时资产为空文件: public/${rel}`);
   }
 
-  assert(!fs.existsSync(path.join(ROOT, 'public/assets/audio')), '已全面采用纯程序化 WebAudio，不得残留 public/assets/audio');
   assert(fs.existsSync(path.join(ROOT, 'src/engine/mobaCore.js')), '缺少 src/engine/mobaCore.js');
 
   const sourceFiles = walkFiles(path.join(ROOT, 'src')).filter((f) => /\.(ts|js|css)$/.test(f));

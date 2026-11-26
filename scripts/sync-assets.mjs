@@ -3,7 +3,7 @@
  * sync-assets.mjs — 从同级 ../tangsongpai/public/assets/（或 TANGSONGPAI_PUBLIC_ASSETS）同步：
  * 1. 6 位唐宋英雄高清 .webp 头像 / 全身立绘 / 眼部特写
  * 2. 唐宋书法数字字体 (.woff)
- * （v5.0 起 BGM 与音效已完全切换纯程序化 WebAudio，不再同步外置音频）
+ * 3. 4 首实录原声背景配乐 (.ogg + .mp3)；战斗与 UI 音效仍为纯程序化 WebAudio
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,6 +16,9 @@ const SRC_ASSETS = path.resolve(
 );
 const OUT_HEROES = path.join(PROJECT_ROOT, 'public/assets/heroes');
 const OUT_FONTS = path.join(PROJECT_ROOT, 'public/assets/fonts');
+const OUT_BGM = path.join(PROJECT_ROOT, 'public/assets/audio/bgm');
+
+const BGM_TRACKS = ['tianhu-begin', 'moon-shop', 'go-cake', 'vsboss'];
 
 const HERO_ASSETS = [
   { heroId: 'qinqiong', assetId: 'touye', eyesFile: 'touye.eyes-12194e100f85.webp' },
@@ -78,6 +81,17 @@ function main() {
     path.join(OUT_FONTS, 'tangsongpai-score-numbers.woff'),
   );
   totalFiles++;
+
+  for (const id of BGM_TRACKS) {
+    for (const ext of ['ogg', 'mp3']) {
+      const name = `${id}.${ext}`;
+      totalBytes += copyChecked(
+        path.join(SRC_ASSETS, 'audio/bgm/user-20261018', name),
+        path.join(OUT_BGM, name),
+      );
+      totalFiles++;
+    }
+  }
 
   console.log(
     `[sync-assets] 完成: 已同步 ${totalFiles} 个资产文件 (${(totalBytes / 1024 / 1024).toFixed(2)} MB)`,

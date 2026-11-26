@@ -21,6 +21,8 @@ MIME_OVERRIDES = {
     '.jpg': 'image/jpeg',
     '.woff2': 'font/woff2',
     '.woff': 'font/woff',
+    '.ogg': 'audio/ogg',
+    '.mp3': 'audio/mpeg',
 }
 
 

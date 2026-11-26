@@ -260,13 +260,13 @@ async function run() {
     // ── 2. 大厅、新国风资源 HTTP 200、音频切换、数值零偏差与 6 英雄 3D 演武 ──
     await page.goto(`${baseUrl}/`, { waitUntil: 'load', timeout: 60_000 });
     await waitForCondition(page, () => !!window.__moba && window.__moba.phase === 'menu');
-    // 模拟点击以解锁 WebAudio 并等待程序化乐曲首拍调度生效后再做状态采样
+    // 模拟点击以解锁 WebAudio 并等待实录 BGM 随机曲目起播后再做状态采样
     await page.mouse.click(10, 10);
     await waitForCondition(
       page,
       () => {
         const s = window.__moba?.audio?.debug?.stats?.();
-        return !!s && s.state === 'running' && (window.__moba?.audio?.music?.scheduledNotes ?? 0) > 0;
+        return !!s && s.state === 'running' && !!window.__moba?.audio?.music?.currentSong;
       },
       15_000,
     );
@@ -292,6 +292,10 @@ async function run() {
         '/assets/fonts/tangsong-brush.woff2',
         '/assets/fonts/tangsong-serif.woff2',
         '/assets/fonts/tangsongpai-score-numbers.woff',
+        ...['tianhu-begin', 'moon-shop', 'go-cake', 'vsboss'].flatMap((id) => [
+          `/assets/audio/bgm/${id}.ogg`,
+          `/assets/audio/bgm/${id}.mp3`,
+        ]),
         ...['qinqiong', 'xinqiji', 'sushi', 'wencheng', 'huarui', 'liue'].flatMap((h) =>
           ['passive', 's1', 's2', 'ult'].map((s) => `/assets/icons/skills/${h}-${s}.webp`),
         ),
@@ -337,7 +341,14 @@ async function run() {
       const serifLoaded = !!document.fonts?.check('16px TangSongSerif', '唐');
 
       moba.audio.ui('select');
-      const audioStats = { ...moba.audio.debug.stats(), scheduledNotes: moba.audio.music?.scheduledNotes ?? 0 };
+      const firstSong = moba.audio.music?.currentSong ?? null;
+      const secondSong = moba.audio.music?.nextSong?.() ?? null;
+      const audioStats = {
+        ...moba.audio.debug.stats(),
+        scheduledNotes: moba.audio.music?.scheduledNotes ?? 0,
+        firstSong,
+        secondSong,
+      };
       const proceduralAudioInfo = moba.audio.mixer?.__tsAudioDebug?.() ?? null;
       const renderedSounds = {};
       for (const sound of ['panyue', 'yeque', 'xingli', 'fengling', 'chijin', 'liue']) {
@@ -364,68 +375,26 @@ async function run() {
         renderedSounds[sound] = { windows, played: mixer.stats.played };
       }
 
-      // 验证三项战术指令音效离线渲染无静音/削波
+      // 验证「集合」信号音效离线渲染无静音/削波
       const orderRender = await (async () => {
         const sampleRate = 22050;
-        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * 2.5), sampleRate);
+        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * 1.0), sampleRate);
         const mixer = new moba.audio.mixer.constructor(ctx);
         mixer.kit.reseed(42);
         mixer.setVolumes(.8, .8, .5);
-        const starts = [0.05, 0.85, 1.65];
-        ['ui_order_gather', 'ui_order_attack', 'ui_order_retreat'].forEach((key, idx) => {
-          mixer.play(key, { when: starts[idx] });
-        });
+        const start = 0.05;
+        mixer.play('ui_order_gather', { when: start });
         const samples = (await ctx.startRendering()).getChannelData(0);
-        const windows = starts.map((start) => {
-          let energy = 0, peak = 0, invalid = 0;
-          const from = Math.floor(start * sampleRate);
-          const to = Math.floor((start + 0.45) * sampleRate);
-          for (let i = from; i < to; i++) {
-            const value = samples[i];
-            if (!Number.isFinite(value)) invalid++;
-            else { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
-          }
-          return { rms: Math.sqrt(energy / (to - from)), peak, invalid };
-        });
-        return { windows, played: mixer.stats.played };
-      })();
-
-      // 离线渲染四首原声乐章（含 battle 对线层 vs 激战层能量对比）
-      const renderedTracks = {};
-      for (const [label, track, moodArgs] of [
-        ['menu', 'menu', null],
-        ['battleExplore', 'battle', [0.05, 0]],
-        ['battleCombat', 'battle', [0.95, 0.9]],
-        ['victory', 'victory', null],
-        ['defeat', 'defeat', null],
-      ]) {
-        const sampleRate = 22050;
-        const durationSec = 4.0;
-        const ctx = new OfflineAudioContext(1, Math.ceil(sampleRate * durationSec), sampleRate);
-        const mixer = new moba.audio.mixer.constructor(ctx);
-        mixer.kit.reseed(42);
-        mixer.setVolumes(0.8, 0.8, 0.85);
-        const score = moba.audio.music.fork(mixer);
-        if (moodArgs) score.setMood(moodArgs[0], moodArgs[1]);
-        score.setTrack(track);
-        score.tick(durationSec);
-        const samples = (await ctx.startRendering()).getChannelData(0);
-        const from = Math.floor(sampleRate * 1.2);
         let energy = 0, peak = 0, invalid = 0;
-        for (let i = from; i < samples.length; i++) {
+        const from = Math.floor(start * sampleRate);
+        const to = Math.floor((start + 0.45) * sampleRate);
+        for (let i = from; i < to; i++) {
           const value = samples[i];
           if (!Number.isFinite(value)) invalid++;
           else { energy += value * value; peak = Math.max(peak, Math.abs(value)); }
         }
-        const count = samples.length - from;
-        renderedTracks[label] = {
-          rms: Math.sqrt(energy / count),
-          peak,
-          invalid,
-          scheduledNotes: score.scheduledNotes,
-        };
-        score.dispose();
-      }
+        return { windows: [{ rms: Math.sqrt(energy / (to - from)), peak, invalid }], played: mixer.stats.played };
+      })();
 
       return {
         title: document.title,
@@ -454,7 +423,6 @@ async function run() {
         proceduralAudioInfo,
         renderedSounds,
         orderRender,
-        renderedTracks,
       };
     });
 
@@ -482,14 +450,24 @@ async function run() {
     assert.notEqual(lobbyChecks.sushiTri, lobbyChecks.liueTri, '苏轼与刘娥 3D 模型三角形数必须不同！');
     assert.equal(lobbyChecks.iconsDiffer, true, '苏轼与刘娥技能图标必须完全独立！');
     assert.equal(lobbyChecks.audioStats.track, 'menu', `大厅 BGM track 应为 menu，实际 ${lobbyChecks.audioStats.track}`);
+    const BGM_CATALOG = ['tianhu-begin', 'moon-shop', 'go-cake', 'vsboss'];
     assert(
-      lobbyChecks.audioStats.scheduledNotes > 0 && lobbyChecks.audioStats.played > 0,
-      `纯程序化唐宋 WebAudio 大厅演奏异常: ${JSON.stringify(lobbyChecks.audioStats)}`,
+      BGM_CATALOG.includes(lobbyChecks.audioStats.firstSong) &&
+        BGM_CATALOG.includes(lobbyChecks.audioStats.secondSong) &&
+        lobbyChecks.audioStats.firstSong !== lobbyChecks.audioStats.secondSong &&
+        lobbyChecks.audioStats.scheduledNotes >= 2 &&
+        lobbyChecks.audioStats.played > 0,
+      `大厅实录随机轮播 BGM 状态异常: ${JSON.stringify(lobbyChecks.audioStats)}`,
     );
     assert.equal(
-      lobbyChecks.proceduralAudioInfo?.mode,
+      lobbyChecks.proceduralAudioInfo?.bgmMode,
+      'recorded-shuffle',
+      `BGM 模式未切换实录随机轮播: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
+    );
+    assert.equal(
+      lobbyChecks.proceduralAudioInfo?.sfxMode,
       'procedural-tangsong',
-      `r1 SFX 未切换纯程序化唐宋音色: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
+      `r1 SFX 未保持纯程序化唐宋音色: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
     );
     assert.equal(
       lobbyChecks.proceduralAudioInfo?.unpatchedCount,
@@ -501,24 +479,17 @@ async function run() {
       assert(render.windows.every((window) => window.invalid === 0 && window.rms > .00005 && window.peak <= 1),
         `${sound} 施法音效出现静音、削波或无效采样: ${JSON.stringify(render.windows)}`);
     }
-    assert.equal(lobbyChecks.orderRender.played, 3, '战术指令音效未全部触发');
+    assert.equal(lobbyChecks.orderRender.played, 1, '集合指令音效未触发');
     assert(lobbyChecks.orderRender.windows.every((w) => w.invalid === 0 && w.rms > 0.001 && w.peak <= 1),
-      `战术指令音效异常: ${JSON.stringify(lobbyChecks.orderRender.windows)}`);
-    for (const [label, tr] of Object.entries(lobbyChecks.renderedTracks)) {
-      assert(tr.invalid === 0 && tr.peak <= 1 && tr.rms > 0.002 && tr.scheduledNotes > 0,
-        `配乐 ${label} 离线渲染异常: ${JSON.stringify(tr)}`);
-    }
+      `集合指令音效异常: ${JSON.stringify(lobbyChecks.orderRender.windows)}`);
     assert(
-      lobbyChecks.renderedTracks.battleCombat.rms > lobbyChecks.renderedTracks.battleExplore.rms * 1.15,
-      `battle 激战层未明显强于对线层: ${JSON.stringify(lobbyChecks.renderedTracks)}`,
-    );
-    assert(
-      (lobbyChecks.proceduralAudioInfo?.patchedSfxCount ?? 0) >= 154,
+      (lobbyChecks.proceduralAudioInfo?.patchedSfxCount ?? 0) >= 152,
       `覆写 r1 SFX 数量异常偏少: ${JSON.stringify(lobbyChecks.proceduralAudioInfo)}`,
     );
     for (const [u, info] of Object.entries(lobbyChecks.fetched)) {
       assert.equal(info.status, 200, `资源 ${u} HTTP 状态异常: ${info.status}`);
-      assert(info.bytes > (u.startsWith('/assets/icons/') ? 500 : 100), `资源 ${u} 字节异常偏小: ${info.bytes}`);
+      const minBytes = u.startsWith('/assets/audio/bgm/') ? 500_000 : u.startsWith('/assets/icons/') ? 500 : 100;
+      assert(info.bytes > minBytes, `资源 ${u} 字节异常偏小: ${info.bytes}`);
     }
     for (const term of FORBIDDEN_TEXT) {
       assert(!lobbyChecks.bodyText.includes(term), `大厅 DOM 出现旧文案: ${term}`);
@@ -535,7 +506,7 @@ async function run() {
       );
     }
     console.log(
-      `[2/4] 6 英雄 0 偏差 + 全6英雄伴生灵宠(${HERO_IDS.map((id) => `${id}:${lobbyChecks.heroModels[id].triangles}`).join(',')}) + 6野怪(${JSON.stringify(lobbyChecks.monsterTriangles)}) + 程序化音轨(${lobbyChecks.audioStats.track}, notes=${lobbyChecks.audioStats.notes}, played=${lobbyChecks.audioStats.played}, sfx=${lobbyChecks.proceduralAudioInfo?.patchedSfxCount}) 就绪`,
+      `[2/4] 6 英雄 0 偏差 + 全6英雄伴生灵宠(${HERO_IDS.map((id) => `${id}:${lobbyChecks.heroModels[id].triangles}`).join(',')}) + 6野怪(${JSON.stringify(lobbyChecks.monsterTriangles)}) + 实录随机BGM(${lobbyChecks.audioStats.firstSong}->${lobbyChecks.audioStats.secondSong}, sfx=${lobbyChecks.proceduralAudioInfo?.patchedSfxCount}) 就绪`,
     );
 
     await page.screenshot({ path: path.join(SHOT_DIR, 'v2_01_lobby_1280x720.png') });
@@ -588,11 +559,53 @@ async function run() {
     });
     await wait(250);
 
-    // 进入选将殿堂
+    // 进入选将殿堂（默认立绘模式：校验全部 6 英雄居中、且「立绘|3D演武」按钮不遮挡头部）
     await page.click('.ts-lobby .ts-btn-seal');
     await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6);
     await wait(900);
     await page.screenshot({ path: path.join(SHOT_DIR, 'v2_02_select_sushi_pc_1280x720.png') });
+
+    for (const heroId of HERO_IDS) {
+      await page.evaluate((id) => {
+        document.querySelector(`.sf-hcard[data-hero="${id}"]`)?.click();
+      }, heroId);
+      await wait(320);
+      const pcDesktopLayout = await page.evaluate(() => {
+        const rect = (s) => {
+          const r = document.querySelector(s)?.getBoundingClientRect();
+          return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null;
+        };
+        const stage = rect('.sf-select__stage');
+        const artEl = document.querySelector('.ts-select__pc-art');
+        const art = rect('.ts-select__pc-art');
+        const ring = rect('.sf-select__ring');
+        const toggle = rect('.ts-stage-toggle');
+        const plate = rect('.sf-select__plate');
+        const navNext = rect('.sf-select__nav--next');
+        return {
+          ok: !!artEl?.complete && (artEl?.naturalWidth ?? 0) > 0,
+          stageWidth: stage?.width ?? 0,
+          artCenter: art ? art.left + art.width / 2 : 0,
+          ringCenter: ring ? ring.left + ring.width / 2 : 0,
+          art,
+          toggle,
+          plate,
+          navNext,
+        };
+      });
+      assert.equal(pcDesktopLayout.ok, true, `桌面选将 ${heroId} 立绘未加载完成`);
+      assert(
+        Math.abs(pcDesktopLayout.artCenter - pcDesktopLayout.ringCenter) <= pcDesktopLayout.stageWidth * 0.05,
+        `桌面选将 ${heroId} 立绘未与鎏金圆环居中对齐: ${JSON.stringify(pcDesktopLayout)}`,
+      );
+      const { art: dArt, toggle: dToggle, plate: dPlate, navNext: dNav } = pcDesktopLayout;
+      const headClear =
+        dToggle.top >= dArt.top + dArt.height * 0.62 || dToggle.left >= dArt.right || dToggle.right <= dArt.left;
+      assert(headClear, `桌面选将 ${heroId} 切换按钮遮挡英雄头部/上身: ${JSON.stringify({ dArt, dToggle })}`);
+      const noOverlap = (a, b) => !a || !b || a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
+      assert(noOverlap(dToggle, dPlate), `桌面选将 ${heroId} 切换按钮与名号牌重叠`);
+      assert(noOverlap(dToggle, dNav), `桌面选将 ${heroId} 切换按钮与右切换键重叠`);
+    }
 
     // 切至 3D 演武模式并依次截取 6 大唐宋名士 3D 特写！
     await page.evaluate(() => {
@@ -611,7 +624,7 @@ async function run() {
       await page.screenshot({ path: path.join(SHOT_DIR, `v2_select_3d_${heroId}.png`) });
     }
 
-    // 竖屏手机的 3D 舞台应与圆环对齐，人物信息留在圆环中心左侧。
+    // 竖屏手机的立绘与 3D 舞台都应与圆环居中对齐，切换钮不得遮挡英雄头部，人物信息留在圆环中心左侧。
     for (const [width, height] of [[320, 740], [390, 844], [430, 932]]) {
       await page.setViewport({ width, height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
       await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
@@ -620,6 +633,50 @@ async function run() {
         await page.click('.ts-lobby .ts-btn-seal');
         await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6, 30_000);
       }
+      await page.evaluate(() => {
+        [...document.querySelectorAll('.ts-stage-toggle button')]
+          .find((button) => button.textContent?.includes('立绘'))?.click();
+      });
+      await wait(450);
+      const portraitPcLayout = await page.evaluate(() => {
+        const rect = (s) => {
+          const r = document.querySelector(s)?.getBoundingClientRect();
+          return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null;
+        };
+        const stage = rect('.sf-select__stage');
+        const art = rect('.ts-select__pc-art');
+        const ring = rect('.sf-select__ring');
+        const plate = rect('.sf-select__plate');
+        const toggle = rect('.ts-stage-toggle');
+        return {
+          stageWidth: stage.width,
+          artCenter: art.left + art.width / 2,
+          ringCenter: ring.left + ring.width / 2,
+          plateRight: plate.right,
+          art,
+          toggle,
+          plate,
+        };
+      });
+      assert(
+        Math.abs(portraitPcLayout.artCenter - portraitPcLayout.ringCenter) <= portraitPcLayout.stageWidth * 0.06,
+        `${width}x${height} 立绘人物与圆环未居中对齐: ${JSON.stringify(portraitPcLayout)}`,
+      );
+      const pClear =
+        portraitPcLayout.toggle.top >= portraitPcLayout.art.top + portraitPcLayout.art.height * 0.58 ||
+        portraitPcLayout.toggle.left >= portraitPcLayout.art.right ||
+        portraitPcLayout.toggle.right <= portraitPcLayout.art.left;
+      assert(pClear, `${width}x${height} 立绘按钮遮挡英雄头部/上身: ${JSON.stringify(portraitPcLayout)}`);
+      const pNoPlateOverlap =
+        portraitPcLayout.toggle.right <= portraitPcLayout.plate.left ||
+        portraitPcLayout.toggle.left >= portraitPcLayout.plate.right ||
+        portraitPcLayout.toggle.bottom <= portraitPcLayout.plate.top ||
+        portraitPcLayout.toggle.top >= portraitPcLayout.plate.bottom;
+      assert(pNoPlateOverlap, `${width}x${height} 立绘切换按钮与名号牌重叠: ${JSON.stringify(portraitPcLayout)}`);
+      if (width === 390) {
+        await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_390x844.png') });
+      }
+
       await page.evaluate(() => {
         [...document.querySelectorAll('.ts-stage-toggle button')]
           .find((button) => button.textContent?.includes('3D'))?.click();
@@ -986,7 +1043,11 @@ async function run() {
           castSounds,
           hasCutin: !!cutin?.querySelector('img')?.naturalWidth,
           brokenImgs: imgs.filter((x) => !x.ok),
-          battleAudioStats: { ...moba.audio.debug.stats(), scheduledNotes: moba.audio.music?.scheduledNotes ?? 0 },
+          battleAudioStats: {
+            ...moba.audio.debug.stats(),
+            scheduledNotes: moba.audio.music?.scheduledNotes ?? 0,
+            currentSong: moba.audio.music?.currentSong ?? null,
+          },
         };
       }, heroId);
 
@@ -1011,19 +1072,19 @@ async function run() {
         'battle',
         `局内 BGM track 应为 battle，实际 ${res.battleAudioStats.track}`,
       );
-      if (res.battleAudioStats.scheduledNotes === 0) {
-        // 检查本曲目累计调度的音符，避免把乐句间的空队列当成失败。
+      if (!res.battleAudioStats.currentSong) {
         const audio = await page.waitForFunction(() => {
           const stats = window.__moba?.audio?.debug?.stats?.();
+          const currentSong = window.__moba?.audio?.music?.currentSong ?? null;
           const scheduledNotes = window.__moba?.audio?.music?.scheduledNotes ?? 0;
-          return stats?.track === 'battle' && scheduledNotes > 0 ? { ...stats, scheduledNotes } : false;
+          return stats?.track === 'battle' && currentSong ? { ...stats, currentSong, scheduledNotes } : false;
         }, { timeout: 15_000 });
         res.battleAudioStats = await audio.jsonValue();
         await audio.dispose();
       }
       assert(
-        res.battleAudioStats.scheduledNotes > 0,
-        `局内程序化战鼓乐音符未调度: ${JSON.stringify(res.battleAudioStats)}`,
+        !!res.battleAudioStats.currentSong && res.battleAudioStats.scheduledNotes > 0,
+        `局内实录 BGM 未就绪: ${JSON.stringify(res.battleAudioStats)}`,
       );
       assert.equal(res.brokenImgs.length, 0, `存在破损图片: ${JSON.stringify(res.brokenImgs)}`);
 
@@ -1653,7 +1714,7 @@ async function run() {
         timeout: 60_000,
       });
       await waitForCondition(page, () => window.__moba?.phase === 'match' && !!window.__moba?.renderer, 60_000);
-      await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 3, 30_000);
+      await waitForCondition(page, () => document.querySelectorAll('.ts-rally-btn').length === 1, 30_000);
       await wait(450);
       viewMetrics[vpName] = {};
 
@@ -1664,23 +1725,57 @@ async function run() {
         const wasOn = quick.classList.contains('is-on');
         quick.classList.add('is-on');
         quick.getAnimations().forEach((animation) => animation.finish());
-        const controls = [...document.querySelectorAll('.ts-team-orders button')];
-        const targets = [document.querySelector('.sf-hud__shopbtn'), ...controls, quick];
-        const rects = targets.map((el) => {
+        const rallyBtn = document.querySelector('.ts-rally-btn');
+        const shopBtn = document.querySelector('.sf-hud__shopbtn');
+        const rectOf = (el) => {
           const rect = el.getBoundingClientRect();
           const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, hit: el === hit || el.contains(hit) };
-        });
+          return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            bottom: rect.bottom,
+            hit: el === hit || el.contains(hit),
+          };
+        };
+        const rallyRect = rectOf(rallyBtn);
+        const shopRect = rectOf(shopBtn);
+        const quickRect = rectOf(quick);
+        const skillRects = [...document.querySelectorAll('.sf-hud__sk')].map((el) => el.getBoundingClientRect());
+        const topRect = document.querySelector('.sf-hud__tr')?.getBoundingClientRect() ?? null;
         if (!wasOn) quick.classList.remove('is-on');
         session.loop.start();
-        return { rects, width: innerWidth, height: innerHeight };
+        return {
+          orderButtonCount: document.querySelectorAll('[data-order]').length,
+          rallyRect,
+          shopRect,
+          quickRect,
+          skillRects: skillRects.map((r) => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom })),
+          topRect: topRect ? { left: topRect.left, right: topRect.right, top: topRect.top, bottom: topRect.bottom } : null,
+          width: innerWidth,
+          height: innerHeight,
+        };
       });
-      for (let i = 0; i < commandLayout.rects.length; i++) {
-        const rect = commandLayout.rects[i];
-        assert(rect.hit && rect.left >= 0 && rect.right <= commandLayout.width && rect.top >= 0 && rect.bottom <= commandLayout.height,
-          `${vpName} 商店、队友指令或快捷购买不可点击: ${JSON.stringify(commandLayout)}`);
-        if (i) assert(rect.left >= commandLayout.rects[i - 1].right, `${vpName} 控件相互遮挡: ${JSON.stringify(commandLayout)}`);
+      assert.equal(commandLayout.orderButtonCount, 1, `${vpName} 战术指令应精简为单个「集合」按钮`);
+      for (const [label, rect] of [
+        ['shop', commandLayout.shopRect],
+        ['quick', commandLayout.quickRect],
+        ['rally', commandLayout.rallyRect],
+      ]) {
+        assert(
+          rect.hit && rect.left >= 0 && rect.right <= commandLayout.width && rect.top >= 0 && rect.bottom <= commandLayout.height,
+          `${vpName} ${label} 按钮越界或不可点击: ${JSON.stringify(commandLayout)}`,
+        );
       }
+      assert(commandLayout.quickRect.left >= commandLayout.shopRect.right, `${vpName} 商店与快捷购买重叠`);
+      const overlaps = (a, b) => !!a && !!b && !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+      assert(
+        !overlaps(commandLayout.rallyRect, commandLayout.shopRect) &&
+          !overlaps(commandLayout.rallyRect, commandLayout.quickRect) &&
+          !overlaps(commandLayout.rallyRect, commandLayout.topRect) &&
+          commandLayout.skillRects.every((sr) => !overlaps(commandLayout.rallyRect, sr)),
+        `${vpName} 「集合」按钮与其他 HUD 控件发生重叠: ${JSON.stringify(commandLayout)}`,
+      );
 
       for (const preset of ['near', 'standard', 'wide']) {
         const m = await page.evaluate((key) => {
@@ -1720,8 +1815,8 @@ async function run() {
     const persisted = await page.evaluate(() => window.__moba.getCameraPreset());
     assert.equal(persisted, 'standard');
 
-    // 使用真实模拟器验证队友自动支援、防平A误触发、集合推线/打野、撤退指令、指令续期与危险自保。
-    await waitForCondition(page, () => document.querySelectorAll('.ts-team-orders button').length === 3, 30_000);
+    // 验证队友被动近身协防、防平A误拉、按住移动摇杆多点触控直发「集合」、PC C键热键、全图响应与危险自保
+    await waitForCondition(page, () => document.querySelectorAll('.ts-rally-btn').length === 1, 30_000);
     const teamwork = await page.evaluate(() => {
       const { world, state, session } = window.__moba;
       session.loop.stop();
@@ -1763,9 +1858,8 @@ async function run() {
         }
         return { labels: [...labels], focus: [...focus] };
       };
-      const gatherButton = document.querySelector('[data-order="gather"]');
-      const attackButton = document.querySelector('[data-order="attack"]');
-      const retreatButton = document.querySelector('[data-order="retreat"]');
+      const gatherButton = document.querySelector('.ts-rally-btn[data-order="gather"]');
+      const field = document.querySelector('.sf-hud__field');
 
       reset();
       position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
@@ -1788,14 +1882,31 @@ async function run() {
       world.grid.rebuild(state.units);
       const plainAttack = step(30);
 
+      // 多点触控测试：左手正在按住摇杆拖移时，右手 pointerdown 点击「集合」仍即刻触发且全图队友响应（距离 > 45 单位）
       reset();
-      position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
+      position(me, -5, 5); position(ally, 28, -28); position(foe, 44, -44);
       world.grid.rebuild(state.units);
-      gatherButton.click();
+      const btnRect = gatherButton.getBoundingClientRect();
+      field.dispatchEvent(new PointerEvent('pointerdown', {
+        pointerId: 11, pointerType: 'touch', clientX: 110, clientY: innerHeight - 110, bubbles: true, cancelable: true,
+      }));
+      gatherButton.dispatchEvent(new PointerEvent('pointerdown', {
+        pointerId: 12,
+        pointerType: 'touch',
+        clientX: btnRect.left + btnRect.width / 2,
+        clientY: btnRect.top + btnRect.height / 2,
+        bubbles: true,
+        cancelable: true,
+      }));
+      const multiTouchActive = gatherButton.classList.contains('is-active');
+      const feedbackAfterPointer = document.querySelector('.ts-rally-feedback').textContent;
+      gatherButton.dispatchEvent(new PointerEvent('pointerup', { pointerId: 12, pointerType: 'touch', bubbles: true }));
+      field.dispatchEvent(new PointerEvent('pointerup', { pointerId: 11, pointerType: 'touch', bubbles: true }));
       const beforeGather = Math.hypot(ally.pos.x - me.pos.x, ally.pos.y - me.pos.y);
       const gather = step(90);
       gather.approach = beforeGather - Math.hypot(ally.pos.x - me.pos.x, ally.pos.y - me.pos.y);
-      gather.feedback = document.querySelector('.ts-team-orders__feedback').textContent;
+      gather.feedback = feedbackAfterPointer;
+      gather.multiTouchActive = multiTouchActive;
 
       // 集合到位且身边有可打目标时，队友应主动协助进攻而非原地罚站
       const monster = state.units.find((unit) => unit.kind === 'monster' && unit.alive);
@@ -1814,25 +1925,17 @@ async function run() {
         monster.pos.y = monster.prevPos.y = origPos.y;
       }
 
+      // PC 端 KeyC 热键测试（不与 WASD 冲突）
       reset();
-      position(me, -3, 3); position(ally, -11, 11); position(foe, 0, 0);
-      foe.visible[me.team] = true;
+      position(me, -5, 5); position(ally, -20, 20); position(foe, 44, -44);
       world.grid.rebuild(state.units);
-      world.step();
-      attackButton.click();
-      const attack = step(60);
+      gatherButton.classList.remove('is-active');
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyC', key: 'c', bubbles: true, cancelable: true }));
+      const keyHotkeyActive = gatherButton.classList.contains('is-active');
+      const keyGather = step(45);
 
-      // 撤退指令下，附近受敌方威胁的队友应向己方基地回撤
-      reset();
-      position(me, -4, 4); position(ally, -6, 6); position(foe, 1, -1);
-      foe.visible[me.team] = true;
-      world.grid.rebuild(state.units);
-      const beforeRetreatDist = Math.hypot(ally.pos.x - bot.home.x, ally.pos.y - bot.home.y);
-      retreatButton.click();
-      const retreat = step(60);
-      retreat.homeDelta = beforeRetreatDist - Math.hypot(ally.pos.x - bot.home.x, ally.pos.y - bot.home.y);
-      retreat.feedback = document.querySelector('.ts-team-orders__feedback').textContent;
-
+      // 先将上一段全图令走完（10s = 300步），再检验低血量危险自保
+      step(310);
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
       ally.hp = ally.stats.maxHp * 0.25;
@@ -1840,15 +1943,16 @@ async function run() {
       gatherButton.click();
       const lowHealth = step(30);
 
+      // 重复点击可续期（ORDER_DURATION = 10s = 300 步），到期后自动结束
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
       world.grid.rebuild(state.units);
-      gatherButton.click(); step(180); gatherButton.click(); step(105);
+      gatherButton.click(); step(210); gatherButton.click(); step(150);
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
       world.grid.rebuild(state.units);
       const repeated = step(15);
-      step(150);
+      step(180);
       reset();
       position(me, -5, 5); position(ally, -16, 16); position(foe, 44, -44);
       world.grid.rebuild(state.units);
@@ -1862,21 +1966,38 @@ async function run() {
       world.grid.rebuild(state.units);
       gatherButton.click();
       const towerRisk = step(30);
-      return { foeId: foe.id, automatic, plainAttack, gather, gatherPush, attack, retreat, lowHealth, repeated, expired, towerRisk };
+      return {
+        foeId: foe.id,
+        automatic,
+        plainAttack,
+        gather,
+        gatherPush,
+        hotkey: { active: keyHotkeyActive, labels: keyGather.labels },
+        lowHealth,
+        repeated,
+        expired,
+        towerRisk,
+      };
     });
     assert(teamwork.automatic.labels.includes('assist-player') && teamwork.automatic.focus.includes(teamwork.foeId) && teamwork.automatic.approach > 2,
       `玩家开战时队友未支援: ${JSON.stringify(teamwork)}`);
     assert(!teamwork.plainAttack.labels.includes('assist-player'),
       `玩家未锁定敌方英雄的普通攻击不应误触发队友支援: ${JSON.stringify(teamwork.plainAttack)}`);
-    assert(teamwork.gather.labels.includes('gather-player') && teamwork.gather.approach > 2 && teamwork.gather.feedback,
-      `集合指令未生效: ${JSON.stringify(teamwork)}`);
+    assert(
+      teamwork.gather.multiTouchActive &&
+        teamwork.gather.labels.includes('gather-player') &&
+        teamwork.gather.approach > 2 &&
+        teamwork.gather.feedback,
+      `全图「集合」或摇杆多点触控直发未生效: ${JSON.stringify(teamwork)}`,
+    );
     if (teamwork.gatherPush.hasMonster) {
       assert(teamwork.gatherPush.labels.includes('gather-push'),
         `集合到位后队友不应原地罚站，应协助攻击附近目标: ${JSON.stringify(teamwork.gatherPush)}`);
     }
-    assert(teamwork.attack.labels.includes('assist-player') && teamwork.attack.focus.includes(teamwork.foeId), `进攻指令未聚焦敌人: ${JSON.stringify(teamwork)}`);
-    assert(teamwork.retreat.labels.includes('retreat-order') && teamwork.retreat.homeDelta > 1.5 && teamwork.retreat.feedback,
-      `撤退指令未促使受威胁队友回撤: ${JSON.stringify(teamwork.retreat)}`);
+    assert(
+      teamwork.hotkey.active && teamwork.hotkey.labels.includes('gather-player'),
+      `PC C 键集合热键未生效: ${JSON.stringify(teamwork.hotkey)}`,
+    );
     assert(!teamwork.lowHealth.labels.some((label) => label.includes('gather')) && !teamwork.towerRisk.labels.some((label) => label.includes('gather')),
       `危险情况下不应强制队友集合: ${JSON.stringify(teamwork)}`);
     assert(teamwork.repeated.labels.includes('gather-player') && !teamwork.expired.labels.includes('gather-player'),
