@@ -152,17 +152,50 @@ function startStaticServer(rootDir) {
       const rel = urlPath === '/' ? 'index.html' : urlPath.replace(/^\/+/, '');
       const full = path.resolve(rootDir, rel);
       if (!full.startsWith(rootDir)) {
-        res.writeHead(403).end('Forbidden');
+        res.writeHead(403, { Connection: 'close' }).end('Forbidden');
         return;
       }
       if (!fs.existsSync(full) || fs.statSync(full).isDirectory()) {
-        res.writeHead(404).end('Not Found');
+        res.writeHead(404, { Connection: 'close' }).end('Not Found');
         return;
       }
+      const stat = fs.statSync(full);
+      const total = stat.size;
       const ext = path.extname(full).toLowerCase();
-      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-      fs.createReadStream(full).pipe(res);
+      const contentType = MIME[ext] || 'application/octet-stream';
+      const rangeHeader = req.headers.range;
+      let start = 0;
+      let end = total - 1;
+      let statusCode = 200;
+      const headers = {
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+        Connection: 'close',
+      };
+      if (typeof rangeHeader === 'string' && /^bytes=\d*-\d*$/.test(rangeHeader) && total > 0) {
+        const [rawStart, rawEnd] = rangeHeader.replace('bytes=', '').split('-');
+        start = rawStart ? Number(rawStart) : Math.max(0, total - Number(rawEnd));
+        end = rawStart && rawEnd ? Math.min(total - 1, Number(rawEnd)) : total - 1;
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= total) {
+          res.writeHead(416, { 'Content-Range': `bytes */${total}`, Connection: 'close' }).end();
+          return;
+        }
+        statusCode = 206;
+        headers['Content-Range'] = `bytes ${start}-${end}/${total}`;
+      }
+      const length = total > 0 ? end - start + 1 : 0;
+      headers['Content-Length'] = String(length);
+      res.writeHead(statusCode, headers);
+      if (length === 0 || req.method === 'HEAD') {
+        res.end();
+        return;
+      }
+      const stream = fs.createReadStream(full, { start, end });
+      res.on('close', () => stream.destroy());
+      stream.on('error', () => res.destroy());
+      stream.pipe(res);
     });
+    server.keepAliveTimeout = 1000;
     server.on('error', reject);
     server.listen(0, '127.0.0.1', () => {
       const addr = server.address();
@@ -624,7 +657,7 @@ async function run() {
       await page.screenshot({ path: path.join(SHOT_DIR, `v2_select_3d_${heroId}.png`) });
     }
 
-    // 竖屏手机的立绘与 3D 舞台都应与圆环居中对齐，切换钮不得遮挡英雄头部，人物信息留在圆环中心左侧。
+    // 竖屏手机的立绘与 3D 舞台都应居于屏幕正中（与圆环及舞台中线对齐），切换钮与名号牌均不遮挡英雄头部。
     for (const [width, height] of [[320, 740], [390, 844], [430, 932]]) {
       await page.setViewport({ width, height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
       await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
@@ -638,43 +671,62 @@ async function run() {
           .find((button) => button.textContent?.includes('立绘'))?.click();
       });
       await wait(450);
-      const portraitPcLayout = await page.evaluate(() => {
-        const rect = (s) => {
-          const r = document.querySelector(s)?.getBoundingClientRect();
-          return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null;
-        };
-        const stage = rect('.sf-select__stage');
-        const art = rect('.ts-select__pc-art');
-        const ring = rect('.sf-select__ring');
-        const plate = rect('.sf-select__plate');
-        const toggle = rect('.ts-stage-toggle');
-        return {
-          stageWidth: stage.width,
-          artCenter: art.left + art.width / 2,
-          ringCenter: ring.left + ring.width / 2,
-          plateRight: plate.right,
-          art,
-          toggle,
-          plate,
-        };
-      });
-      assert(
-        Math.abs(portraitPcLayout.artCenter - portraitPcLayout.ringCenter) <= portraitPcLayout.stageWidth * 0.06,
-        `${width}x${height} 立绘人物与圆环未居中对齐: ${JSON.stringify(portraitPcLayout)}`,
-      );
-      const pClear =
-        portraitPcLayout.toggle.top >= portraitPcLayout.art.top + portraitPcLayout.art.height * 0.58 ||
-        portraitPcLayout.toggle.left >= portraitPcLayout.art.right ||
-        portraitPcLayout.toggle.right <= portraitPcLayout.art.left;
-      assert(pClear, `${width}x${height} 立绘按钮遮挡英雄头部/上身: ${JSON.stringify(portraitPcLayout)}`);
-      const pNoPlateOverlap =
-        portraitPcLayout.toggle.right <= portraitPcLayout.plate.left ||
-        portraitPcLayout.toggle.left >= portraitPcLayout.plate.right ||
-        portraitPcLayout.toggle.bottom <= portraitPcLayout.plate.top ||
-        portraitPcLayout.toggle.top >= portraitPcLayout.plate.bottom;
-      assert(pNoPlateOverlap, `${width}x${height} 立绘切换按钮与名号牌重叠: ${JSON.stringify(portraitPcLayout)}`);
-      if (width === 390) {
-        await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_390x844.png') });
+
+      const heroesToInspect = width === 390 ? HERO_IDS : ['sushi'];
+      for (const hId of heroesToInspect) {
+        await page.evaluate((id) => {
+          document.querySelector(`.sf-hcard[data-hero="${id}"]`)?.click();
+        }, hId);
+        await wait(280);
+        const portraitPcLayout = await page.evaluate(() => {
+          const rect = (s) => {
+            const r = document.querySelector(s)?.getBoundingClientRect();
+            return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null;
+          };
+          const stage = rect('.sf-select__stage');
+          const art = rect('.ts-select__pc-art');
+          const ring = rect('.sf-select__ring');
+          const plate = rect('.sf-select__plate');
+          const toggle = rect('.ts-stage-toggle');
+          return {
+            stageWidth: stage.width,
+            stageLeft: stage.left,
+            stageCenter: stage.left + stage.width / 2,
+            artCenter: art.left + art.width / 2,
+            ringCenter: ring.left + ring.width / 2,
+            plateRight: plate.right,
+            art,
+            toggle,
+            plate,
+          };
+        });
+        assert(
+          Math.abs(portraitPcLayout.artCenter - portraitPcLayout.stageCenter) <= portraitPcLayout.stageWidth * 0.03 &&
+            Math.abs(portraitPcLayout.artCenter - portraitPcLayout.ringCenter) <= portraitPcLayout.stageWidth * 0.03,
+          `${width}x${height} ${hId} 立绘人物未在屏幕舞台正中或未与圆环对齐: ${JSON.stringify(portraitPcLayout)}`,
+        );
+        assert(
+          portraitPcLayout.plateRight <= portraitPcLayout.stageLeft + portraitPcLayout.stageWidth * 0.38 &&
+            portraitPcLayout.plateRight <= portraitPcLayout.art.left + portraitPcLayout.art.width * 0.34,
+          `${width}x${height} ${hId} 名号牌文字越界遮挡立绘头部/主躯干: ${JSON.stringify(portraitPcLayout)}`,
+        );
+        const pClear =
+          portraitPcLayout.toggle.top >= portraitPcLayout.art.top + portraitPcLayout.art.height * 0.62 ||
+          portraitPcLayout.toggle.left >= portraitPcLayout.art.right ||
+          portraitPcLayout.toggle.right <= portraitPcLayout.art.left;
+        assert(pClear, `${width}x${height} ${hId} 立绘按钮遮挡英雄头部/上身: ${JSON.stringify(portraitPcLayout)}`);
+        const pNoPlateOverlap =
+          portraitPcLayout.toggle.right <= portraitPcLayout.plate.left ||
+          portraitPcLayout.toggle.left >= portraitPcLayout.plate.right ||
+          portraitPcLayout.toggle.bottom <= portraitPcLayout.plate.top ||
+          portraitPcLayout.toggle.top >= portraitPcLayout.plate.bottom;
+        assert(pNoPlateOverlap, `${width}x${height} ${hId} 立绘切换按钮与名号牌重叠: ${JSON.stringify(portraitPcLayout)}`);
+        if (width === 390 && hId === 'sushi') {
+          await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_390x844.png') });
+        }
+        if (width === 390 && hId === 'wencheng') {
+          await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_wencheng_390x844.png') });
+        }
       }
 
       await page.evaluate(() => {
@@ -691,14 +743,16 @@ async function run() {
         const plate = rect('.sf-select__plate');
         return {
           stageWidth: stage.width,
+          stageCenter: stage.left + stage.width / 2,
           canvasCenter: canvas.left + canvas.width / 2,
           ringCenter: ring.left + ring.width / 2,
           plateRight: plate.right,
         };
       });
       assert(
-        Math.abs(layout.canvasCenter - layout.ringCenter) <= layout.stageWidth * 0.04,
-        `${width}x${height} 3D 人物画布与圆环未对齐: ${JSON.stringify(layout)}`,
+        Math.abs(layout.canvasCenter - layout.stageCenter) <= layout.stageWidth * 0.04 &&
+          Math.abs(layout.canvasCenter - layout.ringCenter) <= layout.stageWidth * 0.04,
+        `${width}x${height} 3D 人物画布与屏幕中心或圆环未对齐: ${JSON.stringify(layout)}`,
       );
       assert(layout.plateRight < layout.ringCenter, `${width}x${height} 人物信息遮挡舞台中心: ${JSON.stringify(layout)}`);
       if (width === 390) {
@@ -2027,7 +2081,31 @@ async function run() {
       ),
     );
   } finally {
-    await browser.close();
+    const pages = await browser.pages().catch(() => []);
+    await Promise.all(
+      pages.map((p) =>
+        p
+          .evaluate(() => {
+            window.__moba?.audio?.dispose?.();
+            document.querySelectorAll('audio').forEach((a) => {
+              a.pause();
+              a.removeAttribute('src');
+            });
+          })
+          .catch(() => {}),
+      ),
+    );
+    await Promise.race([
+      browser.close().catch(() => {}),
+      wait(5000).then(() => {
+        try {
+          browser.process()?.kill('SIGKILL');
+        } catch {
+          // ignore
+        }
+      }),
+    ]);
+    server.closeAllConnections?.();
     server.close();
   }
 }

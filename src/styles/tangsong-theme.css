@@ -790,14 +790,23 @@ body .sf-root .sf-hcard.is-active {
     display: none;
   }
   .ts-select__pc-wrap {
-    inset: 2px 0 0 35%;
+    inset: 2px 0 0 0;
   }
   .sf-select__stage { overflow: hidden; }
   body .sf-root .sf-select__plate {
-    top: 8px;
+    top: 4px;
+    left: 2px;
     right: auto;
-    width: 41%;
-    max-width: 41%;
+    width: 33%;
+    max-width: 33%;
+    gap: 2px;
+  }
+  .ts-select__era-pill {
+    padding: 1px 7px;
+    font-size: 10px;
+  }
+  .ts-select__motto {
+    display: none;
   }
   .ts-stage-toggle {
     top: auto;
@@ -809,14 +818,23 @@ body .sf-root .sf-hcard.is-active {
     padding: 3px 9px;
     font-size: 11px;
   }
-  body .sf-root .sf-select__name { font-size: clamp(23px, 7vw, 32px); }
+  body .sf-root .sf-select__name {
+    font-size: clamp(18px, 5vw, 24px);
+    letter-spacing: 0.04em;
+  }
   body .sf-root .sf-select__name-role { display: none; }
-  body .sf-root .sf-select__rings { left: 35%; right: 0; }
-  body .sf-root .sf-select__glow { left: 35%; right: 2%; }
-  body .sf-root .sf-select__stage.is-3d-mode .sf-select__plate { width: 36%; max-width: 36%; }
+  body .sf-root .sf-select__sub {
+    gap: 5px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+  body .sf-root .sf-select__sub::before { width: 10px; }
+  body .sf-root .sf-select__rings { left: 0; right: 0; }
+  body .sf-root .sf-select__glow { left: 8%; right: 8%; }
+  body .sf-root .sf-select__stage.is-3d-mode .sf-select__plate { width: 33%; max-width: 33%; }
   body .sf-root .sf-select__stage.is-3d-mode .sf-select__canvas {
-    inset: -16% 0 auto 35%;
-    width: 65%;
+    inset: -16% 0 auto 0;
+    width: 100%;
     height: 135%;
   }
 }
