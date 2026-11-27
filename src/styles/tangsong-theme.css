@@ -657,20 +657,6 @@ body .sf-root .sf-hcard.is-active {
   justify-content: center;
   pointer-events: none;
   z-index: 1;
-  opacity: 1;
-  transform: scale(1) translateY(0);
-  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.sf-select__stage.is-3d-mode .ts-select__pc-wrap {
-  opacity: 0;
-  transform: scale(0.96) translateY(10px);
-}
-.sf-select__stage .sf-select__canvas {
-  transition: opacity 0.25s ease;
-}
-.sf-select__stage:not(.is-3d-mode) .sf-select__canvas {
-  opacity: 0;
-  pointer-events: none;
 }
 .ts-select__pc-art {
   max-width: 100%;
@@ -679,7 +665,7 @@ body .sf-root .sf-hcard.is-active {
   height: 100%;
   object-fit: contain;
   object-position: 50% 96%;
-  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 24px color-mix(in srgb, var(--hero, #e9bd62) 34%, transparent));
+  filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.84)) drop-shadow(0 0 28px color-mix(in srgb, var(--hero, #e9bd62) 38%, transparent));
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
   mask-image: linear-gradient(180deg, #000 0%, #000 84%, transparent 100%);
   animation: ts-pc-float 4.2s ease-in-out infinite;
@@ -716,49 +702,12 @@ body .sf-root .sf-hcard.is-active {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
 }
 
-.ts-stage-toggle {
-  position: absolute;
-  right: calc(var(--sf-u, 1px) * 8);
-  top: auto;
-  bottom: calc(var(--sf-u, 1px) * 8);
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 99px;
-  background: rgba(24, 15, 11, 0.86);
-  border: 1px solid rgba(233, 189, 98, 0.45);
-  backdrop-filter: blur(8px);
-}
-.ts-stage-toggle button {
-  border: 0;
-  margin: 0;
-  padding: 4px 12px;
-  border-radius: 99px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(240, 226, 200, 0.76);
-  background: transparent;
-  transition: background 0.18s ease, color 0.18s ease;
-}
-.ts-stage-toggle button.is-active {
-  color: #241207;
-  background: linear-gradient(180deg, #ffedb3, #d99f3c);
-}
-
 @media (max-height: 520px) and (orientation: landscape) {
   .ts-hcard__era {
     display: none;
   }
   .ts-select__pc-wrap {
     inset: calc(var(--sf-u, 1px) * 4) 4% calc(var(--sf-u, 1px) * 2) 4%;
-  }
-  .ts-stage-toggle {
-    top: auto;
-    bottom: calc(var(--sf-u, 1px) * 3);
-    right: calc(var(--sf-u, 1px) * 4);
   }
 }
 
@@ -808,16 +757,6 @@ body .sf-root .sf-hcard.is-active {
   .ts-select__motto {
     display: none;
   }
-  .ts-stage-toggle {
-    top: auto;
-    bottom: 4px;
-    right: 4px;
-    padding: 2px;
-  }
-  .ts-stage-toggle button {
-    padding: 3px 9px;
-    font-size: 11px;
-  }
   body .sf-root .sf-select__name {
     font-size: clamp(18px, 5vw, 24px);
     letter-spacing: 0.04em;
@@ -831,12 +770,6 @@ body .sf-root .sf-hcard.is-active {
   body .sf-root .sf-select__sub::before { width: 10px; }
   body .sf-root .sf-select__rings { left: 0; right: 0; }
   body .sf-root .sf-select__glow { left: 8%; right: 8%; }
-  body .sf-root .sf-select__stage.is-3d-mode .sf-select__plate { width: 33%; max-width: 33%; }
-  body .sf-root .sf-select__stage.is-3d-mode .sf-select__canvas {
-    inset: -16% 0 auto 0;
-    width: 100%;
-    height: 135%;
-  }
 }
 
 /* ── 7. 局内朱漆鎏金 HUD 全面重写（覆盖所有深蓝科幻控件） ── */
@@ -980,17 +913,18 @@ body .sf-root .sf-hud__sk.is-atk .sf-hud__sk-face {
 
 /* 大招特写与击杀播报共用屏幕边缘，按实际时间淡出。 */
 .ts-eyes-cutin {
-  --cutin-width: min(260px, 27vw);
+  --cutin-width: min(286px, 29vw);
   position: fixed;
   right: max(10px, env(safe-area-inset-right));
   top: calc(env(safe-area-inset-top) + 58px);
   z-index: 950;
   width: var(--cutin-width);
-  height: clamp(44px, 7vh, 57px);
+  height: clamp(48px, 7.6vh, 62px);
   overflow: hidden;
   pointer-events: none;
-  background: #291c18;
-  border-inline-end: 2px solid var(--ts-cutin-color, #e9bd62);
+  background: linear-gradient(120deg, #291a16, #141e1d);
+  border-inline-end: 2.5px solid var(--ts-cutin-color, #e9bd62);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 232, 168, 0.32);
   clip-path: polygon(5% 0, 100% 0, 100% 100%, 0 100%);
   animation: ts-cutin-glance 1.3s linear both;
 }
@@ -1004,16 +938,12 @@ body .sf-root .sf-hud__sk.is-atk .sf-hud__sk-face {
   35%, 72% { opacity: .42; }
   100% { opacity: 0; }
 }
+@keyframes ts-cutin-quiet { 0%, 72% { opacity: .48; } 100% { opacity: 0; } }
 @media (orientation: portrait) {
   .ts-eyes-cutin {
     --cutin-width: min(190px, 44vw);
     top: calc(env(safe-area-inset-top) + 104px);
   }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
-  .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }
-  @keyframes ts-cutin-quiet { 0%, 72% { opacity: .48; } 100% { opacity: 0; } }
 }
 .ts-eyes-cutin__img {
   position: absolute;
@@ -1377,32 +1307,32 @@ body.ts-film .sf-root.sf-menu-root:has(> .sf-screen.is-leaving)::after {
 }
 .ts-seal__bleed {
   position: absolute;
-  inset: 4%;
+  inset: 3%;
   border-radius: 12%;
   background: var(--ts-seal-color);
-  filter: blur(2px);
+  filter: blur(2.4px);
   opacity: 0;
-  animation: ts-seal-bleed 300ms ease-out calc(var(--ts-seal-delay) + 190ms) forwards;
+  animation: ts-seal-bleed 320ms ease-out calc(var(--ts-seal-delay) + 190ms) forwards;
 }
 .ts-seal--ink .ts-seal__bleed { background: #a39b88; }
 @keyframes ts-seal-stamp {
   0% { opacity: 0; transform: scale(1); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
-  50% { opacity: 1; transform: scale(1.15); animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0); }
+  50% { opacity: 1; transform: scale(1.26); animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0); }
   79.2% { opacity: 1; transform: scale(1); animation-timing-function: linear; }
-  89% { opacity: 1; transform: scale(1.05, 0.93); animation-timing-function: linear; }
+  89% { opacity: 1; transform: scale(1.06, 0.91); animation-timing-function: linear; }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes ts-seal-bleed {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 0.5; transform: scale(1.06); }
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 0.6; transform: scale(1.08); }
 }
-/* 落定瞬间的震动：5px 起、指数衰减、180ms 衰尽 */
+/* 落定瞬间的震动：6.5px 起、指数衰减、180ms 衰尽 */
 @keyframes ts-seal-shake {
-  0% { transform: translate3d(0, 5px, 0); }
-  18% { transform: translate3d(-2.6px, -3.1px, 0); }
-  38% { transform: translate3d(1.7px, 1.9px, 0); }
-  58% { transform: translate3d(-0.9px, -1px, 0); }
-  78% { transform: translate3d(0.4px, 0.5px, 0); }
+  0% { transform: translate3d(0, 6.5px, 0); }
+  18% { transform: translate3d(-3.4px, -4px, 0); }
+  38% { transform: translate3d(2.2px, 2.5px, 0); }
+  58% { transform: translate3d(-1.2px, -1.3px, 0); }
+  78% { transform: translate3d(0.5px, 0.6px, 0); }
   100% { transform: none; }
 }
 body:not(.ts-no-shake) .sf-root.sf-result-root.ts-seal-shake:not(.is-closing),
@@ -1454,11 +1384,92 @@ body .sf-root .sf-hud__banner-title {
 body .sf-root .sf-hud__banner.is-t4::before {
   animation: none;
 }
-@media (prefers-reduced-motion: reduce) {
-  .ts-lobby__canvas,
-  .ts-lobby__bg { animation: none; }
-  .ts-seal { animation: none !important; opacity: 1; }
-  .ts-seal__bleed { animation: none !important; opacity: 0.5; transform: scale(1.06); }
-  .ts-seal-shake { animation: none !important; }
-  body .sf-root .sf-hud__banner-title { animation: none; }
+
+/* ── 14. 进草隐蔽水墨边晕与 HUD 状态印标 ── */
+.ts-stealth-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    ellipse 76% 72% at 50% 50%,
+    transparent 52%,
+    rgba(12, 38, 36, 0.34) 80%,
+    rgba(6, 20, 22, 0.64) 100%
+  );
+  transition: opacity 0.24s ease;
 }
+.ts-stealth-veil.is-active {
+  opacity: 1;
+  animation: ts-stealth-breathe 3.6s ease-in-out infinite;
+}
+.ts-stealth-veil.is-revealed {
+  opacity: 0.75;
+  animation: none;
+  background: radial-gradient(
+    ellipse 78% 74% at 50% 50%,
+    transparent 56%,
+    rgba(116, 46, 24, 0.28) 82%,
+    rgba(68, 20, 12, 0.52) 100%
+  );
+}
+@keyframes ts-stealth-breathe {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+
+.ts-stealth-badge {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--hud-b, 6px) + 126px);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 99px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-50%, 8px, 0) scale(0.95);
+  color: #ccf2df;
+  background: linear-gradient(180deg, rgba(16, 46, 42, 0.92), rgba(8, 22, 22, 0.95));
+  border: 1px solid rgba(114, 212, 178, 0.62);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(210, 255, 236, 0.28);
+  font: 600 13px/1.2 var(--ts-font-ui);
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  transition: opacity 0.22s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), color 0.18s ease, border-color 0.18s ease;
+}
+.ts-stealth-badge.is-active {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0) scale(1);
+}
+.ts-stealth-badge.is-revealed {
+  color: #ffdfb2;
+  background: linear-gradient(180deg, rgba(64, 24, 18, 0.92), rgba(28, 12, 10, 0.95));
+  border-color: rgba(242, 152, 92, 0.72);
+}
+.ts-stealth-badge__ico {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+@media (orientation: portrait) {
+  .ts-stealth-badge {
+    bottom: calc(var(--hud-b, 6px) + var(--hud-lift, 0px) + var(--hud-sk, 54px) * 4.55);
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+}
+
+/* 只有玩家手动关掉「演出动效」（body.ts-reduce-motion）时才收成静态；不再受宿主 OS 减少动态静默阉割 */
+body.ts-reduce-motion .ts-lobby__canvas,
+body.ts-reduce-motion .ts-lobby__bg,
+body.ts-reduce-motion .ts-stealth-veil.is-active { animation: none; }
+body.ts-reduce-motion .ts-seal { animation: none !important; opacity: 1; }
+body.ts-reduce-motion .ts-seal__bleed { animation: none !important; opacity: 0.5; transform: scale(1.06); }
+body.ts-reduce-motion .ts-seal-shake { animation: none !important; }
+body.ts-reduce-motion .sf-root .sf-hud__banner-title { animation: none; }
+body.ts-reduce-motion .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
+body.ts-reduce-motion .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }

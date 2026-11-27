@@ -1502,6 +1502,11 @@ export function attachTangSongSfx(
       playGuqin(p, midi(62), 0.6, 1.8, 0.7);
       playBianzhong(p, midi(62), 0.6, 1.6, 0.46);
     });
+    // 隐草：竹叶轻拂 + 极轻一声高音洞箫气声（不抢战斗声）
+    cue(CUE_KEYS['stealth-in'], { len: 0.65, gap: 0.45, rev: 0.3 }, (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, fc1: 880, fct: 0.24, q: 1.4, t: 0, a: 0.015, h: 0.05, d: 0.2, g: 0.11 });
+      playXiao(p, midi(86), 0.02, 0.36, 0.22);
+    });
   }
 
   // 空间：活动混音器换「山谷」冲激响应，并联「城阙」短混响（离线混音器不经过 attach，保持原样）
@@ -1523,7 +1528,7 @@ export function attachTangSongSfx(
   });
 }
 
-export type TangSongCue = 'seal' | 'seal-ink' | 'seal-small' | 'motif-qi' | 'motif-shou';
+export type TangSongCue = 'seal' | 'seal-ink' | 'seal-small' | 'motif-qi' | 'motif-shou' | 'stealth-in';
 
 const CUE_KEYS: Record<TangSongCue, string> = {
   seal: 'cue_seal',
@@ -1531,6 +1536,7 @@ const CUE_KEYS: Record<TangSongCue, string> = {
   'seal-small': 'cue_seal_small',
   'motif-qi': 'cue_motif_qi',
   'motif-shou': 'cue_motif_shou',
+  'stealth-in': 'cue_stealth_in',
 };
 
 let liveMixer: AudioMixerLike | null = null;

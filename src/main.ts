@@ -37,6 +37,7 @@ import { createTangSongWildlife, type WildlifeApi } from './visuals/tangsongWild
 import { createTangSongLobby, type LobbyScreenContext } from './ui/tangsongLobby';
 import { loadingCloseMs, syncMotionClasses } from './ui/tangsongMotion';
 import { createKillSealWatcher, stampResultSeal, type SealCue } from './ui/tangsongSeal';
+import { resetStealth, updateStealth } from './ui/tangsongStealth';
 import { getSkillIcon, getSummonerIcon } from './visuals/tangsongIcons';
 import {
   addTangSongRiverAndGateLandmarks,
@@ -57,6 +58,9 @@ import {
   buildTangSongGroundTexture,
   buildTangSongStoneTexture,
   drawTangSongMinimapBase,
+  patchTangSongBushFrag,
+  patchTangSongBushVert,
+  patchTangSongWaterFrag,
   type CliffTexHelpers,
   type GroundTexHelpers,
   type StoneTexHelpers,
@@ -282,6 +286,9 @@ bootTangSongGlory({
     woBody: TANGSONG_WO_SHIELD_BODY,
     gfPlaza: TANGSONG_GF_PLAZA_PATCH,
     gfRiver: TANGSONG_GF_RIVER_PATCH,
+    bushVert: patchTangSongBushVert,
+    bushFrag: patchTangSongBushFrag,
+    waterFrag: patchTangSongWaterFrag,
   },
   vfxShaders: TANGSONG_VFX_SHADERS,
   patchTangSongSpriteAtlas: (
@@ -323,12 +330,21 @@ bootTangSongGlory({
   onHudEvents: handleHudEvents,
   loadingCloseMs,
   filmShaders: { final: patchFinalShader },
-  onFrame: filmFrame,
+  onSettingsChange() {
+    syncMotionClasses();
+  },
+  onFrame(renderer: Parameters<typeof filmFrame>[0], dt: number, state: Parameters<typeof updateStealth>[0]) {
+    filmFrame(renderer, dt);
+    updateStealth(state, () => playTangSongCue('stealth-in'));
+  },
   onPhaseChange(phase: string) {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('ts-in-match', phase === 'match' || phase === 'loading');
       syncMotionClasses();
-      if (phase !== 'match') killSeal.detach();
+      if (phase !== 'match') {
+        killSeal.detach();
+        resetStealth();
+      }
       if (phase === 'result') stampResultSeal(playSealCue);
       if (phase === 'match') {
         beginEntryShot();

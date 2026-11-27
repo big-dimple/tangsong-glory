@@ -576,11 +576,13 @@ async function run() {
       return {
         hasFullscreen: txt.includes('全屏显示'),
         hasEyesToggle: txt.includes('大招特写切镜'),
+        hasCinematicToggle: txt.includes('演出动效'),
         hasPreview: !!previewBtn,
       };
     });
     assert.equal(settingsCheck.hasFullscreen, true, '设置面板缺少「全屏显示」开关');
     assert.equal(settingsCheck.hasEyesToggle, true, '设置面板缺少「大招特写切镜」开关');
+    assert.equal(settingsCheck.hasCinematicToggle, true, '设置面板缺少「演出动效」开关');
     assert.equal(settingsCheck.hasPreview, true, '设置面板缺少「预览」按钮');
     await waitForCondition(page, () => !!document.querySelector('.ts-eyes-cutin__img'), 5_000);
     await page.evaluate(() => {
@@ -592,7 +594,7 @@ async function run() {
     });
     await wait(250);
 
-    // 进入选将殿堂（默认立绘模式：校验全部 6 英雄居中、且「立绘|3D演武」按钮不遮挡头部）
+    // 进入选将殿堂（纯国风立绘舞台：已移除 3D 演武切换，校验全部 6 英雄立绘加载并居中对齐鎏金圆环）
     await page.click('.ts-lobby .ts-btn-seal');
     await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6);
     await wait(900);
@@ -612,52 +614,25 @@ async function run() {
         const artEl = document.querySelector('.ts-select__pc-art');
         const art = rect('.ts-select__pc-art');
         const ring = rect('.sf-select__ring');
-        const toggle = rect('.ts-stage-toggle');
-        const plate = rect('.sf-select__plate');
-        const navNext = rect('.sf-select__nav--next');
         return {
           ok: !!artEl?.complete && (artEl?.naturalWidth ?? 0) > 0,
+          hasToggle: !!document.querySelector('.ts-stage-toggle'),
+          hasCanvas: !!document.querySelector('.sf-select__canvas'),
           stageWidth: stage?.width ?? 0,
           artCenter: art ? art.left + art.width / 2 : 0,
           ringCenter: ring ? ring.left + ring.width / 2 : 0,
-          art,
-          toggle,
-          plate,
-          navNext,
         };
       });
       assert.equal(pcDesktopLayout.ok, true, `桌面选将 ${heroId} 立绘未加载完成`);
+      assert.equal(pcDesktopLayout.hasToggle, false, '选将舞台不应再渲染 3D 演武切换按钮');
+      assert.equal(pcDesktopLayout.hasCanvas, false, '选将舞台不应再创建多余 3D 演武画布');
       assert(
         Math.abs(pcDesktopLayout.artCenter - pcDesktopLayout.ringCenter) <= pcDesktopLayout.stageWidth * 0.05,
         `桌面选将 ${heroId} 立绘未与鎏金圆环居中对齐: ${JSON.stringify(pcDesktopLayout)}`,
       );
-      const { art: dArt, toggle: dToggle, plate: dPlate, navNext: dNav } = pcDesktopLayout;
-      const headClear =
-        dToggle.top >= dArt.top + dArt.height * 0.62 || dToggle.left >= dArt.right || dToggle.right <= dArt.left;
-      assert(headClear, `桌面选将 ${heroId} 切换按钮遮挡英雄头部/上身: ${JSON.stringify({ dArt, dToggle })}`);
-      const noOverlap = (a, b) => !a || !b || a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
-      assert(noOverlap(dToggle, dPlate), `桌面选将 ${heroId} 切换按钮与名号牌重叠`);
-      assert(noOverlap(dToggle, dNav), `桌面选将 ${heroId} 切换按钮与右切换键重叠`);
     }
 
-    // 切至 3D 演武模式并依次截取 6 大唐宋名士 3D 特写！
-    await page.evaluate(() => {
-      const b3d = [...document.querySelectorAll('.ts-stage-toggle button')].find((b) =>
-        b.textContent?.includes('3D'),
-      );
-      b3d?.click();
-    });
-    await wait(600);
-
-    for (const heroId of HERO_IDS) {
-      await page.evaluate((id) => {
-        document.querySelector(`.sf-hcard[data-hero="${id}"]`)?.click();
-      }, heroId);
-      await wait(750);
-      await page.screenshot({ path: path.join(SHOT_DIR, `v2_select_3d_${heroId}.png`) });
-    }
-
-    // 竖屏手机的立绘与 3D 舞台都应居于屏幕正中（与圆环及舞台中线对齐），切换钮与名号牌均不遮挡英雄头部。
+    // 竖屏手机立绘舞台应居于屏幕正中（与圆环及舞台中线对齐），名号牌不遮挡立绘头部/主躯干。
     for (const [width, height] of [[320, 740], [390, 844], [430, 932]]) {
       await page.setViewport({ width, height, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
       await waitForCondition(page, () => !!window.__moba?.phase, 30_000);
@@ -666,10 +641,6 @@ async function run() {
         await page.click('.ts-lobby .ts-btn-seal');
         await waitForCondition(page, () => document.querySelectorAll('.sf-hcard').length === 6, 30_000);
       }
-      await page.evaluate(() => {
-        [...document.querySelectorAll('.ts-stage-toggle button')]
-          .find((button) => button.textContent?.includes('立绘'))?.click();
-      });
       await wait(450);
 
       const heroesToInspect = width === 390 ? HERO_IDS : ['sushi'];
@@ -687,7 +658,6 @@ async function run() {
           const art = rect('.ts-select__pc-art');
           const ring = rect('.sf-select__ring');
           const plate = rect('.sf-select__plate');
-          const toggle = rect('.ts-stage-toggle');
           return {
             stageWidth: stage.width,
             stageLeft: stage.left,
@@ -696,8 +666,6 @@ async function run() {
             ringCenter: ring.left + ring.width / 2,
             plateRight: plate.right,
             art,
-            toggle,
-            plate,
           };
         });
         assert(
@@ -710,53 +678,12 @@ async function run() {
             portraitPcLayout.plateRight <= portraitPcLayout.art.left + portraitPcLayout.art.width * 0.34,
           `${width}x${height} ${hId} 名号牌文字越界遮挡立绘头部/主躯干: ${JSON.stringify(portraitPcLayout)}`,
         );
-        const pClear =
-          portraitPcLayout.toggle.top >= portraitPcLayout.art.top + portraitPcLayout.art.height * 0.62 ||
-          portraitPcLayout.toggle.left >= portraitPcLayout.art.right ||
-          portraitPcLayout.toggle.right <= portraitPcLayout.art.left;
-        assert(pClear, `${width}x${height} ${hId} 立绘按钮遮挡英雄头部/上身: ${JSON.stringify(portraitPcLayout)}`);
-        const pNoPlateOverlap =
-          portraitPcLayout.toggle.right <= portraitPcLayout.plate.left ||
-          portraitPcLayout.toggle.left >= portraitPcLayout.plate.right ||
-          portraitPcLayout.toggle.bottom <= portraitPcLayout.plate.top ||
-          portraitPcLayout.toggle.top >= portraitPcLayout.plate.bottom;
-        assert(pNoPlateOverlap, `${width}x${height} ${hId} 立绘切换按钮与名号牌重叠: ${JSON.stringify(portraitPcLayout)}`);
         if (width === 390 && hId === 'sushi') {
           await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_390x844.png') });
         }
         if (width === 390 && hId === 'wencheng') {
           await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_pc_wencheng_390x844.png') });
         }
-      }
-
-      await page.evaluate(() => {
-        [...document.querySelectorAll('.ts-stage-toggle button')]
-          .find((button) => button.textContent?.includes('3D'))?.click();
-      });
-      await waitForCondition(page, () => !!document.querySelector('.sf-select__stage.is-3d-mode .sf-select__canvas'));
-      await wait(700);
-      const layout = await page.evaluate(() => {
-        const rect = (selector) => document.querySelector(selector).getBoundingClientRect();
-        const stage = rect('.sf-select__stage');
-        const canvas = rect('.sf-select__canvas');
-        const ring = rect('.sf-select__ring');
-        const plate = rect('.sf-select__plate');
-        return {
-          stageWidth: stage.width,
-          stageCenter: stage.left + stage.width / 2,
-          canvasCenter: canvas.left + canvas.width / 2,
-          ringCenter: ring.left + ring.width / 2,
-          plateRight: plate.right,
-        };
-      });
-      assert(
-        Math.abs(layout.canvasCenter - layout.stageCenter) <= layout.stageWidth * 0.04 &&
-          Math.abs(layout.canvasCenter - layout.ringCenter) <= layout.stageWidth * 0.04,
-        `${width}x${height} 3D 人物画布与屏幕中心或圆环未对齐: ${JSON.stringify(layout)}`,
-      );
-      assert(layout.plateRight < layout.ringCenter, `${width}x${height} 人物信息遮挡舞台中心: ${JSON.stringify(layout)}`);
-      if (width === 390) {
-        await page.screenshot({ path: path.join(SHOT_DIR, 'v2_13_mobile_select_390x844.png') });
       }
     }
 

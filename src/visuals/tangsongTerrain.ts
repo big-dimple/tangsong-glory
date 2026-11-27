@@ -1003,8 +1003,8 @@ export function drawTangSongMinimapBase(
     ctx.fill();
   }
 
-  // 秋芦与金枫伏兵区
-  ctx.fillStyle = 'rgba(198, 148, 66, 0.88)';
+  // 青翠竹苇伏兵区（呼应局内青绿草丛）
+  ctx.fillStyle = 'rgba(54, 134, 102, 0.86)';
   for (const bush of map.bushes) {
     polyFn(ctx, bush);
     ctx.fill();
@@ -1028,4 +1028,80 @@ export function drawTangSongMinimapBase(
   vig.addColorStop(1, 'rgba(18, 12, 8, 0.62)');
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, c, c);
+}
+
+function replaceShaderOnce(source: string, anchor: string, replacement: string): string {
+  const parts = source.split(anchor);
+  return parts.length === 2 ? parts.join(replacement) : source;
+}
+
+/** K7：草丛顶点着色器——把“整片压秃成枯坑”改为“随身形温柔拨开并轻伏”，并向片元传递拨开权重。 */
+export function patchTangSongBushVert(source: string): string {
+  const varyingAnchor = 'varying float vTip;';
+  const layAnchor =
+    '  // 玩家附近的草整片伏低：aFx.y 是每片叶的随机阈值，离玩家越近倒伏的叶越多、伏得越低\n' +
+    '  float rv = (1.0 - smoothstep(uReveal.z * 0.45, uReveal.z, length(worldPosition.xz - uReveal.xy))) * uReveal.w;\n' +
+    '  float lay = smoothstep(aFx.y * 0.7, aFx.y * 0.7 + 0.3, rv);\n' +
+    '  worldPosition.y = mix(worldPosition.y, -0.03 + (worldPosition.y + 0.03) * (0.14 + 0.2 * aFx.y), lay);';
+  if (!source.includes(varyingAnchor) || !source.includes(layAnchor)) return source;
+
+  let out = replaceShaderOnce(source, varyingAnchor, `${varyingAnchor}\nvarying float vReveal;`);
+  out = replaceShaderOnce(
+    out,
+    layAnchor,
+    '  vec2 rDelta = worldPosition.xz - uReveal.xy;\n' +
+      '  float rDist = length(rDelta);\n' +
+      '  float rv = (1.0 - smoothstep(uReveal.z * 0.35, uReveal.z, rDist)) * uReveal.w;\n' +
+      '  float lay = smoothstep(aFx.y * 0.65, aFx.y * 0.65 + 0.3, rv);\n' +
+      '  worldPosition.xz += (rDelta / max(rDist, 0.05)) * 0.44 * w * lay;\n' +
+      '  worldPosition.y = mix(worldPosition.y, -0.02 + (worldPosition.y + 0.02) * (0.52 + 0.22 * aFx.y), lay);\n' +
+      '  vReveal = lay;',
+  );
+  return out;
+}
+
+/** K7：草丛片元着色器——拨开内层染青墨隐蔽影，叶尖改为柔润露青逆光而非枯黄。 */
+export function patchTangSongBushFrag(source: string): string {
+  const varyingAnchor = 'varying float vTip;';
+  const tipAnchor = '  // 叶尖的逆光金边\n  col += vColor * sun * RECIPROCAL_PI * vTip * vTip * 0.14 * shadow;';
+  if (!source.includes(varyingAnchor) || !source.includes(tipAnchor)) return source;
+
+  let out = replaceShaderOnce(source, varyingAnchor, `${varyingAnchor}\nvarying float vReveal;`);
+  out = replaceShaderOnce(
+    out,
+    tipAnchor,
+    '  col = mix(col, col * vec3(0.56, 0.78, 0.82), vReveal * 0.45);\n' +
+      '  // 叶尖青露微光\n' +
+      '  col += mix(vColor, vec3(0.76, 0.96, 0.84), 0.35) * sun * RECIPROCAL_PI * vTip * vTip * 0.16 * shadow;',
+  );
+  return out;
+}
+
+/** K8：汴河水体片元着色器——强化天光远山渐变倒影与日照细碎金波（浮光跃金）。 */
+export function patchTangSongWaterFrag(source: string): string {
+  const skyAnchor =
+    '  // 天光反射\n' +
+    '  col = mix(col, cSky * (0.55 + 0.45 * shadow), fres * 0.5);\n' +
+    '  alpha = mix(alpha, 0.85, fres * 0.6);';
+  const glintAnchor =
+    '  float glint = smoothstep(0.3, 0.8, sp) * shadow * (0.25 + 0.75 * band);\n' +
+    '  col += sun * glint * 0.9;';
+  if (!source.includes(skyAnchor) || !source.includes(glintAnchor)) return source;
+
+  let out = replaceShaderOnce(
+    source,
+    skyAnchor,
+    '  // 天光与淡青岚影反射\n' +
+      '  vec3 tsSkyRef = mix(vec3(0.42, 0.64, 0.68), cSky, smoothstep(-0.22, 0.58, Nw.z + Nw.x * 0.5));\n' +
+      '  col = mix(col, tsSkyRef * (0.58 + 0.42 * shadow), fres * 0.68);\n' +
+      '  alpha = mix(alpha, 0.88, fres * 0.65);',
+  );
+  out = replaceShaderOnce(
+    out,
+    glintAnchor,
+    '  float glint = smoothstep(0.28, 0.78, sp) * shadow * (0.28 + 0.72 * band);\n' +
+      '  float sheen = pow(max(dot(N, H), 0.0), 38.0) * shadow * (0.14 + 0.16 * band);\n' +
+      '  col += sun * (glint * 1.15 + sheen);',
+  );
+  return out;
 }

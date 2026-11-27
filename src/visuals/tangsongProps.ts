@@ -1468,10 +1468,10 @@ export function buildTangSongHorizon(api: PropsApi) {
   const b = new Be();
   const rng = new ke(8086);
 
-  // 金秋长安丹青设色：水墨暖石山脚 -> 秋赭山腰 -> 鎏金秋霭云峰
-  const baseGreen = yt(0x4c4338);
-  const midMalachite = yt(0x786852);
-  const mistyGoldPeak = yt(0xebd4aa);
+  // 《千里江山图》层峦石青叠翠远峰：墨青石根 -> 石绿松岚山腰 -> 淡烟青岚云巅
+  const baseGreen = yt(0x24464a);
+  const midMalachite = yt(0x3a6c64);
+  const mistyGoldPeak = yt(0xe4e2cf);
 
   const addPeak = (px: number, pz: number, rBase: number, height: number, rotSeed: number) => {
     const rings: number[][] = [];

@@ -3,25 +3,28 @@
  *
  * 内核已经有一条完整的成片链（半浮点 HDR → 泛光 → 色调映射 → 调色 → 抖动），这里不建第二条，
  * 只做三件事：
- *   1. 每帧把下面这张表写进内核的调色参数（内核会按画质档把泛光与霾覆盖成自己的默认值）；
+ *   1. 每帧把下面这张表写进内核的调色参数（含立体明暗对比、自然饱和与山水远岚）；
  *   2. 给合成着色器换一行：阵亡不再是整屏冷灰，而是墨从四周洇进来、朱色留三成；
- *   3. 两段只靠改参数的演出：大招时整张画暗一下再亮回来；开局镜头从略高略远处落进画里。
+ *   3. 两段只靠改参数的演出：大招时聚光压暗与金辉泛光脉冲；开局镜头从略高略远处落进画里。
  * low 档没有后期，1、2 自动不生效（内核回落到 CSS 灰度），画面仍然完整。
  */
 import { cinematicFlowEnabled, prefersReducedMotion } from '../ui/tangsongMotion';
 
-/** 成片参数表：只让金、火、技能核心发光；远处冷而淡。数值对着 Vulkan 实机 A/B 截图定。 */
+/** 成片参数表：石青远岚压底，对比与自然饱和拉开立体层次，让金、火与技能核心更通透。 */
 export const TANGSONG_FILM = {
-  exposure: 1.02,
-  vignette: 0.18,
-  /** 屏幕上沿（远处）薄霾的颜色：淡石青雾灰，贴合石绿草地并取代原先的暖米色。 */
-  hazeColor: 0xb9c9c8,
+  exposure: 1.05,
+  vignette: 0.2,
+  contrast: 1.09,
+  saturation: 1.07,
+  vibrance: 0.11,
+  /** 屏幕上沿（远处）薄霾的颜色：淡石青云岚，呼应青绿远山与石绿草地。 */
+  hazeColor: 0xbed2ce,
   quality: {
-    high: { bloom: 0.33, bloomThreshold: 1.6, haze: 0.11 },
-    medium: { bloom: 0.25, bloomThreshold: 1.6, haze: 0.075 },
+    high: { bloom: 0.36, bloomThreshold: 1.52, haze: 0.16 },
+    medium: { bloom: 0.27, bloomThreshold: 1.55, haze: 0.11 },
   } as Record<string, { bloom: number; bloomThreshold: number; haze: number } | undefined>,
-  /** 大招曝光呼吸：90ms 压到 -12%，再约 380ms 指数回弹；暗角同步加深。 */
-  ultPulse: { depth: 0.12, attack: 0.09, release: 0.11, vignette: 0.14 },
+  /** 大招曝光脉冲：75ms 快速聚光压暗(-22%)并起暗角与泛光 → 稳住 80ms → 指数回弹。 */
+  ultPulse: { depth: 0.22, attack: 0.075, hold: 0.08, release: 0.16, vignette: 0.26, bloomBoost: 0.18 },
   /** 入画镜头：先停 0.3s（手卷正在收），再用临界阻尼落到预设，全程约 1.8s。 */
   entry: { hold: 0.3, stiffness: 5, duration: 1.8, distanceScale: 0.4, pitchLift: (7 * Math.PI) / 180 },
 } as const;
@@ -72,6 +75,9 @@ interface FilmEngineLike {
   grade: {
     exposure: number;
     bloomStrength: number;
+    contrast?: number;
+    saturation?: number;
+    vibrance?: number;
     haze: number;
     vignette: number;
     hazeColor?: { setHex?: (hex: number) => unknown };
@@ -91,7 +97,7 @@ const toned = new WeakSet<object>();
 let ultPulseAge = Infinity;
 let entryAge = Infinity;
 
-/** 我方大招出手时调用。减少动态下不呼吸。 */
+/** 我方大招出手时调用。关闭「演出动效」时不呼吸。 */
 export function pulseUltExposure(): void {
   if (!prefersReducedMotion()) ultPulseAge = 0;
 }
@@ -102,13 +108,14 @@ export function beginEntryShot(): void {
 }
 
 function ultPulseLevel(): number {
-  const { attack, release } = TANGSONG_FILM.ultPulse;
-  if (!(ultPulseAge < attack + release * 6)) return 0;
+  const { attack, hold, release } = TANGSONG_FILM.ultPulse;
+  if (!(ultPulseAge < attack + hold + release * 6)) return 0;
   if (ultPulseAge < attack) {
     const k = ultPulseAge / attack;
     return k * k * (3 - 2 * k);
   }
-  return Math.exp(-(ultPulseAge - attack) / release);
+  if (ultPulseAge < attack + hold) return 1;
+  return Math.exp(-(ultPulseAge - attack - hold) / release);
 }
 
 function applyGrade(engine: FilmEngineLike): void {
@@ -117,19 +124,22 @@ function applyGrade(engine: FilmEngineLike): void {
   const look = TANGSONG_FILM.quality[engine.quality];
   if (!look) return;
   const grade = engine.grade;
-  grade.bloomStrength = look.bloom;
+  const pulse = ultPulseLevel();
+  grade.bloomStrength = look.bloom + TANGSONG_FILM.ultPulse.bloomBoost * pulse;
   grade.haze = look.haze;
+  grade.contrast = TANGSONG_FILM.contrast;
+  grade.saturation = TANGSONG_FILM.saturation;
+  grade.vibrance = TANGSONG_FILM.vibrance;
   const threshold = post.bloomPass?.threshold;
   if (threshold) threshold.x = look.bloomThreshold;
   if (!toned.has(grade)) {
     toned.add(grade);
     grade.hazeColor?.setHex?.(TANGSONG_FILM.hazeColor);
   }
-  const pulse = ultPulseLevel();
   grade.exposure = TANGSONG_FILM.exposure * (1 - TANGSONG_FILM.ultPulse.depth * pulse);
   grade.vignette = TANGSONG_FILM.vignette + TANGSONG_FILM.ultPulse.vignette * pulse;
 
-  // 减少动态：墨不做径向洇化，整屏一起褪色
+  // 关闭「演出动效」时：墨不做径向洇化，整屏一起褪色
   const material = post.finalPass?.material;
   if (material?.defines) {
     const flat = prefersReducedMotion();

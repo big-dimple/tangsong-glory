@@ -72,6 +72,16 @@ export function createTangSongWildlife(api: WildlifeApi) {
     glowBoost: 1.0,
   });
 
+  const craneMat = Qc({
+    vertexColors: true,
+    flat: false,
+    steps: 3,
+    softness: 0.24,
+    rim: 0.28,
+    lightTint: false,
+    glowBoost: 1.0,
+  });
+
   const white = yt(0xfaf6ee);
   const red = yt(0xd93824);
   const gold = yt(0xf0b844);
@@ -79,6 +89,7 @@ export function createTangSongWildlife(api: WildlifeApi) {
   const azure = yt(0x3a92b8);
   const teal = yt(0x78e0d8);
   const beakGold = yt(0xd99e36);
+  const featherShade = yt(0xd6d1c6);
 
   // 1. 共享几何体：锦鲤身体 / 摆动尾扇 / 白鹤身 / 白鹤扇翼 / 蝴蝶身+翼
   const buildKoiBody = (isGold: boolean) => {
@@ -145,70 +156,132 @@ export function createTangSongWildlife(api: WildlifeApi) {
 
   const buildCraneBody = () => {
     const b = new Be();
-    // 躯干与尾
+    // 饱满流线型躯干（10 边平滑受光 + 收束尾基）
     gn(
       b,
       [
-        [0, -0.02, -0.45, 0.04],
-        [0, 0, -0.2, 0.14],
-        [0, 0.02, 0.14, 0.15],
-        [0, 0.04, 0.35, 0.07],
+        [0, -0.02, -0.52, 0.035],
+        [0, -0.005, -0.26, 0.145],
+        [0, 0.025, 0.08, 0.185],
+        [0, 0.035, 0.28, 0.13],
+        [0, 0.055, 0.42, 0.072],
       ],
-      { sides: 8, axis: 'z', c0: black, c1: white, cap: true },
+      { sides: 10, axis: 'z', c0: black, c1: white, cap: true },
     );
-    // 优雅前伸长颈与丹顶喙
-    gn(
-      b,
-      [
-        [0, 0.03, 0.32, 0.05],
-        [0, 0.08, 0.62, 0.042],
-        [0, 0.12, 0.86, 0.055],
-      ],
-      { sides: 7, axis: 'z', c0: white, c1: white, cap: true },
-    );
-    gn(
-      b,
-      [
-        [0, 0.15, 0.85, 0.042],
-        [0, 0.19, 0.86, 0.02],
-      ],
-      { sides: 6, c0: red, c1: red, cap: true },
-    );
-    gn(
-      b,
-      [
-        [0, 0.12, 0.91, 0.025],
-        [0, 0.11, 1.14, 0.005],
-      ],
-      { sides: 5, axis: 'z', c0: beakGold, c1: beakGold, cap: true },
-    );
-    // 后伸双细腿
-    for (const sx of [-0.05, 0.05]) {
+    // 叠层墨白尾羽（三级飞羽蓬松收束）
+    for (const [ox, oy, len] of [
+      [0, 0.02, -0.68],
+      [-0.065, 0.005, -0.62],
+      [0.065, 0.005, -0.62],
+    ]) {
       gn(
         b,
         [
-          [sx, -0.04, -0.25, 0.015],
-          [sx, -0.06, -0.78, 0.012],
+          [ox, oy, -0.28, 0.065],
+          [ox * 1.15, oy - 0.015, len, 0.016],
         ],
-        { sides: 4, axis: 'z', c0: black, c1: beakGold, cap: true },
+        { sides: 6, axis: 'z', c0: featherShade, c1: black, cap: true },
+      );
+    }
+    // 优雅 S 曲长颈（白羽根 + 丹顶鹤标志性墨颊喉斑）
+    gn(
+      b,
+      [
+        [0, 0.05, 0.4, 0.064],
+        [0, 0.11, 0.62, 0.048],
+        [0, 0.15, 0.84, 0.042],
+        [0, 0.155, 0.98, 0.056],
+      ],
+      { sides: 8, axis: 'z', c0: white, c1: white, cap: true },
+    );
+    gn(
+      b,
+      [
+        [0, 0.115, 0.72, 0.045],
+        [0, 0.14, 0.92, 0.046],
+      ],
+      { sides: 6, axis: 'z', c0: black, c1: black },
+    );
+    // 朱丹额顶
+    gn(
+      b,
+      [
+        [0, 0.185, 0.96, 0.042],
+        [0, 0.225, 0.97, 0.018],
+      ],
+      { sides: 8, c0: red, c1: red, cap: true },
+    );
+    // 青金长喙
+    gn(
+      b,
+      [
+        [0, 0.15, 1.03, 0.024],
+        [0, 0.135, 1.28, 0.005],
+      ],
+      { sides: 6, axis: 'z', c0: beakGold, c1: beakGold, cap: true },
+    );
+    // 后掠细长双足
+    for (const sx of [-0.055, 0.055]) {
+      gn(
+        b,
+        [
+          [sx, -0.04, -0.28, 0.016],
+          [sx, -0.065, -0.88, 0.011],
+        ],
+        { sides: 5, axis: 'z', c0: black, c1: beakGold, cap: true },
       );
     }
     b.computeNormals?.();
     return b.build();
   };
 
-  const buildCraneWing = () => {
+  /** 内侧覆羽翼段：从肩部延展至腕关节，带有真实 3D 翼剖面弧度与厚度。 */
+  const buildCraneInnerWing = () => {
     const b = new Be();
-    const span = 1.25;
-    const { positions, indices, shades } = buildFeatheredWing(span, 0.52, 0.18, 0.26);
+    const span = 0.64;
+    const { positions, indices, shades } = buildFeatheredWing(span, 0.56, 0.09, 0.08);
     for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i];
-      const ink = Math.min(1, Math.max(0, (x / span - 0.46) * 1.75) + shades[i / 3]);
-      const col = white.map((c, k) => c + (black[k] - c) * ink);
-      b.vertex(x, positions[i + 1], 0.18 + positions[i + 2], col);
+      const shade = shades[i / 3];
+      const y = positions[i + 1];
+      const inkMix = Math.min(0.28, Math.max(0, shade * 0.35 + (y < 0 ? 0.12 : 0)));
+      const col = white.map((c, k) => c + (featherShade[k] - c) * inkMix);
+      b.vertex(positions[i], y, 0.14 + positions[i + 2], col);
     }
     for (let i = 0; i < indices.length; i += 3) {
       b.tri(indices[i], indices[i + 1], indices[i + 2]);
+    }
+    b.computeNormals?.();
+    return b.build();
+  };
+
+  /** 外侧飞羽翼段：绕腕关节独立折曲滞后，外梢带明显分叉墨黑初级飞羽。 */
+  const buildCraneOuterWing = () => {
+    const b = new Be();
+    const span = 0.78;
+    const { positions, indices, shades } = buildFeatheredWing(span, 0.44, 0.11, 0.24);
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i];
+      const ink = Math.min(1, Math.max(0, (x / span - 0.18) * 1.45) + shades[i / 3] * 0.55);
+      const col = white.map((c, k) => c + (black[k] - c) * ink);
+      b.vertex(x, positions[i + 1] + (x / span) ** 2 * 0.06, 0.08 + positions[i + 2], col);
+    }
+    for (let i = 0; i < indices.length; i += 3) {
+      b.tri(indices[i], indices[i + 1], indices[i + 2]);
+    }
+    // 5 根微微上翘分指的墨黑初级飞羽尖，强化立体剪影
+    for (let f = 0; f < 5; f++) {
+      const frac = f / 4;
+      const sx = span * (0.58 + 0.14 * frac);
+      const sz = 0.04 - 0.26 * frac;
+      const sy = 0.045 + 0.025 * (1 - frac);
+      gn(
+        b,
+        [
+          [sx, sy, sz, 0.028],
+          [sx + 0.24 + 0.06 * (1 - frac), sy + 0.045, sz - 0.14 * frac, 0.008],
+        ],
+        { sides: 4, c0: black, c1: black, cap: true },
+      );
     }
     b.computeNormals?.();
     return b.build();
@@ -240,7 +313,8 @@ export function createTangSongWildlife(api: WildlifeApi) {
   const geoKoiTailRed = buildKoiTail(white, red);
   const geoKoiTailGold = buildKoiTail(gold, red);
   const geoCraneBody = buildCraneBody();
-  const geoCraneWing = buildCraneWing();
+  const geoCraneInner = buildCraneInnerWing();
+  const geoCraneOuter = buildCraneOuterWing();
   const geoBflyGold = buildButterflyWing(gold, yt(0xffe8a6));
   const geoBflyBlue = buildButterflyWing(azure, teal);
 
@@ -295,11 +369,13 @@ export function createTangSongWildlife(api: WildlifeApi) {
     });
   }
 
-  // 3. 放置 5 只云巅盘旋白仙鹤
+  // 3. 放置 6 只掠过汴河山谷的灵动白仙鹤（肩腕双关节折翼 + 大半径高速穿行）
   const craneActors: {
     group: WildlifeGroup;
     wingL: WildlifeGroup;
     wingR: WildlifeGroup;
+    outerL: WildlifeGroup;
+    outerR: WildlifeGroup;
     cx: number;
     cz: number;
     cy: number;
@@ -307,25 +383,35 @@ export function createTangSongWildlife(api: WildlifeApi) {
     rz: number;
     speed: number;
     phase: number;
+    fig8: boolean;
   }[] = [];
 
-  const craneCenters = [
-    [-24, 18, 18.8],
-    [24, -18, 19.5],
-    [-10, -26, 20.6],
-    [-38, -32, 18.8],
-    [38, 32, 18.8],
+  const craneRoutes: [number, number, number, number, number, number, boolean][] = [
+    [-8, 6, 11.8, 30, 22, 0.34, false],
+    [-6, 8, 12.6, 28, 20, 0.34, false],
+    [10, -8, 12.2, 34, 24, -0.32, true],
+    [0, 0, 13.4, 38, 28, 0.3, true],
+    [-28, -22, 11.5, 24, 18, -0.38, false],
+    [28, 22, 12.0, 24, 18, 0.38, false],
   ];
-  craneCenters.forEach(([cx, cz, cy], idx) => {
+  craneRoutes.forEach(([cx, cz, cy, rx, rz, spd, fig8], idx) => {
     const grp = new Ji();
     grp.name = `crane_${idx}`;
-    grp.scale.setScalar(rng.range(0.68, 0.84));
-    const body = new Sn(geoCraneBody, mat);
-    const wingL = new Sn(geoCraneWing, mat);
-    const wingR = new Sn(geoCraneWing, mat);
+    grp.scale.setScalar(rng.range(0.52, 0.62));
+    const body = new Sn(geoCraneBody, craneMat);
+    const wingL = new Sn(geoCraneInner, craneMat);
+    const wingR = new Sn(geoCraneInner, craneMat);
     wingR.scale.x = -1;
     wingL.position.set(0.11, 0.04, 0.04);
     wingR.position.set(-0.11, 0.04, 0.04);
+
+    const outerL = new Sn(geoCraneOuter, craneMat);
+    const outerR = new Sn(geoCraneOuter, craneMat);
+    outerL.position.set(0.58, 0.04, -0.02);
+    outerR.position.set(0.58, 0.04, -0.02);
+    wingL.add(outerL);
+    wingR.add(outerR);
+
     grp.add(body);
     grp.add(wingL);
     grp.add(wingR);
@@ -335,13 +421,16 @@ export function createTangSongWildlife(api: WildlifeApi) {
       group: grp,
       wingL,
       wingR,
+      outerL,
+      outerR,
       cx,
       cz,
       cy,
-      rx: rng.range(12, 20),
-      rz: rng.range(10, 18),
-      speed: rng.range(0.16, 0.24) * (idx % 2 === 0 ? 1 : -1),
-      phase: (idx / craneCenters.length) * TAU,
+      rx,
+      rz,
+      speed: spd,
+      phase: idx === 1 ? 0.28 : (idx / craneRoutes.length) * TAU,
+      fig8,
     });
   });
 
@@ -409,23 +498,40 @@ export function createTangSongWildlife(api: WildlifeApi) {
       k.tail.rotation.set(0, Math.sin(simTime * 7.5 + k.phase) * 0.45, 0);
     }
 
-    // 白鹤云巅盘旋（优雅滑翔 + 周期轻扇）
+    // 白鹤高速掠空穿行（肩腕两段折翼振翅 + 弓翼滑翔 + 转向压坡）
     for (let i = 0; i < craneActors.length; i++) {
       const c = craneActors[i];
       const a = simTime * c.speed + c.phase;
       const x = c.cx + Math.cos(a) * c.rx;
-      const z = c.cz + Math.sin(a) * c.rz;
+      const z = c.cz + (c.fig8 ? Math.sin(a * 2) * c.rz * 0.65 : Math.sin(a) * c.rz);
       const vx = -Math.sin(a) * c.rx * c.speed;
-      const vz = Math.cos(a) * c.rz * c.speed;
-      const flapCycle = (simTime * 0.5 + i * 0.7) % 1;
-      const flapEnv = flapCycle < 0.55 ? Math.sin((flapCycle / 0.55) * Math.PI) : 0;
-      const stroke = simTime * 7.2 + c.phase;
-      const flap = Math.sin(stroke) * 0.55 * flapEnv + 0.08;
-      const pitch = Math.cos(stroke) * 0.13 * flapEnv;
-      c.group.position.set(x, c.cy + Math.sin(simTime * 0.9 + c.phase) * 0.65, z);
-      c.group.rotation.set(-0.04, Math.atan2(vx, vz), c.speed > 0 ? 0.18 : -0.18);
-      c.wingL.rotation.set(pitch, 0, flap);
-      c.wingR.rotation.set(pitch, 0, -flap);
+      const vz = c.fig8
+        ? Math.cos(a * 2) * 2 * c.rz * 0.65 * c.speed
+        : Math.cos(a) * c.rz * c.speed;
+      const ax = -Math.cos(a) * c.rx * c.speed * c.speed;
+      const az = c.fig8
+        ? -Math.sin(a * 2) * 4 * c.rz * 0.65 * c.speed * c.speed
+        : -Math.sin(a) * c.rz * c.speed * c.speed;
+      const spdSq = Math.max(1, vx * vx + vz * vz);
+      const latAccel = (vx * az - vz * ax) / spdSq;
+
+      const cycle = (simTime * 0.36 + i * 0.43) % 1;
+      const flapEnv = cycle < 0.62 ? Math.sin((cycle / 0.62) * Math.PI) : 0;
+      const stroke = simTime * 9.6 + c.phase;
+      const innerFlap = flapEnv > 0.02 ? Math.sin(stroke) * 0.48 * flapEnv + 0.06 : 0.14;
+      const outerFlap = flapEnv > 0.02
+        ? Math.sin(stroke - 1.08) * 0.68 * flapEnv - 0.12
+        : -0.22;
+      const pitch = Math.cos(stroke) * 0.14 * flapEnv;
+      const heave = -Math.sin(stroke) * 0.14 * flapEnv + Math.sin(a * 2 + c.phase) * 0.55;
+      const bank = Math.max(-0.42, Math.min(0.42, latAccel * 0.85));
+
+      c.group.position.set(x, c.cy + heave, z);
+      c.group.rotation.set(-0.05 + flapEnv * 0.03, Math.atan2(vx, vz), bank);
+      c.wingL.rotation.set(pitch, 0, innerFlap);
+      c.wingR.rotation.set(pitch, 0, -innerFlap);
+      c.outerL.rotation.set(pitch * 0.45, -0.06, outerFlap);
+      c.outerR.rotation.set(pitch * 0.45, -0.06, outerFlap);
     }
 
     // 彩蝶花间翩跹
@@ -450,11 +556,13 @@ export function createTangSongWildlife(api: WildlifeApi) {
       geoKoiTailRed,
       geoKoiTailGold,
       geoCraneBody,
-      geoCraneWing,
+      geoCraneInner,
+      geoCraneOuter,
       geoBflyGold,
       geoBflyBlue,
     ].forEach((g) => g.dispose?.());
     mat.dispose?.();
+    craneMat.dispose?.();
   }
 
   // 先执行一次初始布位

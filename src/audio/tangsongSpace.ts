@@ -21,13 +21,13 @@ interface SpaceShape {
 const VALLEY: SpaceShape = {
   seconds: 3.2,
   rt60: 2.7,
-  preDelay: 0.028,
-  brightStart: 0.5,
-  brightEnd: 0.07,
-  // 对面山壁的一两声远回声
+  preDelay: 0.026,
+  brightStart: 0.56,
+  brightEnd: 0.09,
+  // 对面山壁的两声清晰远回声
   echoes: [
-    [[0.19, 0.42], [0.37, 0.2]],
-    [[0.23, 0.38], [0.41, 0.22]],
+    [[0.18, 0.52], [0.36, 0.28]],
+    [[0.22, 0.48], [0.40, 0.28]],
   ],
 };
 
@@ -106,7 +106,7 @@ export function installTangSongSpace(mixer: SpaceMixerLike): { valley: boolean; 
     room.normalize = false;
     room.buffer = buildImpulse(ctx, CITY);
     const send = ctx.createGain();
-    send.gain.value = 0.16;
+    send.gain.value = 0.22;
     mixer.uiBus.connect(send);
     send.connect(room);
     // 回送到音效总线（之后同样经过内核的压缩与软削波），不形成回路
