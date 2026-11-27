@@ -75,6 +75,7 @@ import { createBattleViewDrag } from './ui/battleViewDrag';
 import { mountTeamCommands, teamTactics, type TeamState } from './engine/teamTactics';
 import { hasTeamSight, teamVision } from './visuals/teamVision';
 import { RenderResolution } from './visuals/renderResolution';
+import { beginEntryShot, filmFrame, patchFinalShader, pulseUltExposure } from './visuals/tangsongFilm';
 import { createMatchAssetLoader } from './platform/matchAssets';
 import {
   TANGSONG_VFX_SHADERS,
@@ -175,6 +176,7 @@ const killSeal = createKillSealWatcher(playSealCue);
 
 function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
   killSeal.notice(events, hudCtx.me);
+  if (events.some((ev) => ev.type === 'skillCast' && ev.slot === 'ult' && ev.unitId === hudCtx.me?.id)) pulseUltExposure();
   const settings = hudCtx.host?.getSettings?.();
   if (settings && settings.eyesCutin === false) return;
 
@@ -316,12 +318,15 @@ bootTangSongGlory({
   triggerEyesCutin,
   onHudEvents: handleHudEvents,
   loadingCloseMs,
+  filmShaders: { final: patchFinalShader },
+  onFrame: filmFrame,
   onPhaseChange(phase: string) {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('ts-in-match', phase === 'match' || phase === 'loading');
       syncMotionClasses();
       if (phase !== 'match') killSeal.detach();
       if (phase === 'result') stampResultSeal(playSealCue);
+      if (phase === 'match') beginEntryShot();
       if (phase === 'match') requestAnimationFrame(() => {
         const game = window.__moba as { phase?: string; state?: TeamState; hud?: { el?: HTMLElement } } | undefined;
         if (game?.phase === 'match' && game.state && game.hud?.el) {

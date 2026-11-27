@@ -18,6 +18,13 @@ const patches = [
   ],
   // K3 结算阶段通知：原先只有 loading / match 会通知表现层，朱印落款需要知道结算页何时挂上
   ['a="result",rt.disposeHud()', 'a="result",tsConfig.onPhaseChange?.("result"),rt.disposeHud()'],
+  // K1 合成着色器注入：表现层拿到原文做锚点替换（水墨阵亡），自己的锚点失配时原样返回
+  [
+    'fragmentShader:yI,uniforms:{tDiffuse:{value:null},tBloom:{value:null},',
+    'fragmentShader:tsConfig.filmShaders?.final?.(yI)??yI,uniforms:{tDiffuse:{value:null},tBloom:{value:null},',
+  ],
+  // K2 每帧钩子：阵亡色调推进之后、渲染之前，表现层在这里写成片参数与入画镜头
+  ['q(lt.dt),d?.render(v,lt.alpha,lt.dt);', 'q(lt.dt),tsConfig.onFrame?.(d,lt.dt,v),d?.render(v,lt.alpha,lt.dt);'],
   // K4 加载页关闭时长：收卷转场需要比 0.4s 淡出更长的窗口，由表现层按是否播放演出决定
   [
     'f.classList.add("is-closing"),window.setTimeout(()=>{d.dispose(),f.remove()},400)',
