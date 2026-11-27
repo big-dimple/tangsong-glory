@@ -232,7 +232,7 @@ export interface CliffTexHelpers {
 }
 
 /**
- * 1B. 青绿罩染草地纹理 DF：底色中性偏青，色相交给调色盘；秋叶朱橙只留作点 (维持线性均值 ~0.18 匹配 GF * 5.5)
+ * 1B. 石绿罩染草地纹理 DF：底色往偏黄的石绿收敛并拉开大块明度起伏；秋叶朱橙只留作点 (维持线性均值 ~0.18 匹配 GF * 5.5)
  */
 export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpers) {
   const { fx, k8, ke, un, nh } = helpers;
@@ -242,17 +242,21 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
     (ctx) => {
       const s = size / 512;
       k8(ctx, size, 256, (u, v) => {
+        const patch = un(u * 3 + 1.9, v * 3 + 4.3, 3, 7, 3);
         const macro = un(u * 7, v * 7, 4, 13, 7);
         const grain = un(u * 48, v * 48, 2, 29, 48);
         const grit = un(u * 96 + 3.1, v * 96 + 1.7, 2, 41, 96);
-        const d = 123 + (macro - 0.5) * 42 + (grain - 0.5) * 18 + (grit - 0.5) * 8;
-        return [d * 0.95, d * 1.02, d * 1.0];
+        const d = Math.max(
+          68,
+          Math.min(178, 122 + (patch - 0.5) * 34 + (macro - 0.5) * 58 + (grain - 0.5) * 18 + (grit - 0.5) * 8),
+        );
+        return [d * 0.97, d * 1.03, d * 0.94];
       });
 
       const rng = new ke(2026);
       ctx.lineCap = 'round';
 
-      // 成簇斜倾金秋枯草叶梢（金赭与棕黄交错）
+      // 成簇斜倾草叶梢（暖石绿与深草影交错，破除地毯均一感）
       const drawBlade = (
         rx: number,
         ry: number,
@@ -262,6 +266,7 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         bend: number,
         lum: number,
         alpha: number,
+        warm: boolean,
       ) => {
         const ex = rx + Math.cos(ang) * len;
         const ey = ry + Math.sin(ang) * len;
@@ -270,11 +275,12 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         const mx = (rx + ex) / 2 + nx * bend * len;
         const my = (ry + ey) / 2 + ny * bend * len;
         const grad = ctx.createLinearGradient(rx, ry, ex, ey);
-        const base = Math.round(lum * 0.56);
-        grad.addColorStop(0, `rgba(${Math.round(base * 0.9)},${Math.round(base * 1.0)},${Math.round(base * 0.94)},${alpha * 0.5})`);
+        const base = Math.round(lum * 0.54);
+        const tipB = warm ? 0.87 : 0.91;
+        grad.addColorStop(0, `rgba(${Math.round(base * 0.9)},${Math.round(base * 1.0)},${Math.round(base * 0.88)},${alpha * 0.5})`);
         grad.addColorStop(
           1,
-          `rgba(${Math.round(lum * 0.93)},${Math.round(Math.min(255, lum * 1.03))},${Math.round(lum * 0.92)},${alpha})`,
+          `rgba(${Math.round(lum * (warm ? 1.0 : 0.9))},${Math.round(Math.min(255, lum * 1.04))},${Math.round(lum * tipB)},${alpha})`,
         );
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -291,15 +297,15 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         const y = rng.range(0, size);
         const baseAng = -Math.PI / 2 + rng.range(-0.75, 0.75);
         const blades = 4 + rng.int(5);
-        const warm = rng.chance(0.62);
+        const warm = rng.chance(0.58);
         const lenMax = rng.range(20, 42) * s;
         nh(size, x, y, lenMax * 1.3, (cx, cy) => {
-          const ao = ctx.createRadialGradient(cx, cy, 0, cx, cy, lenMax * 0.52);
-          ao.addColorStop(0, 'rgba(30, 44, 44, 0.28)');
-          ao.addColorStop(1, 'rgba(30, 44, 44, 0)');
+          const ao = ctx.createRadialGradient(cx, cy, 0, cx, cy, lenMax * 0.54);
+          ao.addColorStop(0, 'rgba(26, 36, 30, 0.34)');
+          ao.addColorStop(1, 'rgba(26, 36, 30, 0)');
           ctx.fillStyle = ao;
           ctx.beginPath();
-          ctx.arc(cx, cy, lenMax * 0.52, 0, Math.PI * 2);
+          ctx.arc(cx, cy, lenMax * 0.54, 0, Math.PI * 2);
           ctx.fill();
         });
         for (let m = 0; m < blades; m++) {
@@ -307,9 +313,9 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
           const len = lenMax * rng.range(0.62, 1.08);
           const w = rng.range(2.0, 3.4) * s;
           const bend = rng.range(-0.22, 0.22);
-          const lum = warm ? rng.range(160, 206) : rng.range(115, 152);
-          const al = rng.range(0.36, 0.56);
-          nh(size, x, y, len + 6, (cx, cy) => drawBlade(cx, cy, ang, len, w, bend, lum, al));
+          const lum = warm ? rng.range(168, 216) : rng.range(98, 142);
+          const al = rng.range(0.36, 0.58);
+          nh(size, x, y, len + 6, (cx, cy) => drawBlade(cx, cy, ang, len, w, bend, lum, al, warm));
         }
       }
 
@@ -326,9 +332,9 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
           const by = y + rng.range(-5, 5) * s;
           const len = rng.range(7, 15) * s;
           const ang = baseAng + rng.range(-0.45, 0.45);
-          const lum = bright ? rng.range(148, 194) : rng.range(76, 112);
+          const lum = bright ? rng.range(150, 198) : rng.range(72, 108);
           const al = rng.range(0.18, 0.36);
-          ctx.strokeStyle = `rgba(${Math.round(lum * 0.93)},${Math.round(Math.min(255, lum * 1.02))},${Math.round(lum * 0.93)},${al})`;
+          ctx.strokeStyle = `rgba(${Math.round(lum * 0.96)},${Math.round(Math.min(255, lum * 1.03))},${Math.round(lum * 0.88)},${al})`;
           ctx.lineWidth = rng.range(1.1, 2.2) * s;
           nh(size, bx, by, len + 4, (cx, cy) => {
             ctx.beginPath();
@@ -400,7 +406,7 @@ export function buildTangSongDirtTexture(
         const vein = un(u * 11 + 4.1, v * 11, 3, 77, 11);
         let c = 126 + (strata - 0.5) * 44 + (dust - 0.5) * 26;
         if (Math.abs(vein - 0.5) < 0.016) c -= 26;
-        return [c * 1.03, c * 0.99, c * 0.93];
+        return [c * 1.07, c * 0.99, c * 0.88];
       });
 
       const rng = new ke(808);
@@ -933,9 +939,9 @@ export function drawTangSongMinimapBase(
 
   // 青绿设色古绢底色（石绿罩染，四周收向石青墨色；与战场草地同一套色相）
   const groundGrad = ctx.createRadialGradient(c / 2, c / 2, c * 0.05, c / 2, c / 2, c * 0.74);
-  groundGrad.addColorStop(0, '#4a6a66');
-  groundGrad.addColorStop(0.65, '#33504f');
-  groundGrad.addColorStop(1, '#1e2e30');
+  groundGrad.addColorStop(0, '#526b58');
+  groundGrad.addColorStop(0.65, '#3a5244');
+  groundGrad.addColorStop(1, '#223029');
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, 0, c, c);
 

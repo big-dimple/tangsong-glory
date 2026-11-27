@@ -14,11 +14,11 @@ import { cinematicFlowEnabled, prefersReducedMotion } from '../ui/tangsongMotion
 export const TANGSONG_FILM = {
   exposure: 1.02,
   vignette: 0.18,
-  /** 屏幕上沿（远处）薄霾的颜色：冷青灰，取代原先的暖米色。 */
-  hazeColor: 0xb4c8d0,
+  /** 屏幕上沿（远处）薄霾的颜色：淡石青雾灰，贴合石绿草地并取代原先的暖米色。 */
+  hazeColor: 0xb9c9c8,
   quality: {
-    high: { bloom: 0.34, bloomThreshold: 1.6, haze: 0.12 },
-    medium: { bloom: 0.26, bloomThreshold: 1.6, haze: 0.08 },
+    high: { bloom: 0.33, bloomThreshold: 1.6, haze: 0.11 },
+    medium: { bloom: 0.25, bloomThreshold: 1.6, haze: 0.075 },
   } as Record<string, { bloom: number; bloomThreshold: number; haze: number } | undefined>,
   /** 大招曝光呼吸：90ms 压到 -12%，再约 380ms 指数回弹；暗角同步加深。 */
   ultPulse: { depth: 0.12, attack: 0.09, release: 0.11, vignette: 0.14 },
