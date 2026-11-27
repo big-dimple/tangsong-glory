@@ -16,6 +16,13 @@ const patches = [
     '`cast_${kitOf(c.heroId)}_${c.slot}`',
     '`cast_${r1["cast_"+c.heroId+"_"+c.slot]?c.heroId:kitOf(c.heroId)}_${c.slot}`',
   ],
+  // K3 结算阶段通知：原先只有 loading / match 会通知表现层，朱印落款需要知道结算页何时挂上
+  ['a="result",rt.disposeHud()', 'a="result",tsConfig.onPhaseChange?.("result"),rt.disposeHud()'],
+  // K4 加载页关闭时长：收卷转场需要比 0.4s 淡出更长的窗口，由表现层按是否播放演出决定
+  [
+    'f.classList.add("is-closing"),window.setTimeout(()=>{d.dispose(),f.remove()},400)',
+    'f.classList.add("is-closing"),window.setTimeout(()=>{d.dispose(),f.remove()},tsConfig.loadingCloseMs?.()??400)',
+  ],
 ];
 
 // Keep integration hooks reproducible when the optional read-only source exists.

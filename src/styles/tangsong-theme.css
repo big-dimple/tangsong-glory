@@ -1261,3 +1261,192 @@ body .sf-root .sf-hud__sk.is-atk.is-forbid .sf-hud__atk-face > img {
 body .sf-root .sf-hud__sk.is-atk.is-down .sf-hud__atk-face > img {
   filter: brightness(1.18) saturate(1.15);
 }
+
+/* ── 12. 展卷 / 收卷：手卷大厅进出战场（只在 body.ts-film 下生效，见 src/ui/tangsongMotion.ts） ── */
+/* 加载页 → 对局：手卷自右向左收起，战场从卷后露出；卷边骑一根带投影的轴头 */
+@keyframes ts-scroll-furl {
+  from { clip-path: inset(0 0 0 0); }
+  to { clip-path: inset(0 100% 0 0); }
+}
+@keyframes ts-scroll-rod-furl {
+  from { transform: translateX(100vw); }
+  to { transform: translateX(0); }
+}
+body.ts-film .sf-root.sf-loading-root.is-closing {
+  animation: none;
+  background-color: transparent;
+}
+body.ts-film .sf-root.sf-loading-root.is-closing > * {
+  animation: ts-scroll-furl 0.92s cubic-bezier(0.62, 0.02, 0.3, 1) both;
+}
+body.ts-film .sf-root.sf-loading-root.is-closing::after,
+body.ts-film .sf-root.sf-menu-root:has(> .sf-screen.is-leaving)::after {
+  content: '';
+  position: absolute;
+  top: -2%;
+  bottom: -2%;
+  left: -13px;
+  z-index: 60;
+  width: 26px;
+  border-radius: 13px;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, #e9bd62 0, #9c6a20 2.2%, transparent 2.3%, transparent 97.7%, #9c6a20 97.8%, #e9bd62 100%),
+    linear-gradient(90deg, #2a170f 0%, #6e4023 22%, #b98a52 46%, #7a4a29 70%, #24130c 100%);
+  box-shadow: 16px 0 30px rgba(6, 4, 3, 0.55), 3px 0 5px rgba(6, 4, 3, 0.6);
+}
+body.ts-film .sf-root.sf-loading-root.is-closing::after {
+  animation: ts-scroll-rod-furl 0.92s cubic-bezier(0.62, 0.02, 0.3, 1) both;
+}
+
+/* 大厅 ↔ 选将：新的一屏自左向右展开，盖住旧的一屏（卡在内核 260 / 420ms 的换屏窗口内，不用位移） */
+@keyframes ts-screen-unfurl {
+  0% { clip-path: inset(0 100% 0 0); }
+  62%, 100% { clip-path: inset(0 0 0 0); }
+}
+@keyframes ts-screen-hold {
+  from, to { opacity: 1; }
+}
+@keyframes ts-scroll-rod-unfurl {
+  from { transform: translateX(0); }
+  to { transform: translateX(100vw); }
+}
+body.ts-film .sf-root.sf-menu-root .sf-screen {
+  animation: ts-screen-unfurl 0.42s cubic-bezier(0.3, 0.1, 0.2, 1) both;
+}
+body.ts-film .sf-root.sf-menu-root .sf-screen.is-leaving {
+  animation: ts-screen-hold 0.26s linear both;
+}
+body.ts-film .sf-root.sf-menu-root:has(> .sf-screen.is-leaving)::after {
+  animation: ts-scroll-rod-unfurl 0.26s cubic-bezier(0.3, 0.1, 0.2, 1) both;
+}
+
+/* 大厅呼吸：手卷底图两个不同周期的极慢位移与缩放，幅度千分之几 */
+@keyframes ts-lobby-drift {
+  from { transform: translate3d(-0.3%, 0.18%, 0); }
+  to { transform: translate3d(0.3%, -0.18%, 0); }
+}
+@keyframes ts-lobby-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.009); }
+}
+.ts-lobby__canvas {
+  inset: -1%;
+  animation: ts-lobby-drift 23s ease-in-out infinite alternate;
+}
+.ts-lobby__bg {
+  animation: ts-lobby-breathe 37s ease-in-out infinite alternate;
+}
+
+/* ── 13. 朱印落款（src/ui/tangsongSeal.ts）：蓄 120ms → 落 70ms → 压扁 50ms → 留；印泥 300ms 外洇 ── */
+.ts-seal {
+  --ts-seal-delay: 0ms;
+  --ts-seal-h: 64px;
+  --ts-seal-color: #b5301f;
+  --ts-seal-glyph: #fff3d8;
+  position: absolute;
+  z-index: 3;
+  display: block;
+  height: var(--ts-seal-h);
+  width: calc(var(--ts-seal-h) * var(--ts-seal-ratio, 0.57));
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 50% 58%;
+  rotate: -3.5deg;
+  animation: ts-seal-stamp 240ms linear var(--ts-seal-delay) forwards;
+}
+.ts-seal--ink {
+  --ts-seal-color: #0e0c0b;
+  --ts-seal-glyph: #e4dcc8;
+}
+.ts-seal__face {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ts-seal__ground { fill: var(--ts-seal-color); }
+.ts-seal__glyph {
+  fill: var(--ts-seal-glyph);
+  stroke: var(--ts-seal-glyph);
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  font-family: var(--ts-font-serif);
+  font-weight: 400;
+}
+.ts-seal__bleed {
+  position: absolute;
+  inset: 4%;
+  border-radius: 12%;
+  background: var(--ts-seal-color);
+  filter: blur(2px);
+  opacity: 0;
+  animation: ts-seal-bleed 300ms ease-out calc(var(--ts-seal-delay) + 190ms) forwards;
+}
+.ts-seal--ink .ts-seal__bleed { background: #a39b88; }
+@keyframes ts-seal-stamp {
+  0% { opacity: 0; transform: scale(1); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  50% { opacity: 1; transform: scale(1.15); animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0); }
+  79.2% { opacity: 1; transform: scale(1); animation-timing-function: linear; }
+  89% { opacity: 1; transform: scale(1.05, 0.93); animation-timing-function: linear; }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ts-seal-bleed {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 0.5; transform: scale(1.06); }
+}
+/* 落定瞬间的震动：5px 起、指数衰减、180ms 衰尽 */
+@keyframes ts-seal-shake {
+  0% { transform: translate3d(0, 5px, 0); }
+  18% { transform: translate3d(-2.6px, -3.1px, 0); }
+  38% { transform: translate3d(1.7px, 1.9px, 0); }
+  58% { transform: translate3d(-0.9px, -1px, 0); }
+  78% { transform: translate3d(0.4px, 0.5px, 0); }
+  100% { transform: none; }
+}
+body:not(.ts-no-shake) .sf-root.sf-result-root.ts-seal-shake:not(.is-closing),
+body:not(.ts-no-shake) .sf-root .sf-hud__banner-wrap.ts-seal-shake {
+  animation: ts-seal-shake 180ms linear var(--ts-seal-hit, 0ms);
+}
+
+/* 结算页：标题旁落印。移除放射光芒与闪白，金字保留，标题改为安静的显影 */
+@keyframes ts-title-develop {
+  from { opacity: 0; transform: translate3d(0, calc(var(--sf-u, 1px) * 6), 0); }
+  to { opacity: 1; transform: none; }
+}
+body .sf-root .sf-result__rays { display: none; }
+body .sf-root .sf-result--win .sf-result__title,
+body .sf-root .sf-result--lose .sf-result__title {
+  animation: ts-title-develop 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+/* 内核按 0.34em 字距给标题做了右侧负边距补偿，而本主题把字距收成了 0.08em：这里对齐补偿，
+   标题才真正居中，落款也才能贴着最后一个字的右缘 */
+body .sf-root .sf-result__title { margin-right: -0.08em; }
+body .sf-root .sf-result__titlewrap {
+  --ts-result-seal-h: max(40px, calc(var(--sf-u, 1px) * 72));
+}
+body .sf-root .sf-result__titlewrap > .ts-seal {
+  --ts-seal-h: var(--ts-result-seal-h);
+  left: calc(100% + var(--sf-u, 1px) * 12);
+  top: 50%;
+  margin-top: calc(var(--ts-result-seal-h) * -0.4);
+}
+body .sf-root .sf-result__wing--r { left: calc(100% + var(--sf-u, 1px) * 26); }
+body .sf-root .sf-result__titlewrap:has(> .ts-seal) .sf-result__wing--r {
+  left: calc(100% + var(--sf-u, 1px) * 34 + var(--ts-result-seal-h) * 0.57);
+}
+/* 击杀横幅：小朱印压在阵亡者头像的右下角 */
+body .sf-root .sf-hud__banner-face > .ts-seal {
+  --ts-seal-h: calc(var(--face) * 0.66);
+  right: calc(var(--face) * -0.3);
+  bottom: calc(var(--face) * -0.2);
+  rotate: -7deg;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-lobby__canvas,
+  .ts-lobby__bg { animation: none; }
+  .ts-seal { animation: none !important; opacity: 1; }
+  .ts-seal__bleed { animation: none !important; opacity: 0.5; transform: scale(1.06); }
+  .ts-seal-shake { animation: none !important; }
+}

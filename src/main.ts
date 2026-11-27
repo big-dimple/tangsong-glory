@@ -34,6 +34,8 @@ import { createTangSongMinions, type MinionEngineApi } from './visuals/tangsongM
 import { createTangSongMonsters, type MonsterEngineApi } from './visuals/tangsongMonsters3D';
 import { createTangSongWildlife, type WildlifeApi } from './visuals/tangsongWildlife';
 import { createTangSongLobby, type LobbyScreenContext } from './ui/tangsongLobby';
+import { loadingCloseMs, syncMotionClasses } from './ui/tangsongMotion';
+import { createKillSealWatcher, stampResultSeal, type SealCue } from './ui/tangsongSeal';
 import { getSkillIcon, getSummonerIcon } from './visuals/tangsongIcons';
 import {
   addTangSongRiverAndGateLandmarks,
@@ -151,6 +153,8 @@ interface HudEventLike {
   type?: string;
   key?: string;
   slot?: string;
+  team?: number;
+  killerId?: number;
   unitId?: number;
   heroId?: string;
   pos?: { x: number; y: number };
@@ -159,12 +163,18 @@ interface HudEventLike {
 
 interface HudCtxLike {
   root?: HTMLElement;
-  me?: { id?: number; heroId?: string };
+  me?: { id?: number; heroId?: string; team?: number };
   host?: { getSettings?: () => { eyesCutin?: boolean } };
   hero?: (id: number) => { heroId?: string } | undefined;
 }
 
+/** 朱印落款的声音由音频层接管（M4 的 playTangSongCue）；接线前先留空。 */
+function playSealCue(_cue: SealCue): void {}
+
+const killSeal = createKillSealWatcher(playSealCue);
+
 function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
+  killSeal.notice(events, hudCtx.me);
   const settings = hudCtx.host?.getSettings?.();
   if (settings && settings.eyesCutin === false) return;
 
@@ -305,16 +315,25 @@ bootTangSongGlory({
   },
   triggerEyesCutin,
   onHudEvents: handleHudEvents,
+  loadingCloseMs,
   onPhaseChange(phase: string) {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('ts-in-match', phase === 'match' || phase === 'loading');
+      syncMotionClasses();
+      if (phase !== 'match') killSeal.detach();
+      if (phase === 'result') stampResultSeal(playSealCue);
       if (phase === 'match') requestAnimationFrame(() => {
         const game = window.__moba as { phase?: string; state?: TeamState; hud?: { el?: HTMLElement } } | undefined;
-        if (game?.phase === 'match' && game.state && game.hud?.el) mountTeamCommands(game.hud.el, game.state);
+        if (game?.phase === 'match' && game.state && game.hud?.el) {
+          mountTeamCommands(game.hud.el, game.state);
+          killSeal.attach(game.hud.el);
+        }
       });
     }
   },
 });
+
+syncMotionClasses();
 
 if (typeof document !== 'undefined' && document.fonts?.ready) {
   document.fonts.ready.then(() => {
