@@ -6,7 +6,7 @@
 
 - **`src/config/`**：品牌文案（`brand.ts`）、镜头预设（`camera.ts`）、跑打操作手感参数（`combatFeel.ts`）、六位英雄资料与技能配置（`heroes.ts`）。所有英雄配置以 `heroes.ts` 为唯一真相源，严禁在 UI 或渲染层硬编码英雄名、台词或属性。
 - **`src/visuals/`**：唐宋建筑（`tangsongArchitecture.ts`）、植被（`tangsongFlora.ts`）、3D 英雄与灵宠骨骼（`tangsongHeroes3D.ts`）、矿彩技能图标映射（`tangsongIcons.ts`）、兵线/野怪/生态（`tangsongMinions3D.ts`、`tangsongMonsters3D.ts`、`tangsongWildlife.ts`）、地表/成片/水墨特效着色器（`tangsongTerrain.ts`、`tangsongFilm.ts`、`tangsongVfx.ts`、`tangsongProps.ts`、`tangsongWorld.ts`）。
-- **`src/ui/` & `src/styles/`**：唐宋手卷开场大厅（`tangsongLobby.ts`）、转场演出开关（`tangsongMotion.ts`）、朱印/墨印落款（`tangsongSeal.ts`）与宣纸主题样式。
+- **`src/ui/` & `src/styles/`**：唐宋手卷开场大厅（`tangsongLobby.ts`）、转场演出开关（`tangsongMotion.ts`）、朱印/墨印落款（`tangsongSeal.ts`）、进草隐蔽状态提示（`tangsongStealth.ts`）与宣纸主题样式。
 - **`src/audio/`**：4 首实录原声背景配乐随机轮播（`public/assets/audio/bgm/*.ogg|mp3`）、纯程序化 WebAudio 音效控制器（`tangsongAudio.ts`）与山谷/城阙混响空间生成（`tangsongSpace.ts`）；不得引入额外外置 SFX 音频包。
 - **`src/platform/buildMetadata.ts` & `scripts/build-info.ts`**：构建元数据与 git 工作区洁净度校验。
 - **`src/engine/mobaCore.js`**：核心 MOBA 模拟、物理、AI 与 HUD 运行时桥接；改动任何数值或技能判定前，须确认 `harness/verify.mjs` 的技能基线比对仍保持零偏差。

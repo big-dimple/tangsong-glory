@@ -290,7 +290,7 @@ async function run() {
     const page = await browser.newPage();
     const { errors, badHttp } = attachTrackers(page);
 
-    // ── 2. 大厅、新国风资源 HTTP 200、音频切换、数值零偏差与 6 英雄 3D 演武 ──
+    // ── 2. 大厅、新国风资源 HTTP 200、音频切换、数值零偏差与 6 英雄纯立绘选将 ──
     await page.goto(`${baseUrl}/`, { waitUntil: 'load', timeout: 60_000 });
     await waitForCondition(page, () => !!window.__moba && window.__moba.phase === 'menu');
     // 模拟点击以解锁 WebAudio 并等待实录 BGM 随机曲目起播后再做状态采样
