@@ -1443,10 +1443,22 @@ body .sf-root .sf-hud__banner-face > .ts-seal {
   bottom: calc(var(--face) * -0.2);
   rotate: -7deg;
 }
+/* 播报与击杀横幅：去掉内核通用手游的 scale(2.3) + brightness(3) 闪白砸字，改为安静显影 */
+@keyframes ts-banner-develop {
+  from { opacity: 0; transform: translate3d(0, calc(var(--sf-u, 1px) * 4), 0); }
+  to { opacity: 1; transform: none; }
+}
+body .sf-root .sf-hud__banner-title {
+  animation: ts-banner-develop 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+body .sf-root .sf-hud__banner.is-t4::before {
+  animation: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .ts-lobby__canvas,
   .ts-lobby__bg { animation: none; }
   .ts-seal { animation: none !important; opacity: 1; }
   .ts-seal__bleed { animation: none !important; opacity: 0.5; transform: scale(1.06); }
   .ts-seal-shake { animation: none !important; }
+  body .sf-root .sf-hud__banner-title { animation: none; }
 }

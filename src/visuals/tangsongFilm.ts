@@ -48,7 +48,7 @@ const INK_BODY = `  // 水墨阵亡：墨从四周洇进来，颜色被洗走只
     float tsInk = tsP;
     #else
     vec2 tsUv = (vUv - 0.5) * vec2(uAspect, 1.0);
-    float tsR = length((vUv - 0.5) * vec2(min(uAspect, 1.8) / 1.8, 1.0)) * 1.6;
+    float tsR = length((vUv - 0.5) * 1.6);
     float tsN = (tsPaper(tsUv * 9.0) + 0.5 * tsPaper(tsUv * 23.0)) / 1.5 - 0.5;
     float tsFront = 1.6 - 2.0 * tsP;
     float tsInk = smoothstep(tsFront - 0.12, tsFront + 0.22, tsR + tsN * 0.35);

@@ -7,15 +7,15 @@
 | 层级 | 关键模块 | 职责说明 |
 |---|---|---|
 | 配置层 | `src/config/brand.ts`、`camera.ts`、`combatFeel.ts`、`heroes.ts` | 品牌版本戳（`v5.1`）、近/中/远三档视角参数、跑打出手容错手感、6 位唐宋英雄完整配置与技能资源映射 |
-| 视觉与着色器层 | `src/visuals/tangsong*.ts` | 英雄 3D 模型与伴生灵宠、兵线与野怪建模、地图地貌/河流木栏杆/防御塔、青绿山水材质纹理与技能特效着色器 |
-| 界面层 | `src/ui/tangsongLobby.ts`、`src/styles/tangsong-theme.css` | 宣纸画卷大厅、选将亭、大招眼神特写 Cut-in（`triggerEyesCutin`）与游戏 HUD 主题样式 |
-| 音频层 | `src/audio/tangsongAudio.ts`、`public/assets/audio/bgm/` | 4 首实录配乐防连续随机轮播（`.ogg`/`.mp3`）+ WebAudio 程序化五声战斗与界面音效 |
+| 视觉与着色器层 | `src/visuals/tangsong*.ts` | 英雄 3D 模型与伴生灵宠、兵线与野怪建模、地图地貌/河流木栏杆/防御塔、青绿山水材质纹理、技能特效着色器与成片接管/水墨阵亡/入画镜头（`tangsongFilm.ts`） |
+| 界面层 | `src/ui/tangsongLobby.ts`、`tangsongMotion.ts`、`tangsongSeal.ts`、`src/styles/tangsong-theme.css` | 宣纸画卷大厅、选将亭、大招眼神特写 Cut-in（`triggerEyesCutin`）、展卷/收卷演出开关、朱印/墨印落款与宣纸 HUD 主题样式 |
+| 音频层 | `src/audio/tangsongAudio.ts`、`tangsongSpace.ts`、`public/assets/audio/bgm/` | 4 首实录配乐防连续随机轮播（`.ogg`/`.mp3`）、程序化五声战斗/落款/起收动机音效与山谷/城阙双混响空间 |
 | 引擎与核心层 | `src/engine/mobaCore.js` | MOBA 5v5 状态机、帧循环、技能施放、碰撞物理与 `window.__moba` 调试接口 |
 | 构建元数据层 | `src/platform/buildMetadata.ts`、`scripts/build-info.ts`、`vite.config.ts` | 生成包含 `version`、`revision`、`builtAt`、`sourceStatus`、`modified` 的 `dist/build-info.json` 并在编译期注入 `__BUILD_INFO__` |
 
 对战加载时，`src/platform/matchAssets.ts` 与场景构建、WebGL 预热并行准备本局图片和字体。HUD 图片解码完成后才开始对局。下载或解码失败时保留当前阵容与已完成资源，在加载页退避重试。断网后等待网络恢复，也可以手动立即重试。
 
-技能施放由内核 3D 特效与粒子图集统一承载。`src/engine/teamTactics.ts` 处理队友近身主动支援与右手技能轮盘上方的「集合」全图号令按钮（支持摇杆多点触控边走边按与 PC 端 `C` 键快捷发起）；`scripts/patch-core-hooks.mjs` 为生成引擎接入 AI 与英雄专属音效钩子，`build-core.mjs` 重建时会自动应用。
+技能施放由内核 3D 特效与粒子图集统一承载。`src/engine/teamTactics.ts` 处理队友近身主动支援与右手技能轮盘上方的「集合」全图号令按钮（支持摇杆多点触控边走边按与 PC 端 `C` 键快捷发起）；`scripts/patch-core-hooks.mjs` 为生成引擎接入 AI、英雄专属音效与成片/阶段/加载收卷钩子（K1–K4），`build-core.mjs` 重建时会自动应用。
 
 程序化拨弦使用 SFX Brew 的 MIT 授权物理建模算法，许可见 `THIRD_PARTY_NOTICES.md`，并采用拨弦位置梳状滤波与平滑起止包络消除爆音。4 首实录 BGM 资源与随机轮播状态在无头浏览器中实测校验，六位英雄的三项施法音效与「集合」信号音效通过 `OfflineAudioContext` 离线渲染检查。
 

@@ -73,12 +73,12 @@ export const TANGSONG_PALETTE = {
     laneAlt: 0xa69882,
     laneDark: 0x6c6254,
     laneGrout: 0x383028,
-    dirt: 0x8d7960,
+    dirt: 0x887a68,
     dirtDark: 0x5a4a3a,
     sand: 0xc9ab78,
     rock: 0x866848,
     rockDark: 0x463626,
-    rockLight: 0x9c8b74,
+    rockLight: 0x948b7c,
     rockWarm: 0x54786e,
     moss: 0x396d5e,
     waterShallow: 0x6b8285,
@@ -112,12 +112,13 @@ export const TANGSONG_PALETTE = {
   },
 } as const;
 
+/** 默认调色参考（运行时分档泛光与薄霾由 tangsongFilm.ts 写入 engine.grade）。 */
 export const TANGSONG_GRADE = {
   exposure: 1.02,
-  bloomStrength: 0.28,
+  bloomStrength: 0.33,
   shadowTint: [-0.008, -0.004, 0.016] as [number, number, number],
   highlightTint: [0.032, 0.014, -0.018] as [number, number, number],
-  haze: 0.065,
+  haze: 0.11,
 };
 
 export interface SceneryApi {

@@ -1379,9 +1379,9 @@ export function attachTangSongSfx(
 
     // ── 战局礼乐播报全系 (zS)：建鼓 × 编钟 × 古筝五声华彩 ──
     patch('ann_match_start', (p) => {
-      playGongCrash(p, 0, 0.85, 1.8);
-      playWarDrum(p, 0.15, 0.9, 0.82);
-      playWarDrum(p, 0.32, 0.95, 0.82);
+      // 让位给开局「起」动机（0~0.41s 古筝五声上行刮奏），在落宫那一拍以沉稳建鼓与轻远锣托底
+      playWarDrum(p, 0.41, 0.62, 0.82);
+      playGongCrash(p, 0.42, 0.36, 1.5);
     });
     patch('ann_minions_spawn', (p) => {
       playWarDrum(p, 0, 0.72, 0.9);
