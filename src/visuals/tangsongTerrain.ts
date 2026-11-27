@@ -232,7 +232,7 @@ export interface CliffTexHelpers {
 }
 
 /**
- * 1B. 金秋长安枯草落叶地面纹理 DF (替换冷绿青草，严格维持线性均值 ~0.18 匹配 GF * 5.5)
+ * 1B. 青绿罩染草地纹理 DF：底色中性偏青，色相交给调色盘；秋叶朱橙只留作点 (维持线性均值 ~0.18 匹配 GF * 5.5)
  */
 export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpers) {
   const { fx, k8, ke, un, nh } = helpers;
@@ -246,7 +246,7 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         const grain = un(u * 48, v * 48, 2, 29, 48);
         const grit = un(u * 96 + 3.1, v * 96 + 1.7, 2, 41, 96);
         const d = 123 + (macro - 0.5) * 42 + (grain - 0.5) * 18 + (grit - 0.5) * 8;
-        return [d * 1.07, d * 0.99, d * 0.84];
+        return [d * 0.95, d * 1.02, d * 1.0];
       });
 
       const rng = new ke(2026);
@@ -271,10 +271,10 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         const my = (ry + ey) / 2 + ny * bend * len;
         const grad = ctx.createLinearGradient(rx, ry, ex, ey);
         const base = Math.round(lum * 0.56);
-        grad.addColorStop(0, `rgba(${Math.round(base * 1.05)},${Math.round(base * 0.92)},${Math.round(base * 0.72)},${alpha * 0.5})`);
+        grad.addColorStop(0, `rgba(${Math.round(base * 0.9)},${Math.round(base * 1.0)},${Math.round(base * 0.94)},${alpha * 0.5})`);
         grad.addColorStop(
           1,
-          `rgba(${Math.round(Math.min(255, lum * 1.12))},${Math.round(lum * 0.97)},${Math.round(lum * 0.66)},${alpha})`,
+          `rgba(${Math.round(lum * 0.93)},${Math.round(Math.min(255, lum * 1.03))},${Math.round(lum * 0.92)},${alpha})`,
         );
         ctx.fillStyle = grad;
         ctx.beginPath();
@@ -295,8 +295,8 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
         const lenMax = rng.range(20, 42) * s;
         nh(size, x, y, lenMax * 1.3, (cx, cy) => {
           const ao = ctx.createRadialGradient(cx, cy, 0, cx, cy, lenMax * 0.52);
-          ao.addColorStop(0, 'rgba(54, 42, 28, 0.28)');
-          ao.addColorStop(1, 'rgba(54, 42, 28, 0)');
+          ao.addColorStop(0, 'rgba(30, 44, 44, 0.28)');
+          ao.addColorStop(1, 'rgba(30, 44, 44, 0)');
           ctx.fillStyle = ao;
           ctx.beginPath();
           ctx.arc(cx, cy, lenMax * 0.52, 0, Math.PI * 2);
@@ -328,7 +328,7 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
           const ang = baseAng + rng.range(-0.45, 0.45);
           const lum = bright ? rng.range(148, 194) : rng.range(76, 112);
           const al = rng.range(0.18, 0.36);
-          ctx.strokeStyle = `rgba(${Math.round(Math.min(255, lum * 1.08))},${Math.round(lum * 0.96)},${Math.round(lum * 0.72)},${al})`;
+          ctx.strokeStyle = `rgba(${Math.round(lum * 0.93)},${Math.round(Math.min(255, lum * 1.02))},${Math.round(lum * 0.93)},${al})`;
           ctx.lineWidth = rng.range(1.1, 2.2) * s;
           nh(size, bx, by, len + 4, (cx, cy) => {
             ctx.beginPath();
@@ -379,7 +379,7 @@ export function buildTangSongGroundTexture(size: number, helpers: GroundTexHelpe
 }
 
 /**
- * 1C. 唐宋野径夯土与碎青石碴纹理 zF (取代纯光滑椭圆石，线性均值 ~126 匹配 GF * 4.9)
+ * 1C. 唐宋野径夯土与碎青石碴纹理 zF：降饱和的暖灰赭绢色 (线性均值 ~126 匹配 GF * 4.9)
  */
 export function buildTangSongDirtTexture(
   size: number,
@@ -400,7 +400,7 @@ export function buildTangSongDirtTexture(
         const vein = un(u * 11 + 4.1, v * 11, 3, 77, 11);
         let c = 126 + (strata - 0.5) * 44 + (dust - 0.5) * 26;
         if (Math.abs(vein - 0.5) < 0.016) c -= 26;
-        return [c * 1.06, c * 0.97, c * 0.86];
+        return [c * 1.03, c * 0.99, c * 0.93];
       });
 
       const rng = new ke(808);
@@ -467,7 +467,7 @@ export function buildTangSongDirtTexture(
 }
 
 /**
- * 1D. 宋画「大斧劈皴」写实古山岩纹理 hL (512x512 沉积岩层与斧劈折线肌理)
+ * 1D. 宋画山岩纹理 hL (512x512 沉积岩层 + 斧劈皴 / 披麻皴 / 点苔；只管笔触与明暗，色相由顶点色给)
  */
 export function buildTangSongCliffTexture(helpers: CliffTexHelpers) {
   const { fL, fx, ke, un, nh, Og } = helpers;
@@ -495,9 +495,9 @@ export function buildTangSongCliffTexture(helpers: CliffTexHelpers) {
             }
             const ochre = Math.max(0, chisel - 0.52) * 24;
             const idx = (py * w + px) * 4;
-            data[idx] = Og(c * 1.03 + ochre * 0.45);
-            data[idx + 1] = Og(c * 0.985 + ochre * 0.15);
-            data[idx + 2] = Og(c * 0.92 - ochre * 0.25);
+            data[idx] = Og(c * 1.0 + ochre * 0.4);
+            data[idx + 1] = Og(c * 0.995 + ochre * 0.15);
+            data[idx + 2] = Og(c * 0.965 - ochre * 0.2);
             data[idx + 3] = 255;
           }
         }
@@ -520,6 +520,71 @@ export function buildTangSongCliffTexture(helpers: CliffTexHelpers) {
             ctx.lineTo(cx + Math.cos(ang) * len * 0.5, cy + Math.sin(ang) * len * 0.5);
             ctx.stroke();
           });
+        }
+
+        // 斧劈皴：侧锋一刀，一边硬一边虚的楔形墨面（受光一侧留白，背光一侧压墨）
+        for (let i = 0; i < 54; i++) {
+          const rx = rng.range(0, w);
+          const ry = rng.range(0, w);
+          const len = rng.range(26, 64);
+          const wid = rng.range(7, 18);
+          const ang = rng.range(-0.5, 0.12);
+          const dark = rng.chance(0.62);
+          nh(w, rx, ry, len, (cx, cy) => {
+            const dx = Math.cos(ang);
+            const dy = Math.sin(ang);
+            const grad = ctx.createLinearGradient(cx, cy, cx - dy * wid, cy + dx * wid);
+            grad.addColorStop(0, dark ? 'rgba(30, 30, 30, 0.3)' : 'rgba(250, 244, 230, 0.24)');
+            grad.addColorStop(1, dark ? 'rgba(30, 30, 30, 0)' : 'rgba(250, 244, 230, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(cx - dx * len * 0.5, cy - dy * len * 0.5);
+            ctx.lineTo(cx + dx * len * 0.5, cy + dy * len * 0.5);
+            ctx.lineTo(cx + dx * len * 0.22 - dy * wid, cy + dy * len * 0.22 + dx * wid);
+            ctx.closePath();
+            ctx.fill();
+          });
+        }
+
+        // 披麻皴：顺着山势往下披的细长淡墨线，成组出现
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 46; i++) {
+          const gx = rng.range(0, w);
+          const gy = rng.range(0, w);
+          const lean = rng.range(-0.28, 0.28);
+          const count = 3 + rng.int(4);
+          for (let k = 0; k < count; k++) {
+            const sx = gx + (k - count / 2) * rng.range(5, 9);
+            const sy = gy + rng.range(-10, 10);
+            const len = rng.range(34, 86);
+            const bow = rng.range(-9, 9);
+            ctx.strokeStyle = `rgba(36, 34, 32, ${rng.range(0.1, 0.2)})`;
+            ctx.lineWidth = rng.range(0.9, 1.9);
+            nh(w, sx, sy, len, (cx, cy) => {
+              ctx.beginPath();
+              ctx.moveTo(cx, cy);
+              ctx.quadraticCurveTo(cx + lean * len * 0.5 + bow, cy + len * 0.5, cx + lean * len, cy + len);
+              ctx.stroke();
+            });
+          }
+        }
+
+        // 点苔：石隙里成簇的浓墨小点
+        for (let i = 0; i < 30; i++) {
+          const gx = rng.range(0, w);
+          const gy = rng.range(0, w);
+          const dots = 4 + rng.int(6);
+          for (let k = 0; k < dots; k++) {
+            const px = gx + rng.range(-12, 12);
+            const py = gy + rng.range(-7, 7);
+            const r = rng.range(1.2, 2.6);
+            ctx.fillStyle = `rgba(28, 34, 32, ${rng.range(0.22, 0.4)})`;
+            nh(w, px, py, r + 1, (cx, cy) => {
+              ctx.beginPath();
+              ctx.ellipse(cx, cy, r * 1.3, r * 0.8, 0, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }
         }
       },
       { repeat: true, anisotropy: 4 },
@@ -866,11 +931,11 @@ export function drawTangSongMinimapBase(
   ctx.closePath();
   ctx.clip();
 
-  // 宋宣黄古绢金秋底色（水墨赭褐古绢渐变）
+  // 青绿设色古绢底色（石绿罩染，四周收向石青墨色；与战场草地同一套色相）
   const groundGrad = ctx.createRadialGradient(c / 2, c / 2, c * 0.05, c / 2, c / 2, c * 0.74);
-  groundGrad.addColorStop(0, '#665640');
-  groundGrad.addColorStop(0.65, '#473b2c');
-  groundGrad.addColorStop(1, '#2a2219');
+  groundGrad.addColorStop(0, '#4a6a66');
+  groundGrad.addColorStop(0.65, '#33504f');
+  groundGrad.addColorStop(1, '#1e2e30');
   ctx.fillStyle = groundGrad;
   ctx.fillRect(0, 0, c, c);
 
@@ -942,7 +1007,7 @@ export function drawTangSongMinimapBase(
   // 水墨山崖与金石勾线轮廓
   for (const wall of map.walls) {
     polyFn(ctx, wall);
-    ctx.fillStyle = '#26201b';
+    ctx.fillStyle = '#1c2526';
     ctx.fill();
     ctx.strokeStyle = '#b59356';
     ctx.lineWidth = Math.max(1, 1.15 * d);
