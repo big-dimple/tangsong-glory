@@ -8,6 +8,7 @@
  *    编钟、堂鼓与建鼓物理/节点合成声效，全量覆写引擎内建 r1 音效表。
  */
 import { playPluckedString } from './pluckedString';
+import { installTangSongSpace } from './tangsongSpace';
 
 export interface SynthOscOpts {
   w?: string;
@@ -107,6 +108,8 @@ export interface AudioMixerLike {
   play: (key: string, opts?: Record<string, unknown>) => unknown;
   noteCount?: number;
   voiceCount?: number;
+  graph?: AudioNode[];
+  duck?: (level: number, hold: number) => void;
   __tsSfxAttached?: boolean;
   __tsAudioDebug?: () => Record<string, unknown>;
 }
@@ -374,6 +377,29 @@ function playBianzhong(
   p.fm({ f: hz, ratio: 2.42, idx: 0.45 + 1.15 * vel, idx1: 0.02, idt: Math.min(0.14, dur * 0.25), t, a: 0.002, d: dur, g: 0.16 * vel });
   p.osc({ w: 'sine', f: hz, t, a: 0.002, d: dur * 0.92, g: 0.14 * vel });
   p.osc({ w: 'sine', f: safeHz(hz * 2), t, a: 0.002, d: dur * 0.36, g: 0.042 * vel });
+  // 钟体分音：小三度的「侧鼓音」、八度与其上的非谐分音，衰减逐级加快——金属钟体而不是电子铃
+  p.ring(hz, [1.19, 2.0, 2.52], { t, a: 0.002, d: dur * 0.62, g: 0.03 * vel });
+}
+
+/** 石磬：板振动的非谐分音，起音干脆、余音清而短 */
+function playQing(p: SynthPatchLike, f: number, t: number, dur: number, vel: number): void {
+  const hz = safeHz(f);
+  p.ring(hz, [1, 1.52, 2.38, 3.41], { t, a: 0.0015, d: dur, g: 0.12 * vel });
+  p.osc({ w: 'sine', f: safeHz(hz * 0.5), t, a: 0.004, d: dur * 0.7, g: 0.045 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: Math.min(9000, hz * 3.2), q: 2.2, t, a: 0.001, d: 0.012, g: 0.06 * vel });
+}
+
+/** 印身（木）：硬木印章磕在案上的一声短促闷响 */
+function playSealWood(p: SynthPatchLike, t: number, vel: number, pitch = 1): void {
+  p.osc({ w: 'triangle', f: 520 * pitch, f1: 430 * pitch, ft: 0.04, t, a: 0.001, d: 0.07, g: 0.34 * vel });
+  p.osc({ f: 860 * pitch, t, a: 0.001, d: 0.03, g: 0.13 * vel });
+  p.noise({ k: 'pink', flt: 'bandpass', fc: 1800 * pitch, q: 1.2, t, a: 0.001, d: 0.014, g: 0.2 * vel });
+}
+
+/** 案面（革）：印落下去时案面与垫皮的一记低频 */
+function playSealThump(p: SynthPatchLike, t: number, vel: number, pitch = 1): void {
+  p.osc({ f: safeHz(96 * pitch), f1: safeHz(48 * pitch), ft: 0.09, t, a: 0.003, d: 0.34, g: 0.5 * vel });
+  p.noise({ k: 'brown', flt: 'lowpass', fc: 420, fc1: 160, t, a: 0.002, d: 0.06, g: 0.14 * vel });
 }
 
 /** 唐代大建鼓（激战重鼓与大招低频冲击） */
@@ -1436,6 +1462,52 @@ export function attachTangSongSfx(
     });
   }
 
+  if (r1?.ui_confirm) {
+    // ── 朱印落款与「唐宋动机」：由 playTangSongCue 触发，不走内核事件 ──
+    const cue = (key: string, meta: Partial<SfxEntryLike>, fn: (p: SynthPatchLike) => void) => {
+      if (!r1[key]) r1[key] = { ...r1.ui_confirm };
+      patch(key, fn, { poly: 1, prio: 3, jitter: 0, ...meta });
+    };
+    // 朱印 = 木（印身）+ 革（案面低频）+ 磬的泛音；重而空旷
+    cue(CUE_KEYS.seal, { len: 1.9, gap: 0.3, rev: 0.44 }, (p) => {
+      playSealWood(p, 0, 1);
+      playSealThump(p, 0.004, 1);
+      playQing(p, midi(86), 0.012, 1.5, 0.92);
+    });
+    // 墨印：同一个动作，更干更暗，磬音压低、不亮
+    cue(CUE_KEYS['seal-ink'], { len: 1.3, gap: 0.3, rev: 0.24 }, (p) => {
+      playSealWood(p, 0, 0.9, 0.76);
+      playSealThump(p, 0.004, 0.95, 0.86);
+      playQing(p, midi(74), 0.014, 0.8, 0.5);
+    });
+    // 击杀小印：轻轻一点，不抢战斗的声音
+    cue(CUE_KEYS['seal-small'], { len: 0.7, gap: 0.2, rev: 0.2 }, (p) => {
+      playSealWood(p, 0, 0.62, 1.42);
+      playSealThump(p, 0.003, 0.4, 1.4);
+      playQing(p, midi(93), 0.01, 0.5, 0.42);
+    });
+    // 起（开卷 / 入场）：徵–羽–宫–商–角 上行刮奏，落在高八度宫音（D 宫）
+    cue(CUE_KEYS['motif-qi'], { len: 2.4, gap: 1, rev: 0.5 }, (p) => {
+      [69, 71, 74, 76, 78].forEach((m, i) => playGuzheng(p, midi(m), i * 0.075, 0.5, 0.52 + i * 0.06));
+      playGuzheng(p, midi(86), 0.41, 1.3, 0.86);
+      playBianzhong(p, midi(86), 0.41, 1.5, 0.6);
+      playGuqin(p, midi(62), 0.41, 1.4, 0.4);
+    });
+    // 收（落印 / 结算）：商→宫 下行二度，垫一个低八度宫音
+    cue(CUE_KEYS['motif-shou'], { len: 2.8, gap: 1, rev: 0.5 }, (p) => {
+      playGuzheng(p, midi(76), 0.26, 0.5, 0.72);
+      playBianzhong(p, midi(76), 0.26, 0.6, 0.5);
+      playGuzheng(p, midi(74), 0.6, 1.6, 0.8);
+      playBianzhong(p, midi(74), 0.6, 1.7, 0.6);
+      playGuqin(p, midi(62), 0.6, 1.8, 0.7);
+      playBianzhong(p, midi(62), 0.6, 1.6, 0.46);
+    });
+  }
+
+  // 空间：活动混音器换「山谷」冲激响应，并联「城阙」短混响（离线混音器不经过 attach，保持原样）
+  const space = installTangSongSpace(mixer);
+  liveMixer = mixer;
+
   const totalSfxCount = r1 ? Object.keys(r1).length : 0;
   const unpatchedKeys = r1 ? Object.keys(r1).filter((k) => !patchedKeys.has(k)) : [];
 
@@ -1447,5 +1519,34 @@ export function attachTangSongSfx(
     patchedSfxCount: patchedKeys.size,
     unpatchedCount: unpatchedKeys.length,
     unpatchedKeys,
+    space,
   });
+}
+
+export type TangSongCue = 'seal' | 'seal-ink' | 'seal-small' | 'motif-qi' | 'motif-shou';
+
+const CUE_KEYS: Record<TangSongCue, string> = {
+  seal: 'cue_seal',
+  'seal-ink': 'cue_seal_ink',
+  'seal-small': 'cue_seal_small',
+  'motif-qi': 'cue_motif_qi',
+  'motif-shou': 'cue_motif_shou',
+};
+
+let liveMixer: AudioMixerLike | null = null;
+
+/**
+ * 表现层的听觉落款：朱印三声与「唐宋动机」起 / 收。动机与其余音效一样固定 D 宫。
+ * 活动混音器未就绪（还没有用户手势、页面在后台）时静默返回；响的时候让 BGM 闪避约 6dB / 0.8s。
+ */
+export function playTangSongCue(cue: TangSongCue): void {
+  const mixer = liveMixer;
+  if (!mixer?.ctx || mixer.ctx.state !== 'running') return;
+  if (typeof document !== 'undefined' && document.hidden) return;
+  try {
+    if (!mixer.play(CUE_KEYS[cue])) return;
+    if (cue !== 'seal-small') mixer.duck?.(0.5, 0.8);
+  } catch {
+    // 听觉落款不是必需品：出错就不响
+  }
 }

@@ -2,6 +2,7 @@ import './styles/tangsong-theme.css';
 import {
   createTangSongMusic,
   attachTangSongSfx,
+  playTangSongCue,
   type AudioMixerLike,
   type SfxEntryLike,
 } from './audio/tangsongAudio';
@@ -169,8 +170,11 @@ interface HudCtxLike {
   hero?: (id: number) => { heroId?: string } | undefined;
 }
 
-/** 朱印落款的声音由音频层接管（M4 的 playTangSongCue）；接线前先留空。 */
-function playSealCue(_cue: SealCue): void {}
+/** 朱印落定的那一刻出声；结算页的印之后接「收」的动机（商→宫）。 */
+function playSealCue(cue: SealCue): void {
+  playTangSongCue(cue);
+  if (cue !== 'seal-small') playTangSongCue('motif-shou');
+}
 
 const killSeal = createKillSealWatcher(playSealCue);
 
@@ -326,7 +330,10 @@ bootTangSongGlory({
       syncMotionClasses();
       if (phase !== 'match') killSeal.detach();
       if (phase === 'result') stampResultSeal(playSealCue);
-      if (phase === 'match') beginEntryShot();
+      if (phase === 'match') {
+        beginEntryShot();
+        playTangSongCue('motif-qi');
+      }
       if (phase === 'match') requestAnimationFrame(() => {
         const game = window.__moba as { phase?: string; state?: TeamState; hud?: { el?: HTMLElement } } | undefined;
         if (game?.phase === 'match' && game.state && game.hud?.el) {
