@@ -486,6 +486,40 @@ const patches = [
     'onFx(t,e,s,i,a){const o=`fx_${t.key}`,r=t.unitId===s||t.targetId===s;switch(t.key){case"level_up":',
     'onFx(t,e,s,i,a){const o=`fx_${t.key}`,r=t.unitId===s||t.targetId===s;switch(t.key){case"skill_spectacle":return;case"cc_impact":if(!r1[o])return;break;case"level_up":',
   ],
+  // K23 瑶池仙雾泉水结界 + 治疗速度翻倍(24%/s) + 双掌抵背内力运功 + 头顶翠绿 +++ 浮字
+  [
+    'Xm={regenRatio:.12,enemyDamageRatio:.2}',
+    'Xm={regenRatio:.24,enemyDamageRatio:.2}',
+  ],
+  [
+    'const _tsWild=tsConfig.createWildlife?.({Be,Ji,Sn,Qc,gn,yt,ke,mapSdf:r,waterLevel:Fn})??null;_tsWild&&(d.add(_tsWild.group),e.wildlife=_tsWild.count);',
+    'const _tsWild=tsConfig.createWildlife?.({Be,Ji,Sn,Qc,gn,yt,ke,mapSdf:r,waterLevel:Fn})??null;_tsWild&&(d.add(_tsWild.group),e.wildlife=_tsWild.count);const _tsFnt=tsConfig.createFountainSanctuary?.({Ji,Sn,Qc,gn,yt,Gl,uf,yM,Z7,fi,map:o})??null;_tsFnt&&d.add(_tsFnt.group);',
+  ],
+  [
+    'mt.setFountainAlert(0,Z[0]),mt.setFountainAlert(1,Z[1]),_tsWild?.update?.(j.dt)',
+    'mt.setFountainAlert(0,Z[0]),mt.setFountainAlert(1,Z[1]),_tsWild?.update?.(j.dt),_tsFnt?.update?.(j.dt,Rt,j.playerTeam,n.unitQuery,N)',
+  ],
+  [
+    'D.setQuality(j),ct(j)},resize:J,dispose(){_tsWild?.dispose?.(),jM(d)',
+    'D.setQuality(j),_tsFnt?.setQuality?.(j),ct(j)},resize:J,dispose(){_tsWild?.dispose?.(),_tsFnt?.dispose?.(),jM(d)',
+  ],
+  [
+    'fountain:{update(n,t,e,s,i){const a=Fa(e.unit?e.unit.team:2);for(let o=oi(n,t,i,8);o>0;o--){const r=n.rnd.next()*oe;n.particles.use(Mt.glint).tint(a.glow,a.deep).spawn(e.x+Math.cos(r)*(e.radius+.3),e.y+.1,e.z+Math.sin(r)*(e.radius+.3),0,n.rnd.range(1,2.2),0,.9,.32,.08)}}},',
+    'fountain:{create(n,t,e){const s=Ks(n,t,Xt.rune,.25);n.decals.at(s).params(6,1.2).color(Qg,1.25,.85).under(sz,.25)},update(n,t,e,s,i){n.decals.at(t.slots[0])?.at(e.x,e.z).radius(e.radius+1.15);const u=e.unit,act=!!u&&(u.hp<u.stats.maxHp*.995||u.mana<u.stats.maxMana*.995);act&&(Math.floor(t.age/.52)!==Math.floor((t.age-i)/.52)||t.age<=i)&&n.glow.spawn(qe.hoop,sn.hoop,.65).at(e.x,e.y+.25,e.z).vel(0,2.4,0).scale(e.radius+.45,e.radius+.18).color(Qg,1.1,.92).fade(.12,.45).opt(.32,2.2,1);const a=Fa(u?u.team:2);for(let o=oi(n,t,i,act?16:6);o>0;o--){const r=n.rnd.next()*oe,d=n.rnd.range(.4,e.radius+.55);act&&n.rnd.chance(.52)?n.particles.use(Mt.plus).tint(Lt(0x66ffb3),Lt(0x28c87a)).spawn(e.x+Math.cos(r)*d,e.y+n.rnd.range(.5,1.45),e.z+Math.sin(r)*d,0,n.rnd.range(1.1,2.1),0,.85,.28,.45):n.particles.use(Mt.glint).tint(act?Qg:a.glow,act?sz:a.deep).spawn(e.x+Math.cos(r)*(e.radius+.3),e.y+.1,e.z+Math.sin(r)*(e.radius+.3),0,n.rnd.range(1,2.2),0,.9,.32,.08)}}},',
+  ],
+  [
+    'draw(t,e,s,i,a,o,r,l){if(this.now+=e,this.heals.size>0)',
+    'draw(t,e,s,i,a,o,r,l){if(this.now+=e,tsConfig.fountain?.tickPopups?.(this,e,s,i),this.heals.size>0)',
+  ],
+  // K24 手机端可折叠小地图（默认紧凑半面积，轻点放大 / 再点收起）
+  [
+    'a.addEventListener("lostpointercapture",N=>{N.target===a&&Q(N)});const $=()=>{h=!0};window.addEventListener("resize",$);',
+    'a.addEventListener("lostpointercapture",N=>{N.target===a&&Q(N)});const _tsMiniClean=tsConfig.enhanceMinimap?.(a,tt);const $=()=>{h=!0};window.addEventListener("resize",$);',
+  ],
+  [
+    'dispose(){tt(),ut?.disconnect(),window.removeEventListener("resize",$),p.clear(),g.clear()}',
+    'dispose(){_tsMiniClean?.(),tt(),ut?.disconnect(),window.removeEventListener("resize",$),p.clear(),g.clear()}',
+  ],
 ];
 
 // Keep integration hooks reproducible when the optional read-only source exists.

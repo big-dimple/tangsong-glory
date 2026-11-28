@@ -511,13 +511,37 @@ export function createBaseWallBuilders(api: PropsApi) {
         v(rIn, g0, s0, -0.02, curbBot, -nx, 0.3, -nz),
       );
 
-      // 每 4 段起一座汉白玉雕莲望柱
+      // 内圈碧玉仙气石沿流光带（标示瑶池泉界）
+      const jadeEdge = yt(0x4be3a6);
+      const jadeEdgeDeep = yt(0x289972);
+      b.quad(
+        v(rIn + 0.01, ca0, sa0, 0.14, jadeEdge, 0, 1, 0),
+        v(rIn + 0.01, ca1, sa1, 0.14, jadeEdge, 0, 1, 0),
+        v(rIn + 0.11, ca1, sa1, 0.14, jadeEdgeDeep, 0, 1, 0),
+        v(rIn + 0.11, ca0, sa0, 0.14, jadeEdgeDeep, 0, 1, 0),
+      );
+
+      // 每 4 段起一座汉白玉雕莲望柱 + 瑶池仙桃瑞果双叶
       if (u % 4 === 0) {
         const px = cx + Math.cos(a0) * (rIn + rOut) * 0.5;
         const pz = cz + Math.sin(a0) * (rIn + rOut) * 0.5;
         if (Math.max(Math.abs(px), Math.abs(pz)) <= bound - 0.25) {
           addWorldBox(b, px, 0.22, pz, 0.24, 0.24, 0.24, cTop, curbBot);
-          addWorldBox(b, px, 0.38, pz, 0.16, 0.1, 0.16, bronzeGold, darkGold);
+          addWorldBox(b, px, 0.38, pz, 0.17, 0.1, 0.17, bronzeGold, darkGold);
+          // 望柱顶奉「瑶池仙桃」：粉嫩桃尖 + 玉金桃身 + 两侧翠叶
+          const peachBase = yt(0xf7dc9e);
+          const peachTip = yt(0xff8fa0);
+          const leafJade = yt(0x3cb87c);
+          const leafDeep = yt(0x1f6b47);
+          api.Ts(b, px, 0.56, pz, 0.125, 0.145, 0.125, {
+            detail: 1,
+            seed: 40 + u,
+            bottom: peachBase,
+            top: peachTip,
+            glow: 0.54,
+          });
+          addWorldBox(b, px + Math.cos(a0 + 0.9) * 0.11, 0.45, pz + Math.sin(a0 + 0.9) * 0.11, 0.1, 0.035, 0.06, leafJade, leafDeep, 0.2);
+          addWorldBox(b, px + Math.cos(a0 - 0.9) * 0.11, 0.45, pz + Math.sin(a0 - 0.9) * 0.11, 0.1, 0.035, 0.06, leafJade, leafDeep, 0.2);
         }
       }
     }

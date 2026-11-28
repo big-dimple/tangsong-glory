@@ -921,16 +921,16 @@ export function attachTangSongSfx(
       playGuzheng(p, midi(81), 0.055, 0.38, 0.74);
     });
 
-    // ── 秦琼 (panyue)：熟铜四棱双锏 + 玄甲重盾 + 建鼓振岳 ──
+    // ── 秦琼 (panyue)：短促干脆的沉钢挥锏 + 拳肉实感闷砸 ──
     patch('atk_panyue_swing', (p) => {
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 420, fc1: 1100, q: 1.2, a: 0.02, d: 0.14, g: 0.42 });
-      p.ring(480, [1, 1.62], { t: 0.03, a: 0.002, d: 0.08, g: 0.14 });
-    });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 340, fc1: 760, fct: 0.07, q: 1.1, a: 0.008, d: 0.082, g: 0.36 });
+      p.noise({ k: 'brown', flt: 'lowpass', fc: 280, a: 0.006, d: 0.07, g: 0.28 });
+    }, { len: 0.14, rev: 0.03 });
     patch('atk_panyue_hit', (p) => {
-      playWarDrum(p, 0, 0.65, 1.05);
-      p.ring(540, [1, 1.48, 2.22], { a: 0.002, d: 0.26, g: 0.28 });
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 1400, q: 1.1, a: 0.001, d: 0.06, g: 0.48 });
-    });
+      p.osc({ f: 132, f1: 56, ft: 0.045, a: 0.001, d: 0.095, g: 0.48 });
+      p.ring(540, [1, 1.48], { a: 0.001, d: 0.085, g: 0.24 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1500, q: 1.0, a: 0.001, d: 0.036, g: 0.38 });
+    }, { len: 0.16, rev: 0.05 });
     patch('cast_panyue_s1', (p) => {
       playWarDrum(p, 0, 0.85, 0.92);
       playTangHorn(p, midi(50), 0.02, 0.32, 0.7);
@@ -978,16 +978,17 @@ export function attachTangSongSfx(
       p.noise({ k: 'brown', flt: 'lowpass', fc: 780, fc1: 180, a: 0.005, d: 0.55, g: 0.42 });
     });
 
-    // ── 花蕊夫人 (chijin)：凌风细剑清吟 + 丝绸飘带 + 梅瓣轻铃 ──
+    // ── 花蕊夫人 (chijin)：凌风细剑短疾破风 + 干净利刃入肉（去除上扬口哨电子音） ──
     patch('atk_chijin_swing', (p) => {
-      p.noise({ k: 'white', flt: 'bandpass', fc: 1600, fc1: 4200, q: 1.5, a: 0.005, d: 0.11, g: 0.34 });
-      p.osc({ w: 'sine', f: 1420, f1: 2200, ft: 0.09, a: 0.004, d: 0.11, g: 0.1 });
-    });
+      p.noise({ k: 'white', flt: 'bandpass', fc: 2600, fc1: 4800, fct: 0.055, q: 1.8, a: 0.003, d: 0.072, g: 0.34 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1400, fc1: 2600, fct: 0.055, q: 1.2, a: 0.004, d: 0.068, g: 0.22 });
+      p.ring(2900, [1, 1.41], { t: 0.01, a: 0.001, d: 0.045, g: 0.07 });
+    }, { len: 0.13, rev: 0.03 });
     patch('atk_chijin_hit', (p) => {
-      p.ring(p.rr(1260, 1400), [1, 1.42], { a: 0.002, d: 0.12, g: 0.17 });
-      p.osc({ f: 165, f1: 72, ft: 0.06, a: 0.001, d: 0.11, g: 0.32 });
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 2500, q: 0.85, a: 0.002, d: 0.035, g: 0.20 });
-    });
+      p.osc({ f: 172, f1: 78, ft: 0.035, a: 0.001, d: 0.072, g: 0.32 });
+      p.ring(p.rr(1420, 1580), [1, 1.42], { a: 0.001, d: 0.078, g: 0.18 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2800, q: 0.9, a: 0.001, d: 0.028, g: 0.28 });
+    }, { len: 0.14, rev: 0.04 });
     patch('cast_chijin_s1', (p) => {
       p.noise({ flt: 'bandpass', fc: 2200, fc1: 5200, q: 1.4, a: 0.01, d: 0.16, g: 0.38 });
       playGuzheng(p, midi(79), 0, 0.22, 0.7);
@@ -1028,18 +1029,22 @@ export function attachTangSongSfx(
       p.ring(1980, [1, 1.5], { t: 0.04, a: 0.01, d: 0.28, g: 0.14 });
     });
 
-    // ── 苏轼 / 刘娥 (xingli)：五声古琴泛音 + 凤诏玉磬 ──
+    // ── 苏轼 / 刘娥 (xingli)：短促拂袖点弦 + 墨浪玉磬点水（收紧余韵，不拖泥带水） ──
     patch('atk_xingli_charge', (p) => {
-      playGuqin(p, midi(69), 0, 0.18, 0.55);
-    });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1800, fc1: 2800, q: 1.6, a: 0.005, d: 0.05, g: 0.18 });
+      p.osc({ w: 'sine', f: midi(74), a: 0.002, d: 0.045, g: 0.09 });
+    }, { len: 0.1, rev: 0.03 });
     patch('atk_xingli_launch', (p, v = 0) => {
-      const m = PENTA_D[Math.abs(Math.round(v)) % PENTA_D.length];
-      playGuzheng(p, midi(m), 0, 0.28, 0.85);
-    });
+      const hz = midi(PENTA_D[Math.abs(Math.round(v)) % PENTA_D.length]);
+      p.osc({ w: 'triangle', f: hz, a: 0.001, d: 0.088, g: 0.34 });
+      p.osc({ w: 'sine', f: safeHz(hz * 2), a: 0.001, d: 0.052, g: 0.11 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2600, fc1: 1400, fct: 0.065, q: 1.5, a: 0.002, d: 0.072, g: 0.38 });
+    }, { len: 0.15, rev: 0.05 });
     patch('atk_xingli_hit', (p) => {
-      playBianzhong(p, midi(81), 0, 0.26, 0.68);
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, q: 1.3, a: 0.002, d: 0.05, g: 0.24 });
-    });
+      playQing(p, midi(81), 0, 0.095, 0.42);
+      p.osc({ f: 260, f1: 125, ft: 0.03, a: 0.001, d: 0.055, g: 0.22 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1600, q: 1.2, a: 0.001, d: 0.032, g: 0.24 });
+    }, { len: 0.14, rev: 0.05 });
     patch('cast_xingli_s1', (p) => {
       playGuzheng(p, midi(74), 0, 0.25, 0.75);
       playXiao(p, midi(81), 0.03, 0.3, 0.75);
@@ -1101,18 +1106,23 @@ export function attachTangSongSfx(
       playPentatonicPhrase(p, [74, 79, 81, 86], 0.06, 0.3, 0.55, 'pipa');
     });
 
-    // ── 文成公主 (fengling)：牛角硬弓绷弦 + 鸣镝破空 + 飞天羽矢雨 ──
+    // ── 文成公主 (fengling)：彻底删掉弹簧拨弦，改成干脆弦响 + 利箭破空「嗖/咻」风声 ──
     patch('atk_fengling_draw', (p) => {
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 900, fc1: 1600, q: 2.0, a: 0.02, d: 0.1, g: 0.28 });
-    });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 720, fc1: 1250, q: 1.8, a: 0.006, d: 0.055, g: 0.18 });
+    }, { len: 0.12, rev: 0.02 });
     patch('atk_fengling_launch', (p) => {
-      playPluckedString(p, 260, 0, 0.14, 0.45, 0.25, undefined, 330, 0.22);
-      p.noise({ flt: 'bandpass', fc: 3200, fc1: 5800, q: 1.8, a: 0.001, d: 0.065, g: 0.32 });
-    });
+      // 极短实木弓弰回弹闷响（无滑音弹簧味）
+      p.noise({ k: 'brown', flt: 'lowpass', fc: 320, a: 0.001, d: 0.02, g: 0.24 });
+      p.osc({ w: 'triangle', f: 145, f1: 92, ft: 0.018, a: 0.001, d: 0.024, g: 0.16 });
+      // 高速羽箭划破空气的「咻——嗖——」降频风切声
+      p.noise({ k: 'white', flt: 'bandpass', fc: 5400, fc1: 2100, fct: 0.095, q: 2.3, a: 0.004, h: 0.012, d: 0.115, g: 0.44 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 3600, fc1: 1500, fct: 0.088, q: 1.4, a: 0.004, h: 0.01, d: 0.105, g: 0.30 });
+    }, { len: 0.17, rev: 0.03 });
     patch('atk_fengling_hit', (p) => {
-      playWoodblock(p, 0, 0.55, true);
-      p.osc({ f: 210, f1: 95, ft: 0.04, a: 0.001, d: 0.06, g: 0.35 });
-    });
+      p.osc({ w: 'triangle', f: 240, f1: 105, ft: 0.028, a: 0.001, d: 0.048, g: 0.34 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 2200, q: 1.2, a: 0.001, d: 0.026, g: 0.36 });
+      p.osc({ w: 'sine', f: 760, f1: 480, ft: 0.016, a: 0.001, d: 0.022, g: 0.14 });
+    }, { len: 0.12, rev: 0.03 });
     patch('cast_fengling_s1', (p) => {
       p.osc({ w: 'glass', f: 1680, f1: 2450, ft: 0.16, a: 0.004, d: 0.24, g: 0.26 });
       p.noise({ flt: 'bandpass', fc: 3600, fc1: 6800, q: 1.4, a: 0.002, d: 0.16, g: 0.38 });
@@ -1156,16 +1166,17 @@ export function attachTangSongSfx(
       });
     });
 
-    // ── 辛弃疾 (yeque)：单刀寒锋厉啸 + 破阵飞刃 + 铁马雷鼓 ──
+    // ── 辛弃疾 (yeque)：短快冷冽刀锋破空 + 清脆刺击确认 ──
     patch('atk_yeque_swing', (p) => {
-      p.noise({ k: 'white', flt: 'bandpass', fc: 2000, fc1: 5800, q: 1.6, a: 0.003, d: 0.095, g: 0.38 });
-      p.osc({ f: 880, f1: 1580, ft: 0.08, a: 0.002, d: 0.09, g: 0.12 });
-    });
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3200, fc1: 5800, fct: 0.048, q: 1.9, a: 0.002, d: 0.062, g: 0.44 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1500, fc1: 2900, fct: 0.048, q: 1.3, a: 0.002, d: 0.056, g: 0.28 });
+      p.ring(3400, [1, 1.37], { t: 0.006, a: 0.001, d: 0.038, g: 0.07 });
+    }, { len: 0.11, rev: 0.03 });
     patch('atk_yeque_hit', (p) => {
-      p.ring(p.rr(1050, 1190), [1, 1.48, 2.1], { a: 0.002, d: 0.11, g: 0.17 });
-      p.osc({ f: 145, f1: 62, ft: 0.05, a: 0.001, d: 0.09, g: 0.38 });
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 2350, q: 0.9, a: 0.002, d: 0.035, g: 0.24 });
-    });
+      p.osc({ f: 150, f1: 64, ft: 0.032, a: 0.001, d: 0.068, g: 0.36 });
+      p.ring(p.rr(1720, 1940), [1, 1.46], { a: 0.001, d: 0.065, g: 0.18 });
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3400, q: 1.1, a: 0.001, d: 0.024, g: 0.3 });
+    }, { len: 0.13, rev: 0.04 });
     patch('cast_yeque_s1', (p) => {
       p.noise({ k: 'white', flt: 'bandpass', fc: 1800, fc1: 6400, q: 1.4, a: 0.004, d: 0.16, g: 0.45 });
       p.ring(1760, [1, 1.5], { a: 0.001, d: 0.22, g: 0.22 });

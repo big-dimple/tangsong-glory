@@ -46,6 +46,14 @@ import {
   type MonsterVfxKit,
 } from './visuals/tangsongMonsterVfx';
 import { createTangSongWildlife, type WildlifeApi } from './visuals/tangsongWildlife';
+import {
+  createFountainSanctuary,
+  tickFountainPopups,
+  type FountainApi,
+  type FountainPopupSystemLike,
+  type FountainStateLike,
+} from './visuals/tangsongFountain';
+import { enhanceMinimap } from './ui/tangsongMinimap';
 import { createTangSongLobby, type LobbyScreenContext } from './ui/tangsongLobby';
 import { mountTangSongDraftBar, type DraftBarHandle } from './ui/tangsongDraft';
 import { openMatchmakeOverlay } from './ui/tangsongMatchmake';
@@ -338,6 +346,16 @@ bootTangSongGlory({
     helpers: MonsterVfxHelpers,
   ) => playMonsterAttackVfx(kit, unit, event, helpers),
   createWildlife: (api: WildlifeApi) => createTangSongWildlife(api),
+  createFountainSanctuary: (api: FountainApi) => createFountainSanctuary(api),
+  fountain: {
+    tickPopups: (
+      popups: FountainPopupSystemLike,
+      dt: number,
+      state: FountainStateLike,
+      world: unknown,
+    ) => tickFountainPopups(popups, dt, state, world),
+  },
+  enhanceMinimap: (miniEl: HTMLElement, onPeekReset?: () => void) => enhanceMinimap(miniEl, onPeekReset),
   createLobbyScreen: (ctx: LobbyScreenContext) => createTangSongLobby(ctx),
   startMatchmaking: ({
     root,

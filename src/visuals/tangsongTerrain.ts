@@ -728,34 +728,41 @@ void main() {
     float rays = pow(abs(sin(a * 4.0)), 28.0) * smoothstep(0.42, 0.5, r) * (1.0 - smoothstep(0.62, 0.7, r));
     goldInlay = max(goldInlay, rays * 0.7);
   } else if (type < 2.5) {
-    // ── 泉水玉池：汉白玉池沿 + 碧玉雕刻双莲泉底 + 水波焦散 ──
+    // ── 瑶池仙泉玉池：汉白玉池沿 + 碧玉翠环仙气边界 + 流动双莲浮雕 + 水波焦散 ──
     float alert = seed < 0.75 ? uAlert.x : uAlert.y;
-    float rimM = smoothstep(0.86, 0.875, r);
+    float rimM = smoothstep(0.855, 0.872, r);
     vec2 sr = stoneRings(0.99, a, seed);
     vec3 rimCol = vColorB * sr.x * mix(0.6, 1.0, smoothstep(0.0, 0.02, abs(fract(a / TAU * 24.0) - 0.5) - 0.03)) * (0.9 + 0.2 * nz2);
-    rimCol = mix(rimCol, imperialGold, band(r, 0.93, 0.008, aa));
+    rimCol = mix(rimCol, imperialGold, band(r, 0.93, 0.009, aa));
+    vec3 jadeMist = mix(vec3(0.26, 0.92, 0.66), vec3(1.0, 0.32, 0.16), alert);
+    float outerAura = band(r, 0.972, 0.015, aa * 1.4) + band(r, 0.846, 0.018, aa * 1.5);
+    float fretFlow = keyFret(r, a + t * 0.12, 0.892, 0.026, 20.0, aa);
+    rimCol = mix(rimCol, imperialGold, fretFlow * 0.75);
+    rimCol = mix(rimCol, jadeMist, outerAura * 0.55);
+
     vec2 fr = stoneRings(r * 1.14, a + 0.3, seed + 2.0);
     vec3 floorCol = vColorB * 0.82 * fr.x * mix(0.64, 1.0, fr.y);
-    vec2 lot = lotusPetals(r, a, 8.0, 0.18, 0.52, aa);
-    floorCol = mix(floorCol, vColorB * 1.1, lot.y * 0.35);
-    floorCol = mix(floorCol, imperialGold, lot.x * 0.78);
-    floorCol = mix(floorCol, imperialGold, baguaTrigrams(r, a, 0.74, 0.04, 8.0, seed, aa) * 0.65);
+    vec2 lot = lotusPetals(r, a + t * 0.08, 8.0, 0.18, 0.52, aa);
+    floorCol = mix(floorCol, mix(vColorB * 1.05, jadeMist, 0.28), lot.y * 0.42);
+    floorCol = mix(floorCol, imperialGold, lot.x * 0.82);
+    floorCol = mix(floorCol, imperialGold, baguaTrigrams(r, a - t * 0.06, 0.74, 0.04, 8.0, seed, aa) * 0.72);
 
-    float depth = smoothstep(0.86, 0.2, r);
-    vec3 waterTint = mix(vColorA, vec3(1.0, 0.28, 0.14), alert);
-    vec3 pool = floorCol * mix(vec3(0.92, 0.98, 0.96), vec3(0.45, 0.78, 0.76), depth) + waterTint * 0.08 * depth;
+    float depth = smoothstep(0.86, 0.18, r);
+    vec3 waterTint = mix(mix(vColorA, jadeMist, 0.58), vec3(1.0, 0.28, 0.14), alert);
+    vec3 pool = floorCol * mix(vec3(0.88, 0.99, 0.94), vec3(0.32, 0.78, 0.68), depth) + waterTint * 0.16 * depth;
     vec2 cq = vWorldPos.xz * 1.5;
-    float c1 = vnoise(cq + vec2(t * 0.22, t * 0.13));
-    float c2 = vnoise(cq * 1.3 - vec2(t * 0.17, -t * 0.19) + 3.7);
-    float caust = pow(clamp(1.0 - abs(c1 - c2) * 3.2, 0.0, 1.0), 5.0);
-    pool += vec3(0.8, 0.98, 0.88) * caust * (0.1 + 0.14 * depth);
-    float rip = sin(r * mix(44.0, 28.0, alert) - t * mix(2.0, 6.8, alert) + nz * 3.0);
-    pool += vec3(0.95, 0.98, 0.92) * smoothstep(0.87, 1.0, rip) * (1.0 - r) * mix(0.1, 0.28, alert);
+    float c1 = vnoise(cq + vec2(t * 0.24, t * 0.15));
+    float c2 = vnoise(cq * 1.3 - vec2(t * 0.19, -t * 0.21) + 3.7);
+    float caust = pow(clamp(1.0 - abs(c1 - c2) * 3.2, 0.0, 1.0), 4.6);
+    pool += vec3(0.74, 1.0, 0.88) * caust * (0.14 + 0.18 * depth);
+    float rip = sin(r * mix(28.0, 22.0, alert) - t * mix(3.2, 7.2, alert) + nz * 3.0);
+    pool += vec3(0.76, 1.0, 0.9) * smoothstep(0.82, 1.0, rip) * (1.0 - r * 0.8) * mix(0.16, 0.34, alert);
     pool = mix(pool, pool * vec3(1.24, 0.52, 0.45) + vec3(0.12, 0.0, 0.0), alert * 0.7);
     paint = mix(pool, rimCol, rimM);
-    alpha = (1.0 - smoothstep(0.985, 1.0, r)) * mix(0.95, 1.0, rimM);
+    alpha = (1.0 - smoothstep(0.985, 1.0, r)) * mix(0.96, 1.0, rimM);
     float inside = 1.0 - rimM;
-    glow += waterTint * (1.0 - smoothstep(0.0, 0.34, r)) * 0.16;
+    glow += jadeMist * outerAura * (0.42 + 0.18 * sin(t * 2.4));
+    glow += waterTint * (1.0 - smoothstep(0.0, 0.44, r)) * 0.24;
     teamInlay += band(r, 0.84, 0.012, aa) * 1.6 * alert * (0.6 + 0.4 * sin(t * 9.0)) * inside;
   } else if (type < 3.5) {
     // ── 野怪石环：古风风化碎石圈与篆刻凹线 ──
