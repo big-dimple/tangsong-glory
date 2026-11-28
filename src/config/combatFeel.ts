@@ -15,25 +15,32 @@ export interface CastFeelProfile {
 }
 
 export const PLAYER_ATTACK_FEEL = {
-  minWindup: 0.095,
-  maxWindup: 0.155,
-  windupRatio: 0.2,
-  followThroughDur: 0.24,
-  kiteRangePad: 0.75,
+  minWindup: 0.085,
+  maxWindup: 0.14,
+  windupRatio: 0.19,
+  followThroughDur: 0.22,
+  kiteRangePad: 0.9,
 } as const;
 
 export const PLAYER_CAST_PROFILES: Record<string, CastFeelProfile> = {
-  // 顺发移动施法类：极短微顿（40~45ms），立即进入下半身奔跑 + 上半身朝目标施法
-  'panyue:s2': { lockTime: 0.04, mobile: true, actDur: 0.36 },
+  // 顺发移动施法类：极短微顿（40~55ms），立即进入下半身奔跑 + 上半身朝目标施法
+  'panyue:s2': { lockTime: 0.04, mobile: true, actDur: 0.34 },
+  'chijin:s2': { lockTime: 0.045, mobile: true, actDur: 0.32 },
   'xingli:s1': { lockTime: 0.045, mobile: true, actDur: 0.34 },
   'xingli:s2': { lockTime: 0.045, mobile: true, actDur: 0.36 },
+  'fengling:s2': { lockTime: 0.045, mobile: true, actDur: 0.32 },
+  'yeque:s1': { lockTime: 0.055, mobile: true, actDur: 0.32 },
   'yeque:s2': { lockTime: 0.04, mobile: true, actDur: 0.3 },
 
-  // 紧凑蓄力重招类：踩实落地发力（110~160ms，零滑步），出手后立刻允许走位取消后摇
-  'chijin:s1': { lockTime: 0.11, mobile: false, actDur: 0.34 },
-  'fengling:s1': { lockTime: 0.13, mobile: false, actDur: 0.36 },
-  'xingli:ult': { lockTime: 0.16, mobile: false, actDur: 0.48 },
-  'fengling:ult': { lockTime: 0.16, mobile: false, actDur: 0.48 },
+  // 紧凑蓄力重招类：踩实落地发力（95~150ms，零滑步），出手后立刻允许走位取消后摇
+  'panyue:s1': { lockTime: 0.1, mobile: false, actDur: 0.34 },
+  'panyue:ult': { lockTime: 0.14, mobile: false, actDur: 0.44 },
+  'chijin:s1': { lockTime: 0.095, mobile: false, actDur: 0.32 },
+  'chijin:ult': { lockTime: 0.13, mobile: false, actDur: 0.42 },
+  'fengling:s1': { lockTime: 0.11, mobile: false, actDur: 0.34 },
+  'fengling:ult': { lockTime: 0.15, mobile: false, actDur: 0.46 },
+  'xingli:ult': { lockTime: 0.14, mobile: false, actDur: 0.46 },
+  'yeque:ult': { lockTime: 0.13, mobile: false, actDur: 0.42 },
 };
 
 export const UPPER_LOWER_CONFIG = {

@@ -123,6 +123,7 @@ export interface MusicController {
   readonly playing: boolean;
   setTrack(track: string): void;
   setMood(intensity: number, tension: number): void;
+  setBattleBgmEnabled?(enabled: boolean): void;
   tick(lookahead?: number): void;
   nextSong(): string | null;
   fork(mixer: AudioMixerLike): MusicController;
@@ -132,7 +133,9 @@ export interface MusicController {
 export const BGM_TRACK_IDS = ['tianhu-begin', 'moon-shop', 'go-cake', 'vsboss'] as const;
 export type BgmTrackId = (typeof BGM_TRACK_IDS)[number];
 
-const BGM_HEADROOM = 0.54;
+const MENU_BGM_GAIN = 0.36;
+const BATTLE_BGM_GAIN = 0.11;
+const BATTLE_BGM_DUCKED = 0.048;
 const BGM_GAP_MS = 1200;
 
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
@@ -460,6 +463,8 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
   let needsRetry = false;
   let preferMp3 = false;
   let mp3RetriedForSong = false;
+  let battleBgmEnabled = true;
+  let curIntensity = 0;
   let gapTimer: ReturnType<typeof setTimeout> | null = null;
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -470,6 +475,8 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
 
   let audioEl: HTMLAudioElement | null = null;
   let mediaSource: MediaElementAudioSourceNode | null = null;
+  let carveEq: BiquadFilterNode | null = null;
+  let battleLp: BiquadFilterNode | null = null;
   let bgmGain: GainNode | null = null;
 
   const clearTimers = () => {
@@ -488,6 +495,34 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
     return `/assets/audio/bgm/${songId}.${useOgg ? 'ogg' : 'mp3'}`;
   };
 
+  const computeTargetGain = (): number => {
+    if (curTrack === 'none') return 0;
+    if (curTrack === 'battle') {
+      if (!battleBgmEnabled) return 0;
+      const combatT = Math.max(0, Math.min(1, (curIntensity - 0.15) / 0.7));
+      return BATTLE_BGM_GAIN + (BATTLE_BGM_DUCKED - BATTLE_BGM_GAIN) * combatT;
+    }
+    return MENU_BGM_GAIN;
+  };
+
+  const applyMixProfile = (tau = 0.25) => {
+    if (!mixer.ctx) return;
+    const now = mixer.now();
+    if (bgmGain) {
+      bgmGain.gain.cancelScheduledValues(now);
+      bgmGain.gain.setTargetAtTime(computeTargetGain(), now, tau);
+    }
+    const inBattle = curTrack === 'battle';
+    if (carveEq) {
+      const combatT = Math.max(0, Math.min(1, (curIntensity - 0.15) / 0.7));
+      const eqDb = inBattle ? -5.5 - 1.5 * combatT : 0;
+      carveEq.gain.setTargetAtTime(eqDb, now, tau);
+    }
+    if (battleLp) {
+      battleLp.frequency.setTargetAtTime(inBattle ? 3600 : 18000, now, tau);
+    }
+  };
+
   const rampGain = (target: number, tau: number) => {
     if (!bgmGain || !mixer.ctx) return;
     const now = mixer.now();
@@ -504,7 +539,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
           .then(() => {
             if (!disposed && currentSongId === songId && curTrack !== 'none') {
               needsRetry = false;
-              rampGain(BGM_HEADROOM, 0.25);
+              applyMixProfile(0.25);
             }
           })
           .catch(() => {
@@ -514,7 +549,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
           });
       } else {
         needsRetry = false;
-        rampGain(BGM_HEADROOM, 0.25);
+        applyMixProfile(0.25);
       }
     } catch {
       needsRetry = true;
@@ -529,7 +564,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
     playedCount++;
     audioEl.src = resolveUrl(songId);
     audioEl.currentTime = 0;
-    rampGain(BGM_HEADROOM, 0.28);
+    applyMixProfile(0.28);
     attemptPlay(songId);
   };
 
@@ -607,8 +642,20 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
       bgmGain = mixer.ctx.createGain();
       bgmGain.gain.value = 0;
       bgmGain.connect(mixer.musicIn);
+      // 商业 MOBA 频段避让（1.8kHz 让出英雄/技能瞬态中频）+ 局内温柔低通
+      carveEq = mixer.ctx.createBiquadFilter();
+      carveEq.type = 'peaking';
+      carveEq.frequency.value = 1800;
+      carveEq.Q.value = 0.85;
+      carveEq.gain.value = 0;
+      battleLp = mixer.ctx.createBiquadFilter();
+      battleLp.type = 'lowpass';
+      battleLp.frequency.value = 18000;
+      battleLp.Q.value = 0.55;
+      carveEq.connect(battleLp);
+      battleLp.connect(bgmGain);
       mediaSource = mixer.ctx.createMediaElementSource(audioEl);
-      mediaSource.connect(bgmGain);
+      mediaSource.connect(carveEq);
       audioEl.addEventListener('ended', onEnded);
       audioEl.addEventListener('error', onError);
       if (typeof document !== 'undefined') {
@@ -617,6 +664,8 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
     } catch {
       audioEl = null;
       mediaSource = null;
+      carveEq = null;
+      battleLp = null;
       bgmGain = null;
     }
   }
@@ -667,21 +716,30 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
 
       // Already playing a recorded song: keep it flowing smoothly across menu -> battle -> match end
       if (currentSongId && !audioEl.paused && !audioEl.ended) {
-        rampGain(BGM_HEADROOM, 0.25);
+        applyMixProfile(0.28);
         return;
       }
 
       // Returning from 'none' with a buffered track not yet ended: resume gracefully
       if (currentSongId && audioEl.src && !audioEl.ended) {
-        rampGain(BGM_HEADROOM, 0.25);
+        applyMixProfile(0.25);
         attemptPlay(currentSongId);
         return;
       }
 
       startNextShuffled();
     },
-    setMood(_intensity: number, _tension: number) {
-      // Real recorded BGM mixes are already mastered; preserve dynamic headroom cleanly.
+    setMood(intensity: number, _tension: number) {
+      curIntensity = Math.max(0, Math.min(1, intensity || 0));
+      if (!disposed && curTrack === 'battle') {
+        applyMixProfile(0.22);
+      }
+    },
+    setBattleBgmEnabled(enabled: boolean) {
+      battleBgmEnabled = enabled !== false;
+      if (!disposed && curTrack === 'battle') {
+        applyMixProfile(0.2);
+      }
     },
     tick(_lookahead = 0.9) {
       if (disposed || curTrack === 'none' || !audioEl) return;
@@ -724,15 +782,15 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
       }
       try {
         mediaSource?.disconnect();
-      } catch {
-        // ignore
-      }
-      try {
+        carveEq?.disconnect();
+        battleLp?.disconnect();
         bgmGain?.disconnect();
       } catch {
         // ignore
       }
       mediaSource = null;
+      carveEq = null;
+      battleLp = null;
       bgmGain = null;
       currentSongId = null;
     },
@@ -760,6 +818,10 @@ export function attachTangSongSfx(
     if (!entry) return;
     entry.fn = fn;
     if (meta) Object.assign(entry, meta);
+    // 商业 MOBA 信息剥离：压紧战斗短效混响发送量，避免团战音效混成一锅泥
+    if (!key.startsWith('ann_') && !key.startsWith('cue_') && typeof entry.rev === 'number' && entry.rev > 0.14) {
+      entry.rev = 0.14;
+    }
     patchedKeys.add(key);
   };
 
@@ -1509,7 +1571,25 @@ export function attachTangSongSfx(
     });
   }
 
-  // 空间：活动混音器换「山谷」冲激响应，并联「城阙」短混响（离线混音器不经过 attach，保持原样）
+  // 空间：活动混音器换「收紧实战声场」冲激响应，并联「城阙」短混响（离线混音器不经过 attach，保持原样）
+  if (r1) {
+    const crowdGuards: [string, number, number][] = [
+      ['minion_swing', 0.22, 1],
+      ['minion_melee_hit', 0.24, 1],
+      ['minion_ranged_launch', 0.24, 1],
+      ['minion_ranged_hit', 0.24, 1],
+      ['coin', 0.28, 1],
+      ['fx_gold_gain', 0.35, 1],
+      ['fx_hit_physical', 0.16, 2],
+      ['fx_hit_magic', 0.16, 2],
+    ];
+    for (const [k, minGap, maxPoly] of crowdGuards) {
+      const e = r1[k];
+      if (!e) continue;
+      if (typeof e.gap !== 'number' || e.gap < minGap) e.gap = minGap;
+      e.poly = maxPoly;
+    }
+  }
   const space = installTangSongSpace(mixer);
   liveMixer = mixer;
 

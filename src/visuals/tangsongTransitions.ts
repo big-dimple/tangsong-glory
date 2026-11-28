@@ -13,7 +13,7 @@ import { cinematicFlowEnabled } from '../ui/tangsongMotion';
 export type TransitionKind = 'wash' | 'slam' | 'tear' | 'daybreak';
 
 export interface SnapshotContext {
-  scene: 'lobby' | 'select' | 'loading' | 'match' | 'result';
+  scene: 'lobby' | 'matchmake' | 'select' | 'loading' | 'match' | 'result';
   heroId?: string;
   teams?: { blue: string[]; red: string[] };
   difficultyLabel?: string;
@@ -122,8 +122,8 @@ void main(){
   float isW = ss(0., .0012, h0.y);
   vec3 n = normalize(vec3(-(gs + gw), 1.));
   float thick = clamp(h0.x / .085, 0., 2.);
-  vec2 uv = abs(vUv + clamp(-gs * .055 * clamp(.5 + thick, 0., 1.6) - clamp(gw, -2.5, 2.5) * .085 * isW, -.35, .35) / vec2(uAsp, 1.));
-  uv = 1. - abs(1. - uv);
+  vec2 refractOff = clamp(-gs * .045 * clamp(.5 + thick, 0., 1.4) - clamp(gw, -2.0, 2.0) * .060 * isW, -.14, .14) / vec2(max(uAsp, .85), 1.);
+  vec2 uv = clamp(vUv + refractOff, .002, .998);
   float sw = ss(.34, .46, uP + .02 * (vnoise(q * 4.) - .5));
   vec3 ca = uP < .48 ? toLin(clamp(texture(tA, uv).rgb, 0., 1.)) : vec3(0.);
   vec3 cb = uHasB > .5 && uP > .32 ? toLin(clamp(texture(tB, uv).rgb, 0., 1.)) : vec3(.06, .13, .14);
@@ -160,9 +160,13 @@ void main(){
   float cover = ss(-.012, .0, a);
   float wet = uP < .4 ? cover : clamp(ss(0., .0010, h0.x + h0.y), 0., 1.);
   wet = max(wet, foam);
-  float alpha = uP < .4 ? 1. : wet * (1. - ss(.82, .97, uP));
+  float revealFilm = clamp((1. - ab.g) * .52 + foam * .88 + fr * .38, .16, .84) * wet * (1. - ss(.74, .95, uP));
+  float alpha = uHasB > .5
+    ? (uP < .4 ? 1. : wet * (1. - ss(.82, .97, uP)))
+    : mix(1., revealFilm, sw);
+  float aOut = clamp(alpha, 0., 1.);
   vec3 outC = mix(uP < .4 ? toLin(texture(tA, vUv).rgb) : c, c, wet);
-  o = vec4(toSrgb(min(outC, vec3(1.))), clamp(alpha, 0., 1.));
+  o = vec4(toSrgb(min(outC, vec3(1.))) * aOut, aOut);
 }`;
 
 // ── 2. slam（雕版重印冲击：压印前变焦空气暗角 + 宣纸吃墨前沿 + 湿墨边缘 + 辐射墨尘 + 纸纤维）──
@@ -228,7 +232,24 @@ void main(){
   float x = r - uRing, env = exp(-x * x * 38.) * exp(-tau * 2.6), wob = sin(x * 34.) * env;
   float g = (cos(x * 34.) * 34. - 2. * 38. * x * sin(x * 34.)) * env / 34.;
   vec2 bu = clamp(uv - dir * g * .0085 / asp, 0., 1.);
-  vec3 b = uHasB > .5 ? toLin(clamp(texture(tB, bu).rgb, 0., 1.)) : vec3(.09, .06, .05);
+  float endFade = 1. - smoothstep(.62, .96, uP);
+  if (uHasB < .5) {
+    vec3 aCol = toLin(clamp(texture(tA, bu).rgb, 0., 1.));
+    vec3 pt0 = paperTone(q);
+    float n0 = fbm(q * 9.) * .5 + vnoise(q * 120.) * .25 + vnoise(q * 330.) * .25;
+    float age0 = (uDust - r) * 2.1 + .55;
+    float wave = smoothstep(n0 - .12, n0 + .34, age0 - .12);
+    float revealA = clamp((1. - mix(wave, 1., uEnd)) * endFade, 0., 1.);
+    vec3 col0 = mix(aCol, pt0, clamp(wave * .35, 0., .35)) * (1. - .12 * wave * (1. - n0) + wob * .04);
+    float fFade = exp(-tau * 1.5) * (1. - smoothstep(.65, .95, tau));
+    if (fFade > .01) {
+      float pxr = 1.2 / 720.;
+      col0 = mix(col0, vec3(.52, .48, .44), max(fibre(q, 61., 3., tau, pxr), fibre(q, 37., 11., tau * .8, pxr)) * fFade * .85);
+    }
+    o = vec4(toSrgb(clamp(col0, 0., 1.)) * revealA, revealA);
+    return;
+  }
+  vec3 b = toLin(clamp(texture(tB, bu).rgb, 0., 1.));
   vec3 pt = paperTone(q);
   float n = fbm(q * 9.) * .5 + vnoise(q * 120.) * .25 + vnoise(q * 330.) * .25;
   float age = (uDust - r) * 2.1 + .55;
@@ -250,7 +271,8 @@ void main(){
     c = mix(c, vec3(.52, .48, .44), max(fibre(q, 61., 3., tau, pxr), fibre(q, 37., 11., tau * .8, pxr)) * fade * .9);
   }
   float alpha = 1. - smoothstep(.78, .98, uP);
-  o = vec4(toSrgb(clamp(c, 0., 1.)), alpha);
+  float aOut = clamp(alpha, 0., 1.);
+  o = vec4(toSrgb(clamp(c, 0., 1.)) * aOut, aOut);
 }`;
 
 // ── 3. tear（3D 双半宣纸撕裂卷边 + 透光纤维撕牙 + 36 片飞散纸屑 + 双层柔影）──
@@ -472,8 +494,8 @@ void main(){
   float k = ss(0., .12, p) * (1. - ss(.86, .985, p));
   vec3 soft = c / (1. + max(max(c.r, max(c.g, c.b)) - .82, 0.));
   c = mix(c, min(soft, 1.), k);
-  float alpha = 1. - ss(.82, .98, p);
-  o = vec4(toSrgb(clamp(c, 0., 1.)), alpha);
+  float aOut = clamp(uHasB > .5 ? (1. - ss(.82, .98, p)) : (1. - ss(.24, .78, p)), 0., 1.);
+  o = vec4(toSrgb(clamp(c, 0., 1.)) * aOut, aOut);
 }`;
 
 interface ProgramRecord {
@@ -722,7 +744,7 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
 
   if (snap.sourceCanvas && snap.sourceCanvas.width > 0 && snap.sourceCanvas.height > 0) {
     try {
-      ctx.drawImage(snap.sourceCanvas, 0, 0, w, h);
+      drawCoverImage(ctx, snap.sourceCanvas as unknown as HTMLImageElement, w, h, 0.5, 0.5);
       return cv;
     } catch {
       // 安全降级到下方绘卷合成
@@ -731,6 +753,7 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
 
   const artMap: Record<SnapshotContext['scene'], string> = {
     lobby: '/assets/art/lobby-scroll.webp',
+    matchmake: '/assets/art/lobby-scroll.webp',
     select: '/assets/art/select-pavilion.webp',
     loading: '/assets/art/loading-bg.webp',
     match: '/assets/art/loading-bg.webp',
@@ -738,7 +761,7 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   };
 
   const bg = preloadImage(artMap[snap.scene]);
-  if (bg) drawCoverImage(ctx, bg, w, h, snap.scene === 'lobby' ? (portrait ? 0.74 : 0.62) : 0.5, snap.scene === 'lobby' ? (portrait ? 0.5 : 0.38) : 0.5);
+  if (bg) drawCoverImage(ctx, bg, w, h, snap.scene === 'lobby' || snap.scene === 'matchmake' ? (portrait ? 0.74 : 0.62) : 0.5, snap.scene === 'lobby' || snap.scene === 'matchmake' ? (portrait ? 0.5 : 0.38) : 0.5);
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, 'rgba(10, 14, 16, 0.45)');
@@ -747,7 +770,25 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  if (snap.scene === 'lobby') {
+  if (snap.scene === 'matchmake') {
+    ctx.fillStyle = 'rgba(8, 14, 16, 0.74)';
+    ctx.fillRect(0, 0, w, h);
+    const cw = portrait ? w * 0.9 : 560;
+    const ch = portrait ? 350 : 380;
+    const cx = (w - cw) / 2;
+    const cy = (h - ch) / 2;
+    ctx.fillStyle = 'rgba(18, 28, 30, 0.96)';
+    ctx.fillRect(cx, cy, cw, ch);
+    ctx.strokeStyle = 'rgba(233, 189, 98, 0.65)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx, cy, cw, ch);
+    ctx.fillStyle = '#fce3a6';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 28px serif';
+    ctx.fillText('汴京寻将 · 十方齐聚', w / 2, cy + 54);
+    ctx.fillStyle = '#e9bd62';
+    ctx.fillRect(cx + 26, cy + 84, cw - 52, 5);
+  } else if (snap.scene === 'lobby') {
     ctx.fillStyle = '#fff4d9';
     if (portrait) {
       ctx.font = 'bold 52px serif';
@@ -804,8 +845,8 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
           ctx.fillText(hero.name, x + 46, y + 190);
         });
       };
-      drawRow(blue, 210, '#6bb4db');
-      drawRow(red, 540, '#f05a46');
+      drawRow(blue, 248, '#6bb4db');
+      drawRow(red, 532, '#f05a46');
     } else {
       const drawTeam = (list: string[], startX: number, color: string) => {
         list.slice(0, 5).forEach((id, i) => {
@@ -985,9 +1026,10 @@ export function installTransitionDebugHandle(): void {
   warmTransitionImages();
   (window as { __tsTransition?: unknown }).__tsTransition = {
     preview(kind: TransitionKind, p: number, opts?: Partial<PlayTransitionOptions>) {
+      const hasExplicitTo = opts ? Object.prototype.hasOwnProperty.call(opts, 'to') : false;
       return playTangSongTransition(kind, {
         from: opts?.from ?? { scene: kind === 'tear' ? 'loading' : kind === 'daybreak' ? 'match' : kind === 'slam' ? 'select' : 'lobby', heroId: 'sushi' },
-        to: opts?.to ?? { scene: kind === 'wash' ? 'select' : kind === 'slam' ? 'loading' : 'result', heroId: 'sushi', win: true },
+        to: hasExplicitTo ? opts!.to : { scene: kind === 'wash' ? 'select' : kind === 'slam' ? 'loading' : 'result', heroId: 'sushi', win: true },
         holdProgress: p,
         mood: opts?.mood ?? 0,
         force: true,

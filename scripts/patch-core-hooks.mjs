@@ -236,6 +236,105 @@ const patches = [
     'ember_golem:"#ff5d5d",abyss_drake:"#c09bff",star_colossus:"#ffd76a"},uG={',
     'ember_golem:"#ff5d5d",abyss_drake:"#4cc9ba",star_colossus:"#ffd76a"},uG={',
   ],
+  // K17 王者荣耀式多阶装备合成系统（T1小件 → T2中件 → T3神装）与互动合成路线树
+  [
+    'function Po(n){return tH[n](ln[n].color)}',
+    'function Po(n){return tH[n](ln[n].color)}tsConfig.items?.init?.(ln,tH,IB);',
+  ],
+  [
+    'wG=["recommend","attack","magic","defense","boots"],MG={1:"基础鞋",2:"进阶鞋"},kG={attack:"攻击装备",magic:"法术装备",defense:"防御装备",boots:"鞋"}',
+    'wG=["recommend","attack","magic","defense","boots"],MG={1:"小件",2:"中件",3:"神装"},kG={attack:"攻击装备",magic:"法术装备",defense:"防御装备",boots:"鞋"}',
+  ],
+  [
+    'function $f(n){const t=Se[n.heroId].build,e=n.items,s=Dm(e),i=e.indexOf(null)<0,a=e.map(()=>!1);let o=!1;for(const r of t){const l=ln[r];if(l.category==="boots"){if(s&&(ln[s].tier===2||l.tier===1))continue;return o&&!s?null:r}let c=!1;for(let f=0;f<e.length;f++)if(!a[f]&&e[f]===r){a[f]=!0,c=!0;break}if(!c){if(!i)return r;o=!0}}return null}function Gf(n,t){const e=ln[t];if(e.category==="boots"){const s=Dm(n.items);if(s)return e.cost-Math.floor(ln[s].cost*Yh)}return e.cost}function zm(n,t){const e=ln[t];if(e.category==="boots"){const s=Dm(n.items);if(s)return e.tier!==1&&s!==t}return n.items.indexOf(null)>=0}function Tk(n,t){return Se[n].build.includes(t)}function Yd(n){const t=Se[n.heroId].build,e=n.items,s=Dm(e),i=$f(n),a=[];let o=null,r=null;for(const c of t){const f=ln[c];f.category==="boots"&&(f.tier===1?o=o??c:r=c)}if(o||r){const c=r??o,f=r!==null;let d;s&&(ln[s].tier===2||!f)?d="done":d=s?"base":"todo";const h=d==="done"?null:d==="base"?c:o??c;a.push({finalId:c,baseId:f?o:null,stage:d,buyId:h,cost:h?Gf(n,h):0,next:!1,order:1})}const l=e.map(()=>!1);for(const c of t){if(ln[c].category==="boots")continue;let f=!1;for(let d=0;d<e.length;d++)if(!l[d]&&e[d]===c){l[d]=!0,f=!0;break}a.push({finalId:c,baseId:null,stage:f?"done":"todo",buyId:f?null:c,cost:f?0:ln[c].cost,next:!1,order:a.length+1})}if(i){const c=a.find(f=>f.buyId===i);c&&(c.next=!0)}return a}',
+    'function $f(n){return tsConfig.items?tsConfig.items.findNextBuyItem(n,Se,ln):null}function Gf(n,t){return tsConfig.items?tsConfig.items.resolveSynthesis(n.items,t,ln).netCost:ln[t].cost}function zm(n,t){return tsConfig.items?tsConfig.items.resolveSynthesis(n.items,t,ln).fits:n.items.indexOf(null)>=0}function Tk(n,t){return tsConfig.items?tsConfig.items.isRecommendedOrPart(n,t,Se,ln):Se[n].build.includes(t)}function Yd(n){return tsConfig.items?tsConfig.items.computeRecommendCards(n,Se,ln):[]}',
+  ],
+  [
+    'function M1(n,t){const e=ln[t];let s=null;if(e.category==="boots"){const a=Ak(n);if(a){if(a===t)return{ok:!1,block:"boots_same",cost:e.cost,replaces:null};if(e.tier===1)return{ok:!1,block:"boots_owned",cost:e.cost,replaces:null};s=a}}const i=Gf(n,t);return zm(n,t)?n.gold<i?{ok:!1,block:"gold",cost:i,replaces:s}:{ok:!0,block:"ok",cost:i,replaces:s}:{ok:!1,block:"full",cost:i,replaces:s}}',
+    'function M1(n,t){const e=ln[t];let s=null;if(e.category==="boots"){const a=Ak(n);if(a){if(a===t)return{ok:!1,block:"boots_same",cost:e.cost,replaces:null};if(e.tier===1)return{ok:!1,block:"boots_owned",cost:e.cost,replaces:null};s=a}}const syn=tsConfig.items?.resolveSynthesis(n.items,t,ln),i=syn?syn.netCost:Gf(n,t),fits=syn?syn.fits:zm(n,t),rep=s??syn?.replacesLabel??null;return fits?n.gold<i?{ok:!1,block:"gold",cost:i,replaces:rep}:{ok:!0,block:"ok",cost:i,replaces:rep}:{ok:!1,block:"full",cost:i,replaces:null}}',
+  ],
+  [
+    'function cS(n,t,e,s=!1){const i=ln[e];if(!i)return!1;const a=t.items;let o=i.cost,r=-1;if(i.category==="boots"){const l=a.findIndex(c=>c!==null&&ln[c].category==="boots");if(l>=0){const c=ln[a[l]];if(i.tier===1||c.id===i.id)return Do(n,t,"full",s);r=l,o-=Math.floor(c.cost*Yh)}}return r<0&&(r=a.indexOf(null)),r<0?Do(n,t,"full",s):t.gold<o?Do(n,t,"gold",s):(t.gold-=o,a[r]=e,lS(n,t),s?n.emit({type:"itemBought",unitId:t.id,itemId:e,auto:!0}):n.emit({type:"itemBought",unitId:t.id,itemId:e}),!0)}',
+    'function cS(n,t,e,s=!1){const i=ln[e];if(!i)return!1;const a=t.items;if(i.category==="boots"){const l=a.findIndex(c=>c!==null&&ln[c].category==="boots");if(l>=0){const c=ln[a[l]];if(i.tier===1||c.id===i.id)return Do(n,t,"full",s)}}const syn=tsConfig.items?tsConfig.items.resolveSynthesis(a,e,ln):null,o=syn?syn.netCost:i.cost,fits=syn?syn.fits:a.indexOf(null)>=0;if(!fits)return Do(n,t,"full",s);if(t.gold<o)return Do(n,t,"gold",s);t.gold-=o;if(syn&&syn.consumedIndices.length>0){for(const idx of syn.consumedIndices)a[idx]=null;a[syn.consumedIndices[0]]=e}else{const r=a.indexOf(null);a[r]=e}return lS(n,t),s?n.emit({type:"itemBought",unitId:t.id,itemId:e,auto:!0}):n.emit({type:"itemBought",unitId:t.id,itemId:e}),!0}',
+  ],
+  [
+    ',i==="recommend")for(const Zt of Yd(Tt))r.push(gt(Zt.order,lt(Zt,Tt),ln[Zt.finalId].category==="boots"));else{const Zt=IB.filter(be=>be.category===i).sort((be,ce)=>be.cost-ce.cost);for(const be of Zt)r.push(gt(0,be.id,!1))}',
+    ',i==="recommend")for(const Zt of Yd(Tt))r.push(gt(Zt.order,lt(Zt,Tt),ln[Zt.finalId].category==="boots"||(ln[Zt.finalId].from?.length??0)>0));else{const Zt=IB.filter(be=>be.category===i).sort((be,ce)=>(be.tier-ce.tier)||(be.cost-ce.cost));for(const be of Zt)r.push(gt(0,be.id,!1))}',
+  ],
+  [
+    'Ze=z("div","sf-hud__dt-meta",z("span","sf-badge sf-badge--mute",u4[Zt.category]),Zt.category==="boots"?z("span",`sf-badge${Zt.tier===2?"":" sf-badge--mute"}`,MG[Zt.tier]):null)',
+    'Ze=z("div","sf-hud__dt-meta",z("span","sf-badge sf-badge--mute",u4[Zt.category]),z("span",`sf-badge${Zt.tier>=2?"":" sf-badge--mute"}`,MG[Zt.tier]??(Zt.tier===3?"神装":"小件")))',
+  ],
+  [
+    'if(Zt.passive?qs.appendChild(z("div","sf-hud__dt-passive",z("b",null,`被动 · ${Zt.passive.name}`),Zt.passive.desc)):qs.appendChild(z("div","sf-hud__dt-nopassive","(无被动)")),Ot=z("div","sf-hud__dt-note")',
+    'if(Zt.passive?qs.appendChild(z("div","sf-hud__dt-passive",z("b",null,`被动 · ${Zt.passive.name}`),Zt.passive.desc)):qs.appendChild(z("div","sf-hud__dt-nopassive","(无被动)")),(()=>{const _rt=tsConfig.items?.renderRecipeTree?.(be,n.me,ln,Po,nid=>{i=e(nid).category,G.set(i),ft(),a={kind:"shop",id:nid},Ue()});_rt&&qs.appendChild(_rt)})(),Ot=z("div","sf-hud__dt-note")',
+  ],
+  [
+    'if(Ze.replaces?(be.classList.add("is-good"),be.append(`替换${ln[Ze.replaces].name}，已抵 `,z("b","sf-num",String(ce.cost-Ze.cost))))',
+    'if(Ze.replaces?(be.classList.add("is-good"),be.append(ln[Ze.replaces]?`替换${ln[Ze.replaces].name}，已抵 `:`已用 ${Ze.replaces} 抵扣 `,z("b","sf-num",String(ce.cost-Ze.cost))))',
+  ],
+  [
+    ':Oe.stage==="base"&&Oe.baseId?[re,Te,De]=[`已有${K2(Oe.baseId)}`,"is-have"," · 稍后升级"]',
+    ':Oe.stage==="base"?[re,Te,De]=[Oe.baseId?`已有${K2(Oe.baseId)}`:`已凑 ${Oe.ownedParts}/${Oe.totalParts}`,"is-have"," · 可抵扣"]',
+  ],
+  // K18 前期节奏、回蓝呼吸感与 220ms 技能冷却缓冲（全员公平、保留晋升乐趣）
+  [
+    'va={startGold:300,passiveGold:3.9,',
+    'va={startGold:350,passiveGold:4.5,',
+  ],
+  [
+    'function Z6(n){return n>=15?0:160+60*(n-1)}',
+    'function Z6(n){return n>=15?0:n===1?105:n===2?165:n===3?225:160+60*(n-1)}',
+  ],
+  [
+    'if(t.kind==="hero"){t.h.baseLevel!==t.level&&(e.base=f5(t.h.def,t.level),t.h.baseLevel=t.level);',
+    'if(t.kind==="hero"){t.level<=5&&(pe.manaRegen+=(6-t.level)*.45),t.h.baseLevel!==t.level&&(e.base=f5(t.h.def,t.level),t.h.baseLevel=t.level);',
+  ],
+  [
+    'if(a.cd>0)return Do(n,t,"cooldown",s);',
+    'if(a.cd>0){if(t.isPlayer&&!s&&a.cd<=.22)return t.h.pendingCast=e,t.h.pendingUntil=r+.28,!1;return Do(n,t,"cooldown",s)}',
+  ],
+  [
+    'if(a.pendingCast){const f=a.pendingCast;if(a.pendingCast=null,i<=a.pendingUntil&&(hS(n,t,f,!0),i<o.lockUntil||o.dash!==null))return}',
+    'if(a.pendingCast){const f=a.pendingCast;if(i>a.pendingUntil)a.pendingCast=null;else if((t.skills[f.slot]?.cd??0)<=0&&(a.pendingCast=null,hS(n,t,f,!0),i<o.lockUntil||o.dash!==null))return}',
+  ],
+  // K19 商业 MOBA 音频分层：压低非玩家小兵噪底 + 局内背景音乐独立开关
+  [
+    'f.kind==="hero"?this.at(ET[kitOf(f.heroId)],f.pos,d?1:.6,{prio:d?2:1}):f.kind==="minion"?(f.minionType==="melee"||f.minionType==="super")&&this.at("minion_swing",f.pos,h?.8:.45,{pitch:f.minionType==="super"?.7:1})',
+    'f.kind==="hero"?this.at(ET[kitOf(f.heroId)],f.pos,d?1:.42,{prio:d?2:1}):f.kind==="minion"?(f.minionType==="melee"||f.minionType==="super")&&this.at("minion_swing",f.pos,h?.65:.14,{pitch:f.minionType==="super"?.7:1})',
+  ],
+  [
+    'h.kind==="minion"?h.minionType==="melee"?this.at("minion_melee_hit",c.pos,f?.75:x?.5:.3):h.minionType==="super"&&this.at("super_hit",c.pos,f?.85:x?.6:.4)',
+    'h.kind==="minion"?h.minionType==="melee"?this.at("minion_melee_hit",c.pos,f?.65:x?.32:.12):h.minionType==="super"&&this.at("super_hit",c.pos,f?.78:x?.45:.18)',
+  ],
+  [
+    'this.at(h,c.pos,f?1:.7,{prio:f?3:2});break}case"fx":',
+    'this.at(h,c.pos,f?1:.5,{prio:f?3:2});break}case"fx":',
+  ],
+  [
+    'const h=d!==void 0&&d.kind==="hero",u=f?1:h?.65:c.visual==="tower_bolt"||c.visual==="core_bolt"?.7:c.visual==="minion_siege"?.5:.38',
+    'const h=d!==void 0&&d.kind==="hero",u=f?1:h?.48:c.visual==="tower_bolt"||c.visual==="core_bolt"?.62:c.visual==="minion_siege"?.24:.14',
+  ],
+  [
+    'g=f||d?1:x?p?.5:.32:u?.65:.6',
+    'g=f||d?1:x?p?.38:.14:u?.6:.48',
+  ],
+  [
+    'musicVolume:.5,showFps:!1,cameraShake:!0,autoBuy:!0,tutorial:!0,objectiveHints:!0}',
+    'musicVolume:.5,battleBgm:!0,showFps:!1,cameraShake:!0,autoBuy:!0,tutorial:!0,objectiveHints:!0}',
+  ],
+  [
+    'typeof e.objectiveHints=="boolean"&&(t.objectiveHints=e.objectiveHints)',
+    'typeof e.objectiveHints=="boolean"&&(t.objectiveHints=e.objectiveHints),typeof e.battleBgm=="boolean"&&(t.battleBgm=e.battleBgm)',
+  ],
+  [
+    'g=p("主音量",Vt("volume"),"masterVolume"),y=p("音效",Vt("sfx"),"sfxVolume"),v=p("音乐",Vt("music"),"musicVolume"),_=z("div","sf-settings",z("section","sf-settings__group sf-settings__group--assist",z("h3","sf-heading","对战辅助"),h.row,h.hint,m.row,m.hint,x.row,x.hint),z("section","sf-settings__group",z("h3","sf-heading","画面"),z("div","sf-field",z("span","sf-field__label",_e(Vt("quality")),"画质"),z("span","sf-field__ctl sf-settings__quality",i.el)),s,z("div","sf-field",z("span","sf-field__label",_e(Vt("target")),"镜头视角"),z("span","sf-field__ctl sf-settings__quality",cp.el)),cpHint,fsRow,_fsHint,l.row,c.row,ec.row,ec.hint,cf.row,cf.hint),z("section","sf-settings__group",z("h3","sf-heading","声音"),g.row,y.row,v.row)),k=()=>{const w=n.get();i.set(w.quality),s.textContent=E4[w.quality],cp.set(w.cameraPreset),cpHint.textContent=tsConfig.getCameraPreset(w.cameraPreset).desc,l.toggle.set(w.showFps),c.toggle.set(w.cameraShake),ec.toggle.set(w.eyesCutin!==!1),cf.toggle.set(w.cinematicFlow!==!1),h.toggle.set(w.autoBuy),u(),m.toggle.set(w.objectiveHints),x.toggle.set(w.tutorial||a!==0),g.slider.set(w.masterVolume),g.val.textContent=e(w.masterVolume),y.slider.set(w.sfxVolume),y.val.textContent=e(w.sfxVolume),v.slider.set(w.musicVolume),v.val.textContent=e(w.musicVolume)}',
+    'g=p("主音量",Vt("volume"),"masterVolume"),y=p("音效",Vt("sfx"),"sfxVolume"),v=p("音乐",Vt("music"),"musicVolume"),bBgm=r("局内背景音乐",Vt("music"),"battleBgm","对局中以轻音氛围铺底并随团战自动闪避；关闭则局内纯音效。"),_=z("div","sf-settings",z("section","sf-settings__group sf-settings__group--assist",z("h3","sf-heading","对战辅助"),h.row,h.hint,m.row,m.hint,x.row,x.hint),z("section","sf-settings__group",z("h3","sf-heading","画面"),z("div","sf-field",z("span","sf-field__label",_e(Vt("quality")),"画质"),z("span","sf-field__ctl sf-settings__quality",i.el)),s,z("div","sf-field",z("span","sf-field__label",_e(Vt("target")),"镜头视角"),z("span","sf-field__ctl sf-settings__quality",cp.el)),cpHint,fsRow,_fsHint,l.row,c.row,ec.row,ec.hint,cf.row,cf.hint),z("section","sf-settings__group",z("h3","sf-heading","声音"),g.row,y.row,v.row,bBgm.row,bBgm.hint)),k=()=>{const w=n.get();i.set(w.quality),s.textContent=E4[w.quality],cp.set(w.cameraPreset),cpHint.textContent=tsConfig.getCameraPreset(w.cameraPreset).desc,l.toggle.set(w.showFps),c.toggle.set(w.cameraShake),ec.toggle.set(w.eyesCutin!==!1),cf.toggle.set(w.cinematicFlow!==!1),h.toggle.set(w.autoBuy),u(),m.toggle.set(w.objectiveHints),x.toggle.set(w.tutorial||a!==0),g.slider.set(w.masterVolume),g.val.textContent=e(w.masterVolume),y.slider.set(w.sfxVolume),y.val.textContent=e(w.sfxVolume),v.slider.set(w.musicVolume),v.val.textContent=e(w.musicVolume),bBgm.toggle.set(w.battleBgm!==!1)}',
+  ],
+  [
+    'k=()=>v.setVolumes({master:_.masterVolume,sfx:_.sfxVolume,music:_.musicVolume});k();',
+    'k=()=>{v.setVolumes({master:_.masterVolume,sfx:_.sfxVolume,music:_.musicVolume});v.music?.setBattleBgmEnabled?.(_.battleBgm!==!1)};k();',
+  ],
 ];
 
 // Keep integration hooks reproducible when the optional read-only source exists.

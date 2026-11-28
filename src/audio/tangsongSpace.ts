@@ -19,15 +19,15 @@ interface SpaceShape {
 }
 
 const VALLEY: SpaceShape = {
-  seconds: 3.2,
-  rt60: 2.7,
-  preDelay: 0.026,
-  brightStart: 0.56,
-  brightEnd: 0.09,
-  // 对面山壁的两声清晰远回声
+  // 商业 MOBA 收紧战场混响（rt60 0.68s），保留空间层次同时彻底避免团战闷糊打架
+  seconds: 1.05,
+  rt60: 0.68,
+  preDelay: 0.012,
+  brightStart: 0.58,
+  brightEnd: 0.14,
   echoes: [
-    [[0.18, 0.52], [0.36, 0.28]],
-    [[0.22, 0.48], [0.40, 0.28]],
+    [[0.075, 0.34], [0.16, 0.14]],
+    [[0.095, 0.32], [0.18, 0.14]],
   ],
 };
 
@@ -106,7 +106,7 @@ export function installTangSongSpace(mixer: SpaceMixerLike): { valley: boolean; 
     room.normalize = false;
     room.buffer = buildImpulse(ctx, CITY);
     const send = ctx.createGain();
-    send.gain.value = 0.22;
+    send.gain.value = 0.14;
     mixer.uiBus.connect(send);
     send.connect(room);
     // 回送到音效总线（之后同样经过内核的压缩与软削波），不形成回路

@@ -1949,3 +1949,163 @@ body.ts-reduce-motion .ts-seal-shake { animation: none !important; }
 body.ts-reduce-motion .sf-root .sf-hud__banner-title { animation: none; }
 body.ts-reduce-motion .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
 body.ts-reduce-motion .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }
+
+/* ── 15. 王者荣耀式多阶合成商店 & 竖屏商店交互强化 ── */
+body .sf-root .sf-hud__shop-grid {
+  grid-template-rows: none;
+  grid-auto-rows: max-content;
+  align-content: start;
+}
+body .sf-root .sf-hud__shop-list {
+  overflow-y: auto;
+}
+.ts-recipe-tree {
+  margin-top: 8px;
+  padding: 8px 9px;
+  border-radius: 6px;
+  background: rgba(14, 22, 24, 0.78);
+  border: 1px solid rgba(233, 189, 98, 0.28);
+}
+.ts-recipe-title {
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fce3a6;
+}
+.ts-recipe-tree .ts-recipe-title:not(:first-child) {
+  margin-top: 8px;
+}
+.ts-recipe-row,
+.ts-recipe-builds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.ts-recipe-op {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e9bd62;
+  padding: 0 1px;
+}
+.ts-recipe-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(233, 189, 98, 0.32);
+  background: rgba(24, 38, 42, 0.86);
+  color: #f7eedc;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s ease, background-color 0.14s ease, transform 0.1s ease;
+}
+.ts-recipe-node:hover {
+  border-color: rgba(255, 224, 150, 0.85);
+  background: rgba(38, 62, 68, 0.92);
+}
+.ts-recipe-node:active {
+  transform: scale(0.97);
+}
+.ts-recipe-node.is-owned {
+  border-color: rgba(111, 227, 161, 0.72);
+  background: rgba(20, 56, 44, 0.85);
+}
+.ts-recipe-node.is-up {
+  border-color: rgba(233, 189, 98, 0.48);
+  background: rgba(44, 28, 18, 0.88);
+}
+.ts-recipe-ico {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.ts-recipe-ico svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.ts-recipe-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.ts-recipe-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f7eedc;
+  white-space: nowrap;
+}
+.ts-recipe-sub {
+  font-size: 10px;
+  color: #e9bd62;
+  white-space: nowrap;
+}
+.ts-recipe-node.is-owned .ts-recipe-sub {
+  color: #7ee8ab;
+  font-weight: 700;
+}
+@media (min-width: 720px) and (orientation: landscape) {
+  body .sf-root .sf-settings {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+  body .sf-root .sf-settings > .sf-settings__group:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+}
+@media (orientation: portrait) {
+  body .sf-root .sf-hud__shop-detail {
+    max-height: min(50dvh, calc(var(--sf-u, 1px) * 384));
+  }
+  .ts-recipe-tree {
+    margin-top: 6px;
+    padding: 6px 7px;
+  }
+  .ts-recipe-ico {
+    width: 20px;
+    height: 20px;
+  }
+  .ts-recipe-node {
+    padding: 3px 6px;
+    gap: 4px;
+  }
+}
+@media (orientation: portrait) and (max-height: 720px) {
+  body .sf-root .sf-hud__shop-detail {
+    padding: 6px 10px 8px;
+  }
+  .ts-recipe-tree {
+    margin-top: 4px;
+    padding: 4px 6px;
+  }
+  .ts-recipe-title {
+    margin-bottom: 4px;
+    font-size: 10px;
+  }
+  .ts-recipe-row,
+  .ts-recipe-builds {
+    gap: 4px;
+  }
+  .ts-recipe-ico {
+    width: 18px;
+    height: 18px;
+  }
+  .ts-recipe-node {
+    padding: 2px 5px;
+    gap: 4px;
+  }
+  .ts-recipe-name {
+    font-size: 10px;
+  }
+  .ts-recipe-sub {
+    font-size: 9px;
+  }
+}

@@ -21,6 +21,7 @@ import {
   type HeroId,
   type KitId,
 } from './config/heroes';
+import { TANGSONG_ITEMS_API } from './config/tangsongItems';
 import {
   consumePendingMatchSeed,
   ensureMatchSession,
@@ -316,6 +317,7 @@ bootTangSongGlory({
     api: SpriteAtlasApi,
   ) => patchTangSongSpriteAtlas(vb, Ft, api),
   combatFeel: TANGSONG_COMBAT_FEEL,
+  items: TANGSONG_ITEMS_API,
   teamTactics,
   heroes3D: {
     buildQinQiongFull,
@@ -355,8 +357,7 @@ bootTangSongGlory({
       onComplete: () => {
         onDone();
         void playTangSongTransition('wash', {
-          from: { scene: 'lobby' },
-          to: { scene: 'select', heroId },
+          from: { scene: 'matchmake', heroId },
         });
       },
       onCancel,
@@ -366,7 +367,6 @@ bootTangSongGlory({
   onBeforeSelectConfirm: (heroId: string) => {
     void playTangSongTransition('slam', {
       from: { scene: 'select', heroId },
-      to: { scene: 'loading', teams: ensureMatchSession(heroId as HeroId).teams },
     });
   },
   consumeMatchSeed: () => consumePendingMatchSeed(),
@@ -383,8 +383,7 @@ bootTangSongGlory({
     const me = state?.heroes?.find((h) => h.isPlayer) ?? state?.heroes?.[0];
     const win = state?.winner !== undefined && me ? state.winner === me.team : true;
     void playTangSongTransition(win ? 'daybreak' : 'wash', {
-      from: { scene: 'match', sourceCanvas: canvas ?? null },
-      to: { scene: 'result', win },
+      from: { scene: 'match', sourceCanvas: canvas ?? null, win },
       mood: win ? 0 : 0.85,
     });
   },
