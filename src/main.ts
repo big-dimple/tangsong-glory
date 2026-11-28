@@ -21,6 +21,11 @@ import {
   type HeroId,
   type KitId,
 } from './config/heroes';
+import {
+  consumePendingMatchSeed,
+  ensureMatchSession,
+  getSessionHandle,
+} from './config/playerHandles';
 import { createArchitectureBuilders, type ArchApi } from './visuals/tangsongArchitecture';
 import { createTangSongFlora, type FloraApi } from './visuals/tangsongFlora';
 import {
@@ -33,8 +38,16 @@ import {
 } from './visuals/tangsongHeroes3D';
 import { createTangSongMinions, type MinionEngineApi } from './visuals/tangsongMinions3D';
 import { createTangSongMonsters, type MonsterEngineApi } from './visuals/tangsongMonsters3D';
+import {
+  playMonsterAttackVfx,
+  type MonsterUnitLike,
+  type MonsterVfxHelpers,
+  type MonsterVfxKit,
+} from './visuals/tangsongMonsterVfx';
 import { createTangSongWildlife, type WildlifeApi } from './visuals/tangsongWildlife';
 import { createTangSongLobby, type LobbyScreenContext } from './ui/tangsongLobby';
+import { mountTangSongDraftBar, type DraftBarHandle } from './ui/tangsongDraft';
+import { openMatchmakeOverlay } from './ui/tangsongMatchmake';
 import { loadingCloseMs, syncMotionClasses } from './ui/tangsongMotion';
 import { createKillSealWatcher, stampResultSeal, type SealCue } from './ui/tangsongSeal';
 import { resetStealth, updateStealth } from './ui/tangsongStealth';
@@ -81,6 +94,11 @@ import { mountTeamCommands, teamTactics, type TeamState } from './engine/teamTac
 import { hasTeamSight, teamVision } from './visuals/teamVision';
 import { RenderResolution } from './visuals/renderResolution';
 import { beginEntryShot, filmFrame, patchFinalShader, pulseUltExposure } from './visuals/tangsongFilm';
+import {
+  installTransitionDebugHandle,
+  playTangSongTransition,
+  stopActiveTransition,
+} from './visuals/tangsongTransitions';
 import { createMatchAssetLoader } from './platform/matchAssets';
 import {
   TANGSONG_VFX_SHADERS,
@@ -216,6 +234,7 @@ function handleHudEvents(events: HudEventLike[], hudCtx: HudCtxLike): void {
 }
 
 mountVersionStamp();
+installTransitionDebugHandle();
 
 bootTangSongGlory({
   brand: BRAND,
@@ -308,8 +327,67 @@ bootTangSongGlory({
   },
   createMinionBuilders: (api: MinionEngineApi) => createTangSongMinions(api),
   createMonsterBuilders: (api: MonsterEngineApi) => createTangSongMonsters(api),
+  onMonsterAttackVfx: (
+    kit: MonsterVfxKit,
+    unit: MonsterUnitLike,
+    event: { targetId?: number },
+    helpers: MonsterVfxHelpers,
+  ) => playMonsterAttackVfx(kit, unit, event, helpers),
   createWildlife: (api: WildlifeApi) => createTangSongWildlife(api),
   createLobbyScreen: (ctx: LobbyScreenContext) => createTangSongLobby(ctx),
+  startMatchmaking: ({
+    root,
+    heroId,
+    onAudioUi,
+    onDone,
+    onCancel,
+  }: {
+    root: HTMLElement;
+    heroId: string;
+    onAudioUi?: (snd: string) => void;
+    onDone: () => void;
+    onCancel: () => void;
+  }) =>
+    openMatchmakeOverlay({
+      root,
+      heroId,
+      onAudioUi,
+      onComplete: () => {
+        onDone();
+        void playTangSongTransition('wash', {
+          from: { scene: 'lobby' },
+          to: { scene: 'select', heroId },
+        });
+      },
+      onCancel,
+    }),
+  mountDraftBar: (el: HTMLElement, heroId: string, getPortraitUrl: (id: string) => string): DraftBarHandle =>
+    mountTangSongDraftBar(el, heroId, getPortraitUrl),
+  onBeforeSelectConfirm: (heroId: string) => {
+    void playTangSongTransition('slam', {
+      from: { scene: 'select', heroId },
+      to: { scene: 'loading', teams: ensureMatchSession(heroId as HeroId).teams },
+    });
+  },
+  consumeMatchSeed: () => consumePendingMatchSeed(),
+  getMatchHandle: (team: number, slot: number, isMe: boolean) => getSessionHandle(team, slot, isMe),
+  onBeforeMatchReveal: (choice: { heroId: string }, matchTeams: { blue: string[]; red: string[] }) => {
+    void playTangSongTransition('tear', {
+      from: { scene: 'loading', heroId: choice.heroId, teams: matchTeams },
+    });
+  },
+  onBeforeResult: (
+    canvas: HTMLCanvasElement | undefined,
+    state: { winner?: number; heroes?: { isPlayer?: boolean; team?: number }[] } | undefined,
+  ) => {
+    const me = state?.heroes?.find((h) => h.isPlayer) ?? state?.heroes?.[0];
+    const win = state?.winner !== undefined && me ? state.winner === me.team : true;
+    void playTangSongTransition(win ? 'daybreak' : 'wash', {
+      from: { scene: 'match', sourceCanvas: canvas ?? null },
+      to: { scene: 'result', win },
+      mood: win ? 0 : 0.85,
+    });
+  },
   createMatchAssetLoader,
   createBattleViewDrag,
   RenderResolution,
@@ -341,6 +419,7 @@ bootTangSongGlory({
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('ts-in-match', phase === 'match' || phase === 'loading');
       syncMotionClasses();
+      if (phase === 'menu') stopActiveTransition();
       if (phase !== 'match') {
         killSeal.detach();
         resetStealth();

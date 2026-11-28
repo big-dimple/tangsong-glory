@@ -1192,63 +1192,340 @@ body .sf-root .sf-hud__sk.is-atk.is-down .sf-hud__atk-face > img {
   filter: brightness(1.18) saturate(1.15);
 }
 
-/* ── 12. 展卷 / 收卷：手卷大厅进出战场（只在 body.ts-film 下生效，见 src/ui/tangsongMotion.ts） ── */
-/* 加载页 → 对局：手卷自右向左收起，战场从卷后露出；卷边骑一根带投影的轴头 */
-@keyframes ts-scroll-furl {
-  from { clip-path: inset(0 0 0 0); }
-  to { clip-path: inset(0 100% 0 0); }
-}
-@keyframes ts-scroll-rod-furl {
-  from { transform: translateX(100vw); }
-  to { transform: translateX(0); }
-}
-body.ts-film .sf-root.sf-loading-root.is-closing {
-  animation: none;
-  background-color: transparent;
-}
-body.ts-film .sf-root.sf-loading-root.is-closing > * {
-  animation: ts-scroll-furl 0.92s cubic-bezier(0.62, 0.02, 0.3, 1) both;
-}
-body.ts-film .sf-root.sf-loading-root.is-closing::after,
-body.ts-film .sf-root.sf-menu-root:has(> .sf-screen.is-leaving)::after {
-  content: '';
-  position: absolute;
-  top: -2%;
-  bottom: -2%;
-  left: -13px;
-  z-index: 60;
-  width: 26px;
-  border-radius: 13px;
+/* ── 12. 5MB 原生 WebGL2 转场层（wash / slam / tear / daybreak），空闲完全隐藏零消耗 ── */
+.ts-transition-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9990;
+  display: none;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, #e9bd62 0, #9c6a20 2.2%, transparent 2.3%, transparent 97.7%, #9c6a20 97.8%, #e9bd62 100%),
-    linear-gradient(90deg, #2a170f 0%, #6e4023 22%, #b98a52 46%, #7a4a29 70%, #24130c 100%);
-  box-shadow: 16px 0 30px rgba(6, 4, 3, 0.55), 3px 0 5px rgba(6, 4, 3, 0.6);
-}
-body.ts-film .sf-root.sf-loading-root.is-closing::after {
-  animation: ts-scroll-rod-furl 0.92s cubic-bezier(0.62, 0.02, 0.3, 1) both;
 }
 
-/* 大厅 ↔ 选将：新的一屏自左向右展开，盖住旧的一屏（卡在内核 260 / 420ms 的换屏窗口内，不用位移） */
-@keyframes ts-screen-unfurl {
-  0% { clip-path: inset(0 100% 0 0); }
-  62%, 100% { clip-path: inset(0 0 0 0); }
+body.ts-film .sf-root.sf-loading-root.is-closing {
+  transition: opacity 0.12s linear;
+  opacity: 0;
+  pointer-events: none;
 }
-@keyframes ts-screen-hold {
-  from, to { opacity: 1; }
+
+/* ── 12b. 「汴京寻将 · 5v5 实时匹配」拟真弹窗与 5v5 点将席位带 ── */
+.ts-mm {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(8, 14, 16, 0.72);
+  backdrop-filter: blur(8px);
+  animation: sf-fade-in 0.2s ease-out both;
 }
-@keyframes ts-scroll-rod-unfurl {
-  from { transform: translateX(0); }
-  to { transform: translateX(100vw); }
+.ts-mm__card {
+  width: min(680px, 94vw);
+  padding: 20px 24px 18px;
+  border-radius: 8px;
+  border: 1px solid rgba(233, 189, 98, 0.62);
+  background:
+    linear-gradient(180deg, rgba(233, 189, 98, 0.12), transparent 28%),
+    linear-gradient(160deg, rgba(20, 34, 38, 0.96), rgba(14, 20, 22, 0.98) 60%, rgba(28, 16, 12, 0.98));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(233, 189, 98, 0.2);
+  color: #f7eedc;
 }
-body.ts-film .sf-root.sf-menu-root .sf-screen {
-  animation: ts-screen-unfurl 0.42s cubic-bezier(0.3, 0.1, 0.2, 1) both;
+.ts-mm__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 14px;
 }
-body.ts-film .sf-root.sf-menu-root .sf-screen.is-leaving {
-  animation: ts-screen-hold 0.26s linear both;
+.ts-mm__head .sf-title {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 34px);
 }
-body.ts-film .sf-root.sf-menu-root:has(> .sf-screen.is-leaving)::after {
-  animation: ts-scroll-rod-unfurl 0.26s cubic-bezier(0.3, 0.1, 0.2, 1) both;
+.ts-mm__sub {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: #e4cfa4;
+}
+.ts-mm__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.ts-mm__count {
+  padding: 2px 10px;
+  border-radius: 99px;
+  background: rgba(181, 69, 52, 0.35);
+  border: 1px solid rgba(240, 188, 110, 0.55);
+  color: #ffe8b0;
+  font-weight: 700;
+}
+.ts-mm__status {
+  margin: 0;
+  color: #f2dfb8;
+  font-size: 14px;
+}
+.ts-mm__timer {
+  color: #8cc5e6;
+}
+.ts-mm__bar {
+  height: 6px;
+  margin: 10px 0 16px;
+  border-radius: 99px;
+  background: rgba(8, 12, 14, 0.85);
+  border: 1px solid rgba(233, 189, 98, 0.28);
+  overflow: hidden;
+}
+.ts-mm__bar-fill {
+  display: block;
+  height: 100%;
+  width: 10%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #4a92c4, #e9bd62 65%, #fff2c2);
+  transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ts-mm__sides {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+}
+.ts-mm__vs {
+  font-family: var(--ts-font-brush);
+  font-size: 26px;
+  color: #e9bd62;
+  text-shadow: 0 2px 10px rgba(233, 189, 98, 0.45);
+}
+.ts-mm__team-head {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #8cc5e6;
+}
+.ts-mm__team.is-red .ts-mm__team-head {
+  text-align: right;
+  color: #f07b6b;
+}
+.ts-mm__team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ts-mm__seat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(12, 20, 22, 0.72);
+  border: 1px solid rgba(233, 189, 98, 0.16);
+  opacity: 0.52;
+  transform: translateY(2px);
+  transition: opacity 0.22s ease, transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.ts-mm__seat.is-ready {
+  opacity: 1;
+  transform: none;
+  border-color: rgba(107, 180, 219, 0.56);
+  background: linear-gradient(90deg, rgba(24, 58, 78, 0.55), rgba(14, 24, 27, 0.85));
+}
+.ts-mm__seat.is-red.is-ready {
+  flex-direction: row-reverse;
+  border-color: rgba(240, 90, 70, 0.54);
+  background: linear-gradient(270deg, rgba(112, 32, 26, 0.55), rgba(18, 14, 13, 0.85));
+}
+.ts-mm__seat.is-me.is-ready {
+  border-color: rgba(255, 224, 112, 0.85);
+  box-shadow: 0 0 12px rgba(233, 189, 98, 0.24);
+}
+.ts-mm__lantern {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbb996;
+  background: rgba(26, 36, 40, 0.9);
+  border: 1px solid rgba(233, 189, 98, 0.35);
+}
+.ts-mm__seat.is-ready .ts-mm__lantern {
+  color: #24160c;
+  background: linear-gradient(180deg, #fff2c2, #e0a943);
+  border-color: #fff6d6;
+}
+.ts-mm__handle {
+  font-size: 13px;
+  color: #f5ebd6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-mm__foot {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.ts-mm__enter[hidden] {
+  display: none !important;
+}
+
+/* 选将殿堂 5v5 实时点将席位带：紧凑嵌入顶部与主区之间，不挤压舞台中线 */
+.ts-draft-bar {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(20, 44, 58, 0.72), rgba(20, 16, 14, 0.82) 50%, rgba(72, 24, 20, 0.72));
+  border: 1px solid rgba(233, 189, 98, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 232, 173, 0.12);
+}
+.ts-draft-bar__side {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+}
+.ts-draft-bar__center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.ts-draft-bar__phase {
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffe8b0;
+  background: rgba(164, 48, 34, 0.65);
+  border: 1px solid rgba(233, 189, 98, 0.55);
+  white-space: nowrap;
+}
+.ts-draft-seat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: rgba(12, 18, 20, 0.74);
+  border: 1px solid rgba(233, 189, 98, 0.2);
+}
+.ts-draft-seat.is-me {
+  border-color: rgba(255, 224, 112, 0.76);
+  background: rgba(34, 58, 72, 0.84);
+}
+.ts-draft-seat.is-locked {
+  border-color: rgba(233, 189, 98, 0.65);
+}
+.ts-draft-seat.is-red.is-locked {
+  border-color: rgba(240, 90, 70, 0.65);
+}
+.ts-draft-seat__pic {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(233, 189, 98, 0.5);
+  background: rgba(28, 22, 18, 0.9);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  color: #d6c3a4;
+}
+.ts-draft-seat__pic.is-mystery {
+  font-family: var(--ts-font-brush);
+  color: #f49b8e;
+  background: radial-gradient(circle, rgba(96, 26, 22, 0.9), rgba(24, 12, 10, 0.95));
+}
+.ts-draft-seat__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+  transition: opacity 0.2s ease;
+}
+.ts-draft-seat__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.ts-draft-seat__name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f6ecd6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-draft-seat__hero {
+  font-size: 10px;
+  color: #bca98c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ts-draft-seat__state {
+  margin-left: auto;
+  flex: none;
+  font-size: 10px;
+  color: #9bc9e6;
+}
+.ts-draft-seat.is-locked .ts-draft-seat__state {
+  color: #ffe08a;
+  font-weight: 700;
+}
+.ts-draft-seat.is-red .ts-draft-seat__state {
+  color: #ea9a8f;
+}
+
+@media (max-width: 980px), (orientation: portrait) {
+  .ts-draft-bar {
+    grid-template-columns: 1fr auto 1fr;
+    padding: 3px 6px;
+    margin: 2px 0 4px;
+    gap: 4px;
+  }
+  .ts-draft-seat {
+    padding: 2px;
+    justify-content: center;
+  }
+  .ts-draft-seat__meta,
+  .ts-draft-seat__state {
+    display: none;
+  }
+  .ts-draft-seat__pic {
+    width: 20px;
+    height: 20px;
+  }
+  .ts-draft-bar__phase {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  .ts-mm__sides {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .ts-mm__vs {
+    text-align: center;
+    font-size: 18px;
+  }
 }
 
 /* 大厅呼吸：手卷底图两个不同周期的极慢位移与缩放，幅度千分之几 */

@@ -72,8 +72,8 @@ export function syncMotionClasses(): void {
   document.body.classList.toggle('ts-no-shake', !shakeAllowed());
 }
 
-/** 加载页收卷需要的关闭时长（毫秒）；不播演出时保持内核原值。 */
+/** 加载页收卷/撕纸关闭时长（毫秒）；GPU 撕纸转场提前截帧后快速收掉底层 DOM，不播演出时保持内核原值。 */
 export function loadingCloseMs(): number {
   syncMotionClasses();
-  return cinematicFlowEnabled() ? 1000 : 400;
+  return cinematicFlowEnabled() ? 140 : 400;
 }

@@ -19,7 +19,7 @@ export interface LobbyScreenContext {
 }
 
 const DECK_HERO_IDS = ['sushi', 'xinqiji', 'huarui', 'qinqiong'] as const;
-const LOBBY_SUBTITLE = `${BRAND.mapName} · 5v5 人机对战`;
+const LOBBY_SUBTITLE = `${BRAND.mapName} · 5v5 实时匹配`;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -145,7 +145,7 @@ export function createTangSongLobby(ctx: LobbyScreenContext) {
     syncTutorial();
   });
 
-  const startBtn = el('button', 'ts-btn-seal', '选择英雄');
+  const startBtn = el('button', 'ts-btn-seal', '开始匹配');
   startBtn.type = 'button';
   startBtn.dataset.sfSnd = 'confirm';
   startBtn.addEventListener('click', () => {

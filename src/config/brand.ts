@@ -9,7 +9,7 @@ export const BRAND = {
   blessingBuffShort: '九州定鼎buff',
   versionStamp: 'v5.1 · 唐宋荣耀',
   footerCredits: [
-    '1 名玩家 + 9 名 AI',
+    '十方名士同场 · 5v5 汴京对弈',
     '唐宋全景重构 · 真国风视听 5v5',
     'v5.1 · 唐宋荣耀',
   ],

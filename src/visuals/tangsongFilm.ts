@@ -1,39 +1,69 @@
 /**
- * tangsongFilm.ts — 成片参数表、水墨阵亡、大招曝光呼吸与入画镜头。
+ * tangsongFilm.ts — 成片参数表（Blender AgX + 暖色 Halation + 三角时间抖动）、水墨阵亡、大招曝光呼吸与入画镜头。
  *
- * 内核已经有一条完整的成片链（半浮点 HDR → 泛光 → 色调映射 → 调色 → 抖动），这里不建第二条，
- * 只做三件事：
- *   1. 每帧把下面这张表写进内核的调色参数（含立体明暗对比、自然饱和与山水远岚）；
- *   2. 给合成着色器换一行：阵亡不再是整屏冷灰，而是墨从四周洇进来、朱色留三成；
- *   3. 两段只靠改参数的演出：大招时聚光压暗与金辉泛光脉冲；开局镜头从略高略远处落进画里。
- * low 档没有后期，1、2 自动不生效（内核回落到 CSS 灰度），画面仍然完整。
+ * 复用内核 HDR → 泛光 → 合成链路，在此基础上注入源自 5MB 视觉工程的核心成片手法：
+ *   1. Blender AgX 色调映射（高光保持暖金、朱砂、天青本色，不漂白偏黄）；
+ *   2. 暖色 Halation 辉光（为宫灯、烈焰与大招增润一圈胶片暖红金晕）；
+ *   3. 中间调保护微胶片颗粒 + 三角分布时间抖动（消除云海、远岚、暗角色带且锁定纯白）；
+ *   4. 水墨阵亡（朱色留三成）、大招曝光脉冲与开局入画阻尼镜头。
  */
 import { cinematicFlowEnabled, prefersReducedMotion } from '../ui/tangsongMotion';
 
-/** 成片参数表：石青远岚压底，对比与自然饱和拉开立体层次，让金、火与技能核心更通透。 */
+/** 成片参数表：石青远岚压底，适配 Blender AgX 暖调柔焦肩部与暖金 Halation。 */
 export const TANGSONG_FILM = {
-  exposure: 1.05,
-  vignette: 0.2,
-  contrast: 1.09,
-  saturation: 1.07,
-  vibrance: 0.11,
+  exposure: 1.15,
+  vignette: 0.21,
+  contrast: 1.06,
+  saturation: 1.09,
+  vibrance: 0.1,
   /** 屏幕上沿（远处）薄霾的颜色：淡石青云岚，呼应青绿远山与石绿草地。 */
   hazeColor: 0xbed2ce,
   quality: {
-    high: { bloom: 0.36, bloomThreshold: 1.52, haze: 0.16 },
-    medium: { bloom: 0.27, bloomThreshold: 1.55, haze: 0.11 },
+    high: { bloom: 0.34, bloomThreshold: 1.38, haze: 0.14 },
+    medium: { bloom: 0.25, bloomThreshold: 1.44, haze: 0.1 },
   } as Record<string, { bloom: number; bloomThreshold: number; haze: number } | undefined>,
   /** 大招曝光脉冲：75ms 快速聚光压暗(-22%)并起暗角与泛光 → 稳住 80ms → 指数回弹。 */
-  ultPulse: { depth: 0.22, attack: 0.075, hold: 0.08, release: 0.16, vignette: 0.26, bloomBoost: 0.18 },
-  /** 入画镜头：先停 0.3s（手卷正在收），再用临界阻尼落到预设，全程约 1.8s。 */
-  entry: { hold: 0.3, stiffness: 5, duration: 1.8, distanceScale: 0.4, pitchLift: (7 * Math.PI) / 180 },
+  ultPulse: { depth: 0.22, attack: 0.075, hold: 0.08, release: 0.16, vignette: 0.26, bloomBoost: 0.2 },
+  /** 入画镜头：先停 0.28s（破纸揭幕），再用临界阻尼落到预设，全程约 1.8s。 */
+  entry: { hold: 0.28, stiffness: 5, duration: 1.8, distanceScale: 0.4, pitchLift: (7 * Math.PI) / 180 },
 } as const;
 
-// ── 水墨阵亡：替换内核合成着色器里的一行 ──
-const DEATH_ANCHOR = '  c = mix(c, vec3(g) * vec3(0.92, 0.97, 1.08), uDesaturate);';
+// ── 合成着色器锚点 ──
+const UNIFORM_ANCHOR = 'uniform float uDim;';
 const MAIN_ANCHOR = 'void main() {';
+const BLOOM_ANCHOR = '  c += texture2D(tBloom, vUv).rgb * uBloom;';
+const TONEMAP_ANCHOR = '  c = CustomToneMapping(c);';
+const DEATH_ANCHOR = '  c = mix(c, vec3(g) * vec3(0.92, 0.97, 1.08), uDesaturate);';
+const DITHER_ANCHOR = '  gl_FragColor.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;';
 
-const INK_HELPERS = `
+const FILM_HELPERS = `
+// 3D 时间哈希：用于中间调微颗粒与三角分布时间抖动
+float tsHash13(vec3 p3) {
+  p3 = fract(p3 * 0.1031);
+  p3 += dot(p3, p3.zyx + 31.32);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+// Blender AgX 色调映射（高光保留唐宋金红翠青本色，肩部柔和过渡不发白偏黄）
+vec3 tsAgx(vec3 v) {
+  const mat3 M = mat3(
+    0.842479062253094, 0.0423282422610123, 0.0423756549057051,
+    0.0784335999999992, 0.878468636469772, 0.0784336,
+    0.0792237451477643, 0.0791661274605434, 0.879142973793104
+  );
+  v = M * max(v, 0.0);
+  v = clamp(log2(max(v, 1e-10)), -12.47393, 4.026069);
+  v = (v + 12.47393) / (4.026069 + 12.47393);
+  vec3 x2 = v * v, x4 = x2 * x2;
+  v = 15.5 * x4 * x2 - 40.14 * x4 * v + 31.96 * x4 - 6.868 * x2 * v + 0.4298 * x2 + 0.1191 * v - 0.00232;
+  const mat3 I = mat3(
+    1.19687900512017, -0.0528968517574562, -0.0529716355144438,
+    -0.0980208811401368, 1.15190312990417, -0.0980434501171241,
+    -0.0990297440797205, -0.0989611768448433, 1.15107367264116
+  );
+  return pow(max(I * v, 0.0), vec3(2.2));
+}
+
 // 绢纹噪声：两层值噪声，给墨的洇化边缘一点纤维感
 float tsPaper(vec2 p) {
   vec2 i = floor(p);
@@ -42,6 +72,11 @@ float tsPaper(vec2 p) {
   return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 `;
+
+const HALATION_BODY = `  // 暖色 Halation 辉光（源自 5MB 胶片合成：红通道微涨、蓝通道微收）
+  c += texture2D(tBloom, vUv).rgb * uBloom * vec3(1.16, 1.0, 0.84);`;
+
+const AGX_TONEMAP_BODY = `  c = tsAgx(max(c, 0.0) * toneMappingExposure);`;
 
 const INK_BODY = `  // 水墨阵亡：墨从四周洇进来，颜色被洗走只剩墨；朱色留三成。进度沿用 uDesaturate(0..0.9)
   // 活着的时候 uDesaturate 为 0，整段跳过，常驻开销为零
@@ -62,11 +97,26 @@ const INK_BODY = `  // 水墨阵亡：墨从四周洇进来，颜色被洗走只
     c = mix(c, vec3(g) * vec3(1.0, 0.985, 0.95), tsInk * 0.9 * (1.0 - 0.3 * tsZhu));
   }`;
 
-/** K1：给内核合成着色器做锚点替换。任何一个锚点对不上就原样返回，不做半生效的替换。 */
+const DITHER_BODY = `  // 中间调微胶片颗粒 + 三角 PDF 时间抖动（彻底消色带且锁定纯白 >0.9985）
+  float tsLum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  float tsGr = (tsHash13(vec3(gl_FragCoord.xy, fract(uTsTime * 7.3) * 97.0)) - 0.5) * 0.014 * (1.0 - abs(tsLum - 0.5));
+  vec3 tsBase = clamp(gl_FragColor.rgb + tsGr, 0.0, 1.0);
+  float tsTri = tsHash13(vec3(gl_FragCoord.xy, fract(uTsTime) * 61.0)) + tsHash13(vec3(gl_FragCoord.xy, fract(uTsTime) * 61.0 + 7.0)) - 1.0;
+  gl_FragColor.rgb = all(greaterThan(tsBase, vec3(0.9985))) ? vec3(1.0) : clamp(tsBase + tsTri / 255.0, 0.0, 1.0);`;
+
+/** K1：给内核合成着色器做多锚点精确替换。任意锚点对不上即原样返回，不做半生效替换。 */
 export function patchFinalShader(source: string): string {
-  if (source.split(DEATH_ANCHOR).length !== 2 || source.split(MAIN_ANCHOR).length !== 2) return source;
+  const anchors = [UNIFORM_ANCHOR, MAIN_ANCHOR, BLOOM_ANCHOR, TONEMAP_ANCHOR, DEATH_ANCHOR, DITHER_ANCHOR];
+  if (anchors.some((a) => source.split(a).length !== 2)) return source;
   if (!source.includes('float hash(vec2 p)') || !source.includes('uniform float uAspect;')) return source;
-  return source.replace(MAIN_ANCHOR, `${INK_HELPERS}${MAIN_ANCHOR}`).replace(DEATH_ANCHOR, INK_BODY);
+
+  return source
+    .replace(UNIFORM_ANCHOR, `${UNIFORM_ANCHOR}\nuniform float uTsTime;`)
+    .replace(MAIN_ANCHOR, `${FILM_HELPERS}${MAIN_ANCHOR}`)
+    .replace(BLOOM_ANCHOR, HALATION_BODY)
+    .replace(TONEMAP_ANCHOR, AGX_TONEMAP_BODY)
+    .replace(DEATH_ANCHOR, INK_BODY)
+    .replace(DITHER_ANCHOR, DITHER_BODY);
 }
 
 // ── 每帧钩子（K2） ──
@@ -84,7 +134,13 @@ interface FilmEngineLike {
   };
   post: null | {
     bloomPass?: { threshold?: { x: number } };
-    finalPass?: { material?: { defines?: Record<string, string>; needsUpdate?: boolean } };
+    finalPass?: {
+      material?: {
+        defines?: Record<string, string>;
+        uniforms?: { uTsTime?: { value: number } };
+        needsUpdate?: boolean;
+      };
+    };
   };
   rig?: { distance: number; pitch: number; applyLens?: () => void };
 }
@@ -96,6 +152,7 @@ interface FilmRendererLike {
 const toned = new WeakSet<object>();
 let ultPulseAge = Infinity;
 let entryAge = Infinity;
+let filmTime = 0;
 
 /** 我方大招出手时调用。关闭「演出动效」时不呼吸。 */
 export function pulseUltExposure(): void {
@@ -118,7 +175,7 @@ function ultPulseLevel(): number {
   return Math.exp(-(ultPulseAge - attack - hold) / release);
 }
 
-function applyGrade(engine: FilmEngineLike): void {
+function applyGrade(engine: FilmEngineLike, step: number): void {
   const post = engine.post;
   if (!post) return;
   const look = TANGSONG_FILM.quality[engine.quality];
@@ -139,8 +196,13 @@ function applyGrade(engine: FilmEngineLike): void {
   grade.exposure = TANGSONG_FILM.exposure * (1 - TANGSONG_FILM.ultPulse.depth * pulse);
   grade.vignette = TANGSONG_FILM.vignette + TANGSONG_FILM.ultPulse.vignette * pulse;
 
-  // 关闭「演出动效」时：墨不做径向洇化，整屏一起褪色
   const material = post.finalPass?.material;
+  if (material?.uniforms?.uTsTime) {
+    filmTime = (filmTime + step) % 3600;
+    material.uniforms.uTsTime.value = filmTime;
+  }
+
+  // 关闭「演出动效」时：墨不做径向洇化，整屏一起褪色
   if (material?.defines) {
     const flat = prefersReducedMotion();
     if (flat !== 'TS_INK_FLAT' in material.defines) {
@@ -176,7 +238,7 @@ export function filmFrame(renderer: FilmRendererLike | null | undefined, dt: num
   if (!engine) return;
   const step = dt > 0 ? Math.min(dt, 0.1) : 0;
   ultPulseAge += step;
-  applyGrade(engine);
+  applyGrade(engine, step);
   if (entryAge !== Infinity) {
     applyEntryShot(engine);
     entryAge += step;
