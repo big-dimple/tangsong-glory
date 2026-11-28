@@ -10,7 +10,7 @@
 import { kitOf } from '../config/heroes';
 
 export type UnitCcState = '' | 'petrify' | 'ink_seal' | 'airborne' | 'chill';
-export type FlightKind = '' | 'huarui' | 'wencheng' | 'xinqiji';
+export type FlightKind = '' | 'huarui' | 'wencheng' | 'xinqiji' | 'qinqiong' | 'sushi' | 'liue';
 
 export interface BuffLike {
   id: string;
@@ -217,11 +217,27 @@ export function computeUnitVisualState(
     } else if (b.id === 'ts_qinggong_wencheng') {
       flightKind = 'wencheng';
       const p = buffProgress(b, now);
-      flightLift = Math.max(flightLift, envelopeLift(p, 3.0, 0.18, 0.22, 0.18, 2));
+      flightLift = Math.max(flightLift, envelopeLift(p, 3.85, 0.14, 0.18, 0.2, 2));
+    } else if (b.id === 'ts_qinggong_wencheng_dash') {
+      flightKind = 'wencheng';
+      const p = buffProgress(b, now);
+      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 2.15);
+    } else if (b.id === 'ts_qinggong_yeque_dash') {
+      flightKind = 'xinqiji';
+      const p = buffProgress(b, now);
+      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 2.05);
     } else if (b.id === 'untargetable' && b.key === 'yeque_ult') {
       flightKind = 'xinqiji';
       const p = buffProgress(b, now);
-      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 3.9);
+      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 4.1);
+    } else if (b.id === 'ts_qinggong_panyue_dash') {
+      flightKind = 'qinqiong';
+      const p = buffProgress(b, now);
+      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 1.9);
+    } else if (b.id === 'ts_qinggong_xingli_ult') {
+      flightKind = unit.heroId === 'liue' ? 'liue' : 'sushi';
+      const p = buffProgress(b, now);
+      flightLift = Math.max(flightLift, envelopeLift(p, 2.45, 0.16, 0.22, 0.15, 2));
     }
   }
 
@@ -465,7 +481,7 @@ export function playChijinDashFlight(
   );
 }
 
-/** 文成公主敦煌飞天：脚踏金莲祥云 + 飞天飘带 + 空中天音弦线 */
+/** 文成公主敦煌飞天：3.85m 高空脚踏金莲祥云 + 上升天光柱 + 飞天双彩带 */
 export function playWenchengFlight(
   kit: SkillsExKit,
   ev: { unitId?: number; pos?: { x: number; y: number }; targetPos?: { x: number; y: number } },
@@ -478,74 +494,98 @@ export function playWenchengFlight(
   if (kit.focusDist(x0, z0) > 54) return;
 
   const { qe, sn, Lt, Mt, Xt, $n, oe } = fx;
-  const cGold = Lt(0xffdf7a);
-  const cCoral = Lt(0xe86a3c);
-  const cJade = Lt(0x7be0d0);
+  const cGold = Lt(0xffe280);
+  const cCoral = Lt(0xff8850);
+  const cJade = Lt(0x88f5df);
+  const cCloud = Lt(0xfff2d0);
 
-  // 脚下双层金色莲华祥云环（托管随英雄高空移动）
   const lotusOuter = kit.glow.hold(qe.hoop, sn.hoop);
-  lotusOuter.color(cGold, 1.75, 0.92);
-  lotusOuter.add = 0.42;
+  lotusOuter.color(cGold, 1.9, 0.94);
+  lotusOuter.add = 0.45;
 
   const lotusInner = kit.glow.hold(qe.hoop, sn.hoop);
-  lotusInner.color(cCoral, 1.45, 0.85);
-  lotusInner.add = 0.32;
+  lotusInner.color(cCoral, 1.6, 0.88);
+  lotusInner.add = 0.35;
 
-  kit.decals.add(Xt.star, x0, z0, 2.3, 1.85).params(8, 1.2).color(cGold, 1.7, 0.9).under(Lt(0x6e3a10), 0.35);
+  // 脚下承托仙雾倒锥云台 + 地面直连高空的细长天音光柱
+  const cloudBase = kit.glow.hold(qe.cone, sn.vortex);
+  cloudBase.color(cCloud, 1.25, 0.72);
+  cloudBase.add = 0.3;
+
+  const skyColumn = kit.glow.hold(qe.cone, sn.vortex);
+  skyColumn.color(cJade, 0.95, 0.65);
+  skyColumn.add = 0.24;
+
+  kit.decals.add(Xt.star, x0, z0, 2.5, 1.85).params(8, 1.2).color(cGold, 1.8, 0.92).under(Lt(0x6e3a10), 0.38);
 
   const puff = kit.particles.use(Mt.puff).tint(Lt(0xfff4d6), cGold);
   const silk = kit.particles.use(Mt.silk).tint(cCoral, cGold);
   const glint = kit.particles.use(Mt.glint).tint(Lt(0xffffff), cJade);
   let stringAcc = 0;
+  let prevX = x0;
+  let prevY = 1.0;
+  let prevZ = z0;
 
   kit.track(
     uid,
     1.85,
     (u, p, dt) => {
-      const lift = envelopeLift(p, 3.0, 0.18, 0.22, 0.18, 2);
+      const lift = Math.max(u.y, envelopeLift(p, 3.85, 0.14, 0.18, 0.2, 2));
       const fade = p > 0.8 ? Math.max(0, (1 - p) / 0.2) : Math.min(1, p * 5);
-      const cy = Math.max(0.2, lift - 0.12);
+      const cy = Math.max(0.22, lift - 0.14);
 
-      lotusOuter.at(u.x, cy, u.z).scale(1.45 * (0.7 + 0.3 * fade)).rot(0, p * oe * 1.8, 0);
-      lotusOuter.a = 0.88 * fade;
-      lotusInner.at(u.x, cy + 0.16, u.z).scale(0.95 * (0.7 + 0.3 * fade)).rot(0, -p * oe * 2.4, 0);
-      lotusInner.a = 0.78 * fade;
+      lotusOuter.at(u.x, cy, u.z).scale(1.85 * (0.72 + 0.28 * fade)).rot(0, p * oe * 1.8, 0);
+      lotusOuter.a = 0.92 * fade;
+      lotusInner.at(u.x, cy + 0.18, u.z).scale(1.25 * (0.72 + 0.28 * fade)).rot(0, -p * oe * 2.4, 0);
+      lotusInner.a = 0.82 * fade;
+      cloudBase.at(u.x, Math.max(0.15, cy - 0.35), u.z).scale3(1.45, 0.9, 1.45).rot(Math.PI, p * 5, 0);
+      cloudBase.a = 0.56 * fade;
+      skyColumn.at(u.x, 0.08, u.z).scale3(0.62, Math.max(0.4, cy - 0.28), 0.62).rot(0, -p * 6, 0);
+      skyColumn.a = (kit.lowQ ? 0.14 : 0.22) * fade;
 
-      if (kit.rnd.chance(Math.min(1, dt * 26))) {
+      if (kit.ribbons && Math.hypot(u.x - prevX, u.z - prevZ) > 0.32) {
+        kit.ribbons.trace($n.string, prevX, prevY, prevZ, u.x, lift + 0.5, u.z, 0.44, cCoral, cGold);
+        kit.ribbons.trace($n.thin, prevX, prevY + 0.35, prevZ, u.x, lift + 0.85, u.z, 0.38, cJade, cGold);
+        prevX = u.x;
+        prevY = lift + 0.5;
+        prevZ = u.z;
+      }
+
+      if (kit.rnd.chance(Math.min(1, dt * 28))) {
         const a = p * oe * 3 + kit.rnd.signed() * 0.4;
         puff.spawn(
-          u.x + Math.cos(a) * 0.8,
+          u.x + Math.cos(a) * 0.9,
           cy + 0.05,
-          u.z + Math.sin(a) * 0.8,
-          Math.cos(a) * 0.65,
+          u.z + Math.sin(a) * 0.9,
+          Math.cos(a) * 0.7,
           0.35,
-          Math.sin(a) * 0.65,
-          0.42,
-          0.55,
-          0.85,
+          Math.sin(a) * 0.7,
+          0.44,
+          0.6,
+          0.9,
           0,
         );
         silk.spawn(
-          u.x + Math.cos(a) * 0.95,
+          u.x + Math.cos(a) * 1.05,
           lift + 0.85,
-          u.z + Math.sin(a) * 0.95,
-          -Math.sin(a) * 1.9,
+          u.z + Math.sin(a) * 1.05,
+          -Math.sin(a) * 2.1,
           0.55,
-          Math.cos(a) * 1.9,
-          0.46,
-          0.28,
+          Math.cos(a) * 2.1,
+          0.48,
+          0.3,
           0.14,
           0,
         );
         glint.spawn(
-          u.x + kit.rnd.signed() * 0.7,
-          lift + kit.rnd.range(0.3, 1.4),
-          u.z + kit.rnd.signed() * 0.7,
+          u.x + kit.rnd.signed() * 0.75,
+          lift + kit.rnd.range(0.3, 1.5),
+          u.z + kit.rnd.signed() * 0.75,
           0,
-          1.1,
+          1.2,
           0,
-          0.38,
-          0.24,
+          0.4,
+          0.26,
           0.08,
           0,
         );
@@ -553,21 +593,136 @@ export function playWenchengFlight(
 
       // 悬空前摇期间向目标箭阵拉出金色天音弧光弦
       stringAcc += dt;
-      if (ev.targetPos && p < 0.52 && stringAcc >= 0.14 && kit.ribbons) {
+      if (ev.targetPos && p < 0.54 && stringAcc >= 0.14 && kit.ribbons) {
         stringAcc = 0;
         const tx = ev.targetPos.x + kit.rnd.signed() * 1.4;
         const tz = ev.targetPos.y + kit.rnd.signed() * 1.4;
-        kit.ribbons.trace($n.string, u.x, lift + 1.3, u.z, tx, 0.35, tz, 0.22, Lt(0xfff4c8), cGold);
+        kit.ribbons.trace($n.string, u.x, lift + 1.35, u.z, tx, 0.35, tz, 0.24, Lt(0xfff4c8), cGold);
       }
     },
     () => {
       kit.glow.release(lotusOuter);
       kit.glow.release(lotusInner);
+      kit.glow.release(cloudBase);
+      kit.glow.release(skyColumn);
     },
   );
 }
 
-/** 辛弃疾五十骑破营·隐踪期：目标头顶 3 道高空赤金持刀残影 + 绕空火影 */
+/** 文成公主二技能「惊鸿步」：前中期踏风轻跃 2.15m + 金莲环与朱金飞天丝带 */
+export function playWenchengDashFlight(
+  kit: SkillsExKit,
+  ev: { unitId?: number; from?: { x: number; y: number }; to?: { x: number; y: number } },
+  fx: SkillsExHelpers,
+): void {
+  const uid = ev.unitId ?? -1;
+  if (uid < 0 || !kit.track || !kit.anchor(uid)) return;
+  const x0 = ev.from?.x ?? kit.a.x;
+  const z0 = ev.from?.y ?? kit.a.z;
+  if (kit.focusDist(x0, z0) > 54) return;
+
+  const dist = Math.hypot((ev.to?.x ?? x0) - x0, (ev.to?.y ?? z0) - z0);
+  const dur = Math.max(0.32, dist / 14);
+  const { qe, sn, Lt, Mt, $n } = fx;
+  const cGold = Lt(0xffe280);
+  const cCoral = Lt(0xff8850);
+
+  const halo = kit.glow.hold(qe.hoop, sn.hoop);
+  halo.color(cGold, 1.8, 0.92);
+  halo.add = 0.42;
+
+  const silk = kit.particles.use(Mt.silk).tint(cCoral, cGold);
+  let prevX = x0;
+  let prevY = 0.45;
+  let prevZ = z0;
+
+  kit.track(
+    uid,
+    dur,
+    (u, p, dt) => {
+      const fade = p > 0.78 ? Math.max(0, (1 - p) / 0.22) : Math.min(1, p * 6);
+      const lift = Math.max(u.y, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 2.15);
+      halo.at(u.x, Math.max(0.2, lift - 0.12), u.z).scale(1.28).rot(0, p * fx.oe * 2, 0);
+      halo.a = 0.84 * fade;
+
+      if (kit.ribbons && Math.hypot(u.x - prevX, u.z - prevZ) > 0.28) {
+        kit.ribbons.trace($n.string, prevX, prevY, prevZ, u.x, lift + 0.55, u.z, 0.34, cCoral, cGold);
+        prevX = u.x;
+        prevY = lift + 0.55;
+        prevZ = u.z;
+      }
+      if (kit.rnd.chance(Math.min(1, dt * 30))) {
+        silk.spawn(u.x + kit.rnd.signed() * 0.4, lift + 0.5, u.z + kit.rnd.signed() * 0.4, kit.rnd.signed() * 1.4, 0.9, kit.rnd.signed() * 1.4, 0.42, 0.26, 0.12, 0);
+      }
+    },
+    () => {
+      kit.glow.release(halo);
+    },
+  );
+}
+
+/** 辛弃疾一技能「破阵疾突」：踏炎刃 2.05m 跃空斩 + 炽焰轨迹 */
+export function playYequeDashFlight(
+  kit: SkillsExKit,
+  ev: { unitId?: number; from?: { x: number; y: number }; to?: { x: number; y: number }; dir?: { x: number; y: number } },
+  fx: SkillsExHelpers,
+): void {
+  const uid = ev.unitId ?? -1;
+  if (uid < 0 || !kit.track || !kit.anchor(uid)) return;
+  const x0 = ev.from?.x ?? kit.a.x;
+  const z0 = ev.from?.y ?? kit.a.z;
+  if (kit.focusDist(x0, z0) > 54) return;
+
+  const x1 = ev.to?.x ?? x0;
+  const z1 = ev.to?.y ?? z0;
+  const dist = Math.hypot(x1 - x0, z1 - z0);
+  const dur = Math.max(0.3, dist / 15);
+  const baseYaw = Math.atan2(ev.dir?.y ?? (z1 - z0), ev.dir?.x ?? (x1 - x0));
+
+  const { qe, sn, Lt, Mt, $n } = fx;
+  const blade = kit.glow.hold(qe.dagger, sn.solid);
+  blade.color(Lt(0xff9440), 1.85, 0.92);
+  blade.add = 0.4;
+
+  const ring = kit.glow.hold(qe.hoop, sn.hoop);
+  ring.color(Lt(0xffe082), 1.7, 0.9);
+  ring.add = 0.35;
+
+  const ember = kit.particles.use(Mt.ember).tint(Lt(0xffe08a), Lt(0xff5222));
+  let prevX = x0;
+  let prevY = 0.5;
+  let prevZ = z0;
+
+  kit.track(
+    uid,
+    dur,
+    (u, p, dt) => {
+      const fade = p > 0.78 ? Math.max(0, (1 - p) / 0.22) : Math.min(1, p * 6);
+      const lift = Math.max(u.y, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 2.05);
+      const facing = u.unit?.facing ?? baseYaw;
+      blade.at(u.x, Math.max(0.2, lift - 0.14), u.z).scale3(2.9, 2.2, 2.3).rot(0, -facing, -0.06);
+      blade.a = 0.92 * fade;
+      ring.at(u.x, Math.max(0.14, lift - 0.2), u.z).scale(1.18).rot(0, p * fx.oe * 2.2, 0);
+      ring.a = 0.76 * fade;
+
+      if (kit.ribbons && Math.hypot(u.x - prevX, u.z - prevZ) > 0.28) {
+        kit.ribbons.trace($n.fire, prevX, prevY, prevZ, u.x, lift + 0.5, u.z, 0.32, Lt(0xffe08a), Lt(0xff4e20));
+        prevX = u.x;
+        prevY = lift + 0.5;
+        prevZ = u.z;
+      }
+      if (kit.rnd.chance(Math.min(1, dt * 30))) {
+        ember.spawn(u.x + kit.rnd.signed() * 0.4, lift + 0.45, u.z + kit.rnd.signed() * 0.4, kit.rnd.signed() * 1.8, 1.2, kit.rnd.signed() * 1.8, 0.38, 0.26, 0.1, 0);
+      }
+    },
+    () => {
+      kit.glow.release(blade);
+      kit.glow.release(ring);
+    },
+  );
+}
+
+/** 辛弃疾五十骑破营·隐踪期：目标头顶 3 道高空赤金持刀残影 + 向下锁定烈焰射线 */
 export function playXinqijiAerialShadows(
   kit: SkillsExKit,
   ev: { unitId?: number; targetId?: number; pos?: { x: number; y: number } },
@@ -577,60 +732,96 @@ export function playXinqijiAerialShadows(
   if (tid < 0 || !kit.track || !kit.anchor(tid)) return;
   if (kit.focusDist(kit.a.x, kit.a.z) > 54) return;
 
-  const { qe, sn, Lt, Mt, oe } = fx;
+  const { qe, sn, Lt, Mt, $n, oe } = fx;
   const cFlame = Lt(0xff6b2e);
   const cGold = Lt(0xffe08a);
+
+  // 辛弃疾本体脚下踏炎阔刃 + 炎环（4.1m 高空御刀姿态）
+  const uid = ev.unitId ?? -1;
+  if (uid >= 0 && kit.anchor(uid)) {
+    const selfBlade = kit.glow.hold(qe.dagger, sn.solid);
+    selfBlade.color(cGold, 1.95, 0.94);
+    selfBlade.add = 0.45;
+    const selfRing = kit.glow.hold(qe.hoop, sn.hoop);
+    selfRing.color(cFlame, 1.7, 0.9);
+    selfRing.add = 0.35;
+    kit.track(
+      uid,
+      0.72,
+      (u, p) => {
+        const fade = p > 0.8 ? Math.max(0, (1 - p) / 0.2) : Math.min(1, p * 5);
+        const lift = Math.max(u.y, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 4.1);
+        const facing = u.unit?.facing ?? p * 4;
+        selfBlade.at(u.x, Math.max(0.24, lift - 0.16), u.z).scale3(3.2, 2.2, 2.5).rot(0, -facing, 0.08);
+        selfBlade.a = 0.94 * fade;
+        selfRing.at(u.x, Math.max(0.18, lift - 0.22), u.z).scale(1.36).rot(0, p * oe * 2, 0);
+        selfRing.a = 0.8 * fade;
+      },
+      () => {
+        kit.glow.release(selfBlade);
+        kit.glow.release(selfRing);
+      },
+    );
+  }
 
   const clones: { body: GlowMeshHandle; blade: GlowMeshHandle; ring: GlowMeshHandle; ang: number }[] = [];
   for (let i = 0; i < 3; i++) {
     const body = kit.glow.hold(qe.pillar, sn.pillar);
-    body.color(cFlame, 1.75, 0.85);
-    body.add = 0.42;
+    body.color(cFlame, 1.9, 0.88);
+    body.add = 0.48;
 
-    const blade = kit.glow.hold(qe.slash, sn.slash);
-    blade.color(cGold, 2.0, 0);
-    blade.add = 0.55;
+    const blade = kit.glow.hold(qe.dagger, sn.solid);
+    blade.color(cGold, 2.0, 0.94);
+    blade.add = 0.5;
 
     const ring = kit.glow.hold(qe.hoop, sn.hoop);
-    ring.color(cFlame, 1.4, 0.8);
-    ring.add = 0.3;
+    ring.color(cFlame, 1.65, 0.85);
+    ring.add = 0.36;
 
     clones.push({ body, blade, ring, ang: (i / 3) * oe + 0.35 });
   }
 
   const ember = kit.particles.use(Mt.ember).tint(cGold, cFlame);
   const streak = kit.particles.use(Mt.streak).tint(Lt(0xffffff), cGold);
+  let beamAcc = 0;
 
   kit.track(
     tid,
     0.72,
     (u, p, dt) => {
       const emerge = Math.min(1, p * 4.5);
-      const shrink = 1 - 0.32 * p * p;
-      const rad = 2.85 * shrink;
-      const hBase = 3.25 - p * 0.7;
+      const shrink = 1 - 0.3 * p * p;
+      const rad = 2.95 * shrink;
+      const hBase = 3.55 - p * 0.65;
+      beamAcc += dt;
+      const emitBeams = kit.ribbons && beamAcc >= 0.14;
+      if (emitBeams) beamAcc = 0;
 
       for (let i = 0; i < clones.length; i++) {
         const cl = clones[i];
         const a = cl.ang + p * 2.1;
         const cx = u.x + Math.cos(a) * rad;
         const cz = u.z + Math.sin(a) * rad;
-        const yawToTarget = Math.atan2(u.x - cx, u.z - cz);
+        const yawToTarget = Math.atan2(u.z - cz, u.x - cx);
 
-        cl.body.at(cx, hBase, cz).scale3(0.42, 1.65 * emerge, 0.42).rot(0.28, yawToTarget, 0);
-        cl.body.a = 0.78 * emerge;
-        cl.blade.at(cx, hBase + 0.75, cz).scale(1.35 * emerge).rot(0.45, yawToTarget + p * 6, 0.25);
-        cl.blade.a = 0.92 * emerge;
-        cl.ring.at(cx, hBase - 0.15, cz).scale(0.82 * emerge).rot(0, -a * 2, 0);
-        cl.ring.a = 0.65 * emerge;
+        cl.body.at(cx, hBase, cz).scale3(0.62, 1.9 * emerge, 0.62).rot(0.28, -yawToTarget, 0);
+        cl.body.a = 0.86 * emerge;
+        cl.blade.at(cx, hBase + 0.2, cz).scale3(2.8, 2.0, 2.2).rot(0.32, -yawToTarget, 0);
+        cl.blade.a = 0.95 * emerge;
+        cl.ring.at(cx, hBase - 0.18, cz).scale(1.12 * emerge).rot(0, -a * 2, 0);
+        cl.ring.a = 0.78 * emerge;
+
+        if (emitBeams && kit.ribbons) {
+          kit.ribbons.trace($n.fire, cx, hBase + 0.2, cz, u.x, 0.55, u.z, 0.18, cGold, cFlame);
+        }
       }
 
-      if (kit.rnd.chance(Math.min(1, dt * 40))) {
+      if (kit.rnd.chance(Math.min(1, dt * 42))) {
         const oa = p * oe * 4;
         const ox = u.x + Math.cos(oa) * rad * 0.92;
         const oz = u.z + Math.sin(oa) * rad * 0.92;
         ember.spawn(ox, hBase + 0.4, oz, -Math.sin(oa) * 3.5, 1.4, Math.cos(oa) * 3.5, 0.36, 0.28, 0.1, 0);
-        streak.spawn(ox, hBase + 0.5, oz, (u.x - ox) * 4, -2.5, (u.z - oz) * 4, 0.16, 0.18, 0.05, 0);
+        streak.spawn(ox, hBase + 0.5, oz, (u.x - ox) * 4, -2.8, (u.z - oz) * 4, 0.16, 0.18, 0.05, 0);
       }
     },
     () => {
@@ -674,29 +865,30 @@ export function playXinqijiCrossDive(
   }
 }
 
-/** 刘娥「青石石化」触发特效：脚下裂纹青石莲座 + 紫金封印环 */
+/** 刘娥「青石石化」触发特效：6 座高耸晶石柱锁身 + 紫金头顶封印环 */
 export function playPetrifyCast(kit: SkillsExKit, x: number, z: number, fx: SkillsExHelpers): void {
   const { qe, sn, Lt, Mt, Xt, oe } = fx;
-  const stoneC = Lt(0x7c8792);
+  const stoneC = Lt(0x8896a4);
   const sealC = Lt(0xd488ff);
-  kit.decals.add(Xt.cracks, x, z, 2.0, 0.85).params(0, 0.2).color(sealC, 1.5, 0.85).under(Lt(0x281e36), 0.72);
-  kit.glow.spawn(qe.hoop, sn.hoop, 0.75).at(x, 0.9, z).scale(1.18).rot(0, 0.4, 0).color(sealC, 1.8, 0.9).fade(0.03, 0.16);
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * oe;
-    const rx = x + Math.cos(a) * 0.68;
-    const rz = z + Math.sin(a) * 0.68;
+  const goldC = Lt(0xffe07a);
+  kit.decals.add(Xt.cracks, x, z, 2.35, 0.9).params(0, 0.2).color(sealC, 1.7, 0.9).under(Lt(0x281e36), 0.78);
+  kit.glow.spawn(qe.hoop, sn.hoop, 0.85).at(x, 1.75, z).scale(1.38).rot(0, 0.4, 0).color(goldC, 1.9, 0.92).fade(0.03, 0.18);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * oe;
+    const rx = x + Math.cos(a) * 0.78;
+    const rz = z + Math.sin(a) * 0.78;
     kit.glow
-      .spawn(qe.rock, sn.solid, 0.78)
-      .at(rx, 0.22, rz)
-      .scale3(0.42, 0.72, 0.42)
-      .rot(0.18, a, -0.15)
-      .color(stoneC, 1.05, 0.95)
-      .fade(0.03, 0.16);
+      .spawn(i % 2 === 0 ? qe.rock : qe.spike, sn.solid, 0.88)
+      .at(rx, 0.2, rz)
+      .scale3(0.56, 1.52, 0.56)
+      .rot(0.24 * Math.sin(a), a, -0.24 * Math.cos(a))
+      .color(stoneC, 1.25, 0.96)
+      .fade(0.03, 0.18);
   }
-  const deb = kit.particles.use(Mt.debris).tint(Lt(0xa6b2be), Lt(0x4a525c));
-  for (let i = 0; i < kit.n(8); i++) {
-    const a = (i / 8) * oe;
-    deb.spawn(x + Math.cos(a) * 0.5, 0.35, z + Math.sin(a) * 0.5, Math.cos(a) * 1.4, 2.4, Math.sin(a) * 1.4, 0.4, 0.2, 0.12, 0);
+  const deb = kit.particles.use(Mt.debris).tint(Lt(0xb6c2ce), Lt(0x4a525c));
+  for (let i = 0; i < kit.n(10); i++) {
+    const a = (i / 10) * oe;
+    deb.spawn(x + Math.cos(a) * 0.55, 0.4, z + Math.sin(a) * 0.55, Math.cos(a) * 1.6, 2.8, Math.sin(a) * 1.6, 0.44, 0.24, 0.12, 0);
   }
 }
 
@@ -749,17 +941,18 @@ export function playPetrifyBreak(
   }
 }
 
-/** 苏轼「赤壁墨封」触发特效：宣纸墨圈 + 悬停墨滴 + 青玉清音环 */
+/** 苏轼「赤壁墨封」触发特效：玄墨漩涡柱 + 宣纸墨圈 + 青玉清音环 */
 export function playInkSealCast(kit: SkillsExKit, x: number, z: number, fx: SkillsExHelpers): void {
   const { qe, sn, Lt, Mt, Xt, oe } = fx;
   const jadeC = Lt(0x64e0cb);
   const inkC = Lt(0x162226);
-  kit.decals.add(Xt.swirl, x, z, 2.2, 0.82).params(3, -1.8).color(jadeC, 1.4, 0.9).under(inkC, 0.82);
-  kit.glow.spawn(qe.hoop, sn.hoop, 0.78).at(x, 0.95, z).scale(1.15).rot(0, -0.6, 0).color(jadeC, 1.65, 0.92).fade(0.04, 0.18);
+  kit.decals.add(Xt.swirl, x, z, 2.35, 0.88).params(3, -1.8).color(jadeC, 1.55, 0.92).under(inkC, 0.86);
+  kit.glow.spawn(qe.cone, sn.vortex, 0.82).at(x, 0.08, z).scale3(1.15, 2.3, 1.15).rot(0, 1.2, 0).color(inkC, 1.3, 0.85).fade(0.04, 0.22);
+  kit.glow.spawn(qe.hoop, sn.hoop, 0.82).at(x, 1.65, z).scale(1.26).rot(0, -0.6, 0).color(jadeC, 1.85, 0.94).fade(0.04, 0.18);
   const ink = kit.particles.use(Mt.ink);
-  for (let i = 0; i < kit.n(10); i++) {
-    const a = (i / 10) * oe;
-    ink.spawn(x + Math.cos(a) * 0.75, 0.9, z + Math.sin(a) * 0.75, Math.cos(a) * 0.8, 0.45, Math.sin(a) * 0.8, 0.65, 0.55, 0.82, 0);
+  for (let i = 0; i < kit.n(12); i++) {
+    const a = (i / 12) * oe;
+    ink.spawn(x + Math.cos(a) * 0.8, 0.95, z + Math.sin(a) * 0.8, Math.cos(a) * 0.9, 0.65, Math.sin(a) * 0.9, 0.72, 0.62, 0.88, 0);
   }
 }
 
@@ -811,19 +1004,19 @@ export function initLiueSealWell(kit: SkillsExKit, area: AreaStateLike, fx: Skil
 export function updateLiueSealWell(area: AreaStateLike): void {
   if (!area._isLiue || area.meshes.length < 4) return;
   const t = Math.max(0, Math.min(1, area.t));
-  const dropY = 5.6 - 4.55 * (t * t * t);
+  const dropY = 6.2 - 5.1 * (t * t * t);
   const fade = Math.min(1, area.age * 4.5);
   const sealBase = area.meshes[1];
   const sealKnob = area.meshes[2];
   const sealRing = area.meshes[3];
-  const s = area.radius * 0.46;
+  const s = area.radius * 0.62;
 
-  sealBase.at(area.x, dropY, area.z).scale3(s, 0.72, s).rot(0, area.age * 0.9, 0);
-  sealBase.a = 0.52 * fade;
-  sealKnob.at(area.x, dropY + 0.85, area.z).scale3(s * 0.48, 0.56, s * 0.48).rot(0, area.age * 1.4, 0);
-  sealKnob.a = 0.74 * fade;
-  sealRing.at(area.x, dropY + 0.15, area.z).scale(s * 1.25).rot(0, -area.age * 2.5, 0);
-  sealRing.a = 0.72 * fade;
+  sealBase.at(area.x, dropY, area.z).scale3(s, 0.96, s).rot(0, area.age * 0.9, 0);
+  sealBase.a = 0.84 * fade;
+  sealKnob.at(area.x, dropY + 1.12, area.z).scale3(s * 0.52, 0.7, s * 0.52).rot(0, area.age * 1.4, 0);
+  sealKnob.a = 0.94 * fade;
+  sealRing.at(area.x, dropY + 0.2, area.z).scale(s * 1.32).rot(0, -area.age * 2.5, 0);
+  sealRing.a = 0.88 * fade;
 }
 
 export function playLiueSealSlam(kit: SkillsExKit, x: number, z: number, radius: number, fx: SkillsExHelpers): void {
@@ -906,22 +1099,117 @@ export function playQinqiongTitanLeap(
   );
 }
 
-/** 秦琼大招落地：减速区外缘拔地升起 8 根玄铁断碑石柱结界 */
+/** 秦琼一技能「披靡破军」：前中期踏风虎跃 1.9m + 鎏金战气光环与琥珀拖尾 */
+export function playQinqiongDashLeap(
+  kit: SkillsExKit,
+  ev: { unitId?: number; pos?: { x: number; y: number }; dir?: { x: number; y: number } },
+  fx: SkillsExHelpers,
+): void {
+  const uid = ev.unitId ?? -1;
+  if (uid < 0 || !kit.track || !kit.anchor(uid)) return;
+  const x0 = ev.pos?.x ?? kit.a.x;
+  const z0 = ev.pos?.y ?? kit.a.z;
+  if (kit.focusDist(x0, z0) > 54) return;
+
+  const { qe, sn, Lt, $n } = fx;
+  const cGold = Lt(0xf6c95e);
+  const cCrimson = Lt(0xe04f2a);
+
+  const ring = kit.glow.hold(qe.hoop, sn.hoop);
+  ring.color(cGold, 1.85, 0.92);
+  ring.add = 0.42;
+
+  let prevX = x0;
+  let prevY = 0.45;
+  let prevZ = z0;
+
+  kit.track(
+    uid,
+    0.34,
+    (u, p) => {
+      const fade = p > 0.78 ? Math.max(0, (1 - p) / 0.22) : Math.min(1, p * 6);
+      const lift = Math.max(u.y, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 1.9);
+      ring.at(u.x, Math.max(0.18, lift - 0.1), u.z).scale(1.45).rot(0.14, p * fx.oe * 2, 0);
+      ring.a = 0.86 * fade;
+
+      if (kit.ribbons && Math.hypot(u.x - prevX, u.z - prevZ) > 0.28) {
+        kit.ribbons.trace($n.fire, prevX, prevY, prevZ, u.x, lift + 0.45, u.z, 0.3, cGold, cCrimson);
+        prevX = u.x;
+        prevY = lift + 0.45;
+        prevZ = u.z;
+      }
+    },
+    () => {
+      kit.glow.release(ring);
+    },
+  );
+}
+
+/** 苏轼 & 刘娥大招悬空：施法期间踏墨韵/凤印凌空 ~2.45m */
+export function playXingliUltLevitation(
+  kit: SkillsExKit,
+  ev: { unitId?: number; pos?: { x: number; y: number } },
+  fx: SkillsExHelpers,
+): void {
+  const uid = ev.unitId ?? -1;
+  if (uid < 0 || !kit.track || !kit.anchor(uid)) return;
+  const u0 = kit.anchors.unit(uid);
+  const isLiue = u0?.heroId === 'liue';
+  const x0 = kit.a.x;
+  const z0 = kit.a.z;
+  if (kit.focusDist(x0, z0) > 54) return;
+
+  const { qe, sn, Lt } = fx;
+  const cMain = isLiue ? Lt(0xd46aff) : Lt(0x5ae6ce);
+  const cHot = isLiue ? Lt(0xffe084) : Lt(0xe8fff9);
+
+  const halo = kit.glow.hold(qe.hoop, sn.hoop);
+  halo.color(cHot, 1.85, 0.92);
+  halo.add = 0.42;
+
+  const col = kit.glow.hold(qe.cone, sn.vortex);
+  col.color(cMain, 1.05, 0.72);
+  col.add = 0.26;
+
+  kit.track(
+    uid,
+    1.65,
+    (u, p) => {
+      const lift = Math.max(u.y, envelopeLift(p, 2.45, 0.16, 0.22, 0.15, 2));
+      const fade = p > 0.78 ? Math.max(0, (1 - p) / 0.22) : Math.min(1, p * 5);
+      halo.at(u.x, Math.max(0.2, lift - 0.12), u.z).scale(1.42 * (0.75 + 0.25 * fade)).rot(0, p * fx.oe * 2, 0);
+      halo.a = 0.88 * fade;
+      col.at(u.x, 0.08, u.z).scale3(0.68, Math.max(0.35, lift - 0.2), 0.68).rot(0, -p * 5, 0);
+      col.a = (kit.lowQ ? 0.16 : 0.24) * fade;
+    },
+    () => {
+      kit.glow.release(halo);
+      kit.glow.release(col);
+    },
+  );
+}
+
+/** 秦琼大招落地：减速区外缘拔地升起 8 根高耸铜铁断碑 + 连界金环结界 */
 export function initQinqiongArena(kit: SkillsExKit, area: AreaStateLike, fx: SkillsExHelpers): void {
   const { qe, sn, Lt, Mt, oe } = fx;
   const count = kit.lowQ ? 6 : 8;
   area._tsArenaCount = count;
-  const stoneIron = Lt(0x3a404c);
+  const stoneBronze = Lt(0x6f6250);
 
   for (let i = 0; i < count; i++) {
     const pillar = kit.glow.hold(i % 2 === 0 ? qe.rock : qe.spike, sn.solid);
-    pillar.color(stoneIron, 1.1, 0.95);
+    pillar.color(stoneBronze, 1.35, 0.95);
     area.meshes.push(pillar);
     const a = area.phase + (i / count) * oe;
     const px = area.x + Math.cos(a) * area.radius * 0.94;
     const pz = area.z + Math.sin(a) * area.radius * 0.94;
-    kit.particles.use(Mt.debris).tint(Lt(0x8d8272), Lt(0x383430)).spawn(px, 0.2, pz, Math.cos(a) * 1.4, 3.6, Math.sin(a) * 1.4, 0.5, 0.26, 0.14, 0);
+    kit.particles.use(Mt.debris).tint(Lt(0xa8967a), Lt(0x383430)).spawn(px, 0.2, pz, Math.cos(a) * 1.6, 4.2, Math.sin(a) * 1.6, 0.55, 0.3, 0.16, 0);
   }
+
+  const fenceRing = kit.glow.hold(qe.hoop, sn.hoop);
+  fenceRing.color(Lt(0xf6c95e), 1.65, 0.9);
+  fenceRing.add = 0.35;
+  area.meshes.push(fenceRing);
 }
 
 export function updateQinqiongArena(area: AreaStateLike, fx: SkillsExHelpers): void {
@@ -935,9 +1223,14 @@ export function updateQinqiongArena(area: AreaStateLike, fx: SkillsExHelpers): v
     const a = area.phase + (i / count) * fx.oe;
     const px = area.x + Math.cos(a) * r;
     const pz = area.z + Math.sin(a) * r;
-    const h = (i % 2 === 0 ? 1.55 : 1.9) * emerge * (0.45 + 0.55 * fade);
-    m.at(px, -0.35 + h * 0.42, pz).scale3(0.56, Math.max(0.15, h), 0.56).rot(0.16 * Math.cos(a), a + 0.5, 0.16 * Math.sin(a));
-    m.a = 0.95 * fade;
+    const h = (i % 2 === 0 ? 2.65 : 3.25) * emerge * (0.45 + 0.55 * fade);
+    m.at(px, -0.3 + h * 0.44, pz).scale3(0.92, Math.max(0.2, h), 0.92).rot(0.14 * Math.cos(a), a + 0.5, 0.14 * Math.sin(a));
+    m.a = 0.96 * fade;
+  }
+  const fenceRing = area.meshes[count];
+  if (fenceRing) {
+    fenceRing.at(area.x, 1.05 * emerge, area.z).scale(area.radius * 0.96).rot(0, area.age * 1.2, 0);
+    fenceRing.a = 0.72 * fade;
   }
 }
 
@@ -948,6 +1241,8 @@ export const TANGSONG_SKILLS_EX_API = {
   updateChijinFlight,
   playChijinDashFlight,
   playWenchengFlight,
+  playWenchengDashFlight,
+  playYequeDashFlight,
   playXinqijiAerialShadows,
   playXinqijiCrossDive,
   playPetrifyCast,
@@ -958,7 +1253,9 @@ export const TANGSONG_SKILLS_EX_API = {
   updateLiueSealWell,
   playLiueSealSlam,
   playSushiWaveWall,
+  playQinqiongDashLeap,
   playQinqiongTitanLeap,
+  playXingliUltLevitation,
   initQinqiongArena,
   updateQinqiongArena,
   resolveKitOf: kitOf,

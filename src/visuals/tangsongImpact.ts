@@ -11,9 +11,7 @@ import { kitOf } from '../config/heroes';
 import { cinematicFlowEnabled } from '../ui/tangsongMotion';
 import type { MonsterVfxHelpers, MonsterVfxKit } from './tangsongMonsterVfx';
 import {
-  playInkSealCast,
   playLiueSealSlam,
-  playPetrifyCast,
   playSushiWaveWall,
   type SkillsExHelpers,
   type SkillsExKit,
@@ -202,8 +200,6 @@ export function playImpactFx(
       spawnRingParticles(kit, Mt.bolt, cSpark, cMain, tx, 1.3, tz, 10, 3.6, 1.4, 3.8, 0.32, 0.24);
       spawnRingParticles(kit, Mt.glint, Lt(0xffffff), cMain, tx, 1.4, tz, 8, 2.4, 0.8, 2.6, 0.34, 0.2);
       vs(kit, tx, 1.25, tz, 1.5, cHotStun, cMain, 0, 0, 8, 0.12, 10);
-      if (isPet) playPetrifyCast(kit as unknown as SkillsExKit, tx, tz, fx as unknown as SkillsExHelpers);
-      if (isInk) playInkSealCast(kit as unknown as SkillsExKit, tx, tz, fx as unknown as SkillsExHelpers);
       if (typeof ev.targetId === 'number') {
         kits.anchors.flashTint?.(ev.targetId, isPet ? Lt(0x9ea8b4) : isInk ? Lt(0x1e282d) : Lt(0xffdc80), 0.82, 0.26);
       }
@@ -414,12 +410,41 @@ export function playImpactFx(
         if (mine && isVortex) triggerHitStop(0.042);
         break;
       }
-      case 'fengling_pierce':
+      case 'fengling_pierce': {
+        const dx = ev.dir?.x ?? 1;
+        const dz = ev.dir?.y ?? 0;
+        const dLen = Math.hypot(dx, dz) || 1;
+        const ux = dx / dLen;
+        const uz = dz / dLen;
+        const ang = Math.atan2(uz, ux);
+        kit.decals
+          .add(Xt.streak, x + ux * 1.4, z + uz * 1.4, 2.2, 0.45)
+          .rot(ang, 0.36)
+          .params(0.45, 2.2)
+          .color(cHot, 1.9, 0.92)
+          .under(cDeep, 0.35);
+        const arc = qo(kit, x + ux * 0.4, 0.95, z + uz * 0.4, ang, 2.1, 0.24, cHot, 2.2, 0.08, true, 0.95) as {
+          scale: (a: number, b?: number) => { fade: (a: number, b: number) => void };
+          k?: number;
+        };
+        arc.scale(1.85, 2.2).fade(0.02, 0.45);
+        arc.k = 0.65;
+        const streakPool = kit.particles.use(Mt.streak).tint(Lt(0xffffff), cHot);
+        const glintPool = kit.particles.use(Mt.glint).tint(cHot, cGlow);
+        for (let i = 0; i < kit.n(10); i++) {
+          const sa = ang + kit.rnd.signed() * 0.48;
+          const sp = kit.rnd.range(9, 15);
+          streakPool.spawn(x + ux * 0.4, kit.rnd.range(0.7, 1.3), z + uz * 0.4, Math.cos(sa) * sp, kit.rnd.range(-0.5, 1.5), Math.sin(sa) * sp, 0.2, 0.14, 0.04, 0);
+          glintPool.spawn(x + ux * 0.5, kit.rnd.range(0.6, 1.2), z + uz * 0.5, Math.cos(sa) * sp * 0.65, kit.rnd.range(1.2, 3.2), Math.sin(sa) * sp * 0.65, 0.34, 0.24, 0.08, 0);
+        }
+        kit.light(x + ux * 0.8, z + uz * 0.8, 1.4, cGlow, 5.2, 7.5, 0.26);
+        if (mine) triggerHitStop(0.04);
+        break;
+      }
       case 'fengling_rain': {
-        const isRain = ev.style === 'fengling_rain';
-        kit.decals.add(Xt.star, x, z, isRain ? r * 0.92 : 2.1, 0.6).params(5, 1).color(cHot, 1.75, 0.9).under(cDeep, 0.32);
-        spawnRingParticles(kit, Mt.glint, cHot, cGlow, x, 0.9, z, isRain ? 18 : 12, 5.2, 3.4, 7.6, 0.48, 0.25);
-        bn(kit, x, z, isRain ? r * 0.95 : 2.0, 0.36, cHot, 1.6, 0.22, 0.25);
+        kit.decals.add(Xt.star, x, z, r * 0.92, 0.6).params(5, 1).color(cHot, 1.75, 0.9).under(cDeep, 0.32);
+        spawnRingParticles(kit, Mt.glint, cHot, cGlow, x, 0.9, z, 18, 5.2, 3.4, 7.6, 0.48, 0.25);
+        bn(kit, x, z, r * 0.95, 0.36, cHot, 1.6, 0.22, 0.25);
         kit.light(x, z, 1.4, cGlow, 5, r * 1.8, 0.28);
         if (mine) triggerHitStop(0.04);
         break;

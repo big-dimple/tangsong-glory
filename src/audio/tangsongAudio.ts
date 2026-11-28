@@ -1597,10 +1597,23 @@ export function attachTangSongSfx(
       playGuqin(p, midi(62), 0.6, 1.8, 0.7);
       playBianzhong(p, midi(62), 0.6, 1.6, 0.46);
     });
-    // 隐草（干脆物理拨草）：多层错落草叶沙沙 + 拨草主体扫频 + 草丛合拢尾音，零振荡器/零笛哨/不压 BGM
+    // 隐草（0ms 即时拨草拟音）：t=0 瞬态清脆叶片拨开 + 即时草丛刷响 + 错落尾音，绝不延迟
     cue(CUE_KEYS['stealth-in'], { len: 0.36, gap: 0.28, rev: 0.04 }, (p) => {
-      // 1) 错落草叶摩擦颗粒（模拟衣摆与腿部连续拨开草茎）
-      p.scatter(6, 0, 0.14, (t, idx) => {
+      // 0) t=0 瞬发前缘叶片拨开声（保证零感知延迟）
+      p.noise({
+        k: 'white',
+        flt: 'bandpass',
+        fc: 4100,
+        fc1: 1950,
+        fct: 0.05,
+        q: 1.5,
+        t: 0,
+        a: 0.002,
+        d: 0.048,
+        g: 0.44,
+      });
+      // 1) 错落草叶摩擦颗粒（0.015s 起模拟衣摆连续拨开草茎）
+      p.scatter(5, 0.015, 0.11, (t, idx) => {
         const fc = 3600 + (idx % 3) * 650;
         p.noise({
           k: 'white',
@@ -1615,19 +1628,19 @@ export function attachTangSongSfx(
           g: 0.34 + (idx % 2) * 0.08,
         });
       });
-      // 2) 拨草主体“沙——刷”声（自然草丛主频段）
+      // 2) 拨草主体“沙——刷”声（零滞后起音，自然草丛主频段）
       p.noise({
         k: 'pink',
         flt: 'bandpass',
-        fc: 1750,
+        fc: 1850,
         fc1: 660,
-        fct: 0.18,
+        fct: 0.17,
         q: 1.0,
-        t: 0.008,
-        a: 0.012,
-        h: 0.038,
-        d: 0.19,
-        g: 0.54,
+        t: 0,
+        a: 0.006,
+        h: 0.036,
+        d: 0.18,
+        g: 0.56,
       });
       // 3) 蹲稳后草叶轻合尾音 + 轻衣袂扫过
       p.noise({
@@ -1635,10 +1648,10 @@ export function attachTangSongSfx(
         flt: 'bandpass',
         fc: 3100,
         fc1: 1450,
-        fct: 0.13,
+        fct: 0.12,
         q: 1.35,
-        t: 0.11,
-        a: 0.014,
+        t: 0.1,
+        a: 0.012,
         d: 0.13,
         g: 0.28,
       });
@@ -1646,9 +1659,9 @@ export function attachTangSongSfx(
         k: 'pink',
         flt: 'lowpass',
         fc: 520,
-        t: 0.02,
-        a: 0.01,
-        d: 0.12,
+        t: 0.01,
+        a: 0.008,
+        d: 0.11,
         g: 0.22,
       });
     });

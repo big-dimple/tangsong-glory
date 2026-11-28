@@ -91,10 +91,12 @@ const patches = [
   ],
   [
     'const Rt=Q.team===$.playerTeam||Q.visible[$.playerTeam];let kt=Rt?1:0;if(Rt){Q.bushId>=0&&(kt=.62);for(let ft=0;ft<Q.buffs.length;ft++)if(Q.buffs[ft].id==="untargetable"){kt=Math.min(kt,.42);break}}const V=ut.time-(1-N)*xo;',
+    'const V=ut.time-(1-N)*xo;const Rt=Q.team===$.playerTeam||Q.visible[$.playerTeam];D.inBush=Rt&&Q.bushId>=0?(Q.rt.revealUntil>V?2:1):0;let kt=Rt?1:0;if(Rt){Q.bushId>=0&&(kt=Q.rt.revealUntil>V?.84:.56);for(let ft=0;ft<Q.buffs.length;ft++)if(Q.buffs[ft].id==="untargetable"){kt=Math.min(kt,Q.buffs[ft].key==="yeque_ult"?.88:.42);break}}',
     'const V=ut.time-(1-N)*xo;const Rt=Q.team===$.playerTeam||Q.visible[$.playerTeam];D.inBush=Rt&&Q.bushId>=0?(Q.rt.revealUntil>V?2:1):0;let kt=Rt?1:0;if(Rt){Q.bushId>=0&&(kt=Q.rt.revealUntil>V?.84:.56);for(let ft=0;ft<Q.buffs.length;ft++)if(Q.buffs[ft].id==="untargetable"){kt=Math.min(kt,.42);break}}',
   ],
   [
     'D.rimLeft>0&&(D.rimLeft-=$,D.rimLeft>0&&(U=Math.max(U,Math.min(1,D.rimLeft/D.rimDur*3)))),j.rim=U,',
+    'D.rimLeft>0&&(D.rimLeft-=$,D.rimLeft>0&&(U=Math.max(U,Math.min(1,D.rimLeft/D.rimDur*3)))),D.inBush===1&&(j.tintAmount<.26&&(j.tint.setHex(0x3a8c82),j.tintAmount=.26),U=Math.max(U,.65)),D.tsCcState==="petrify"?(j.tint.setHex(0x8e99a4),j.tintAmount=.94,j.body.setRGB(.54,.58,.64),U=Math.max(U,.72)):D.tsCcState==="ink_seal"?(j.tint.setHex(0x161d22),j.tintAmount=.86,j.body.setRGB(.28,.36,.38),U=Math.max(U,.92)):D.tsCcState==="chill"?(j.tintAmount<.28&&(j.tint.setHex(0x74dcff),j.tintAmount=.28),U=Math.max(U,.44)):D.tsFlightKind==="xinqiji"&&(j.tintAmount<.55&&(j.tint.setHex(0xff7834),j.tintAmount=.55),U=Math.max(U,.95)),j.rim=U,',
     'D.rimLeft>0&&(D.rimLeft-=$,D.rimLeft>0&&(U=Math.max(U,Math.min(1,D.rimLeft/D.rimDur*3)))),D.inBush===1&&(j.tintAmount<.26&&(j.tint.setHex(0x3a8c82),j.tintAmount=.26),U=Math.max(U,.65)),D.tsCcState==="petrify"?(j.tint.setHex(0x88929b),j.tintAmount=.88,j.body.setRGB(.64,.68,.72),U=Math.max(U,.62)):D.tsCcState==="ink_seal"?(j.tint.setHex(0x161d22),j.tintAmount=.86,j.body.setRGB(.28,.36,.38),U=Math.max(U,.92)):D.tsCcState==="chill"?(j.tintAmount<.28&&(j.tint.setHex(0x74dcff),j.tintAmount=.28),U=Math.max(U,.44)):D.tsFlightKind==="xinqiji"&&(j.tintAmount<.55&&(j.tint.setHex(0xff7834),j.tintAmount=.55),U=Math.max(U,.95)),j.rim=U,',
     'D.rimLeft>0&&(D.rimLeft-=$,D.rimLeft>0&&(U=Math.max(U,Math.min(1,D.rimLeft/D.rimDur*3)))),D.inBush===1&&(j.tintAmount<.26&&(j.tint.setHex(0x3a8c82),j.tintAmount=.26),U=Math.max(U,.65)),j.rim=U,',
   ],
@@ -465,6 +467,7 @@ const patches = [
   ],
   [
     'ds(t,"fengling_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Hm(t,e,',
+    'for(const _ch of Pr(t,s,3.2,ia(e.team)))_tsKb(t,_ch,s,2.2,16,e);ds(t,"fengling_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Wn(t,e,"ts_qinggong_wencheng_dash",{duration:Math.max(.32,n.range/n.val("dashSpeed")),sourceId:e.id,merge:"replace"}),ds(t,"qinggong_soar",s,e.team,{unitId:e.id}),Hm(t,e,',
     'for(const _ch of Pr(t,s,3.2,ia(e.team)))_tsKb(t,_ch,s,2.2,16,e);ds(t,"fengling_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Hm(t,e,',
   ],
   [
@@ -485,6 +488,7 @@ const patches = [
   ],
   [
     'D.mode=O.mode,Q.anim==="leap"?D.lift=4*3.4*O.p*(1-O.p):Q.anim==="airborne"?D.lift=4*Math.min(2.2,Math.max(.8,Q.animDur*1.7))*O.p*(1-O.p):D.lift=0',
+    'D.mode=O.mode;const _tsVs=(Q.buffs.length>0&&(Q.kind==="hero"||Q.kind==="minion"||Q.kind==="monster"))?tsConfig.skillsEx?.computeUnitVisualState?.(Q,V):null;D.tsCcState=_tsVs?_tsVs.ccState:"";D.tsFlightKind=_tsVs?_tsVs.flightKind:"";D.tsFlightLift=_tsVs?_tsVs.flightLift:0;Q.anim==="leap"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.72)*4.65:Q.anim==="airborne"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.78)*Math.min(3.1,Math.max(1.35,Q.animDur*2.8)):D.lift=0;D.tsFlightLift>0&&(D.lift=Math.max(D.lift,D.tsFlightLift))',
     'D.mode=O.mode;const _tsVs=Q.kind==="hero"?tsConfig.skillsEx?.computeUnitVisualState?.(Q,V):null;D.tsCcState=_tsVs?_tsVs.ccState:"";D.tsFlightKind=_tsVs?_tsVs.flightKind:"";D.tsFlightLift=_tsVs?_tsVs.flightLift:0;Q.anim==="leap"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.72)*4.65:Q.anim==="airborne"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.78)*Math.min(3.1,Math.max(1.35,Q.animDur*2.8)):D.lift=0;D.tsFlightLift>0&&(D.lift=Math.max(D.lift,D.tsFlightLift))',
     'D.mode=O.mode,Q.anim==="leap"?D.lift=4*3.4*O.p*(1-O.p):Q.anim==="airborne"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.78)*Math.min(3.1,Math.max(1.35,Q.animDur*2.8)):D.lift=0',
   ],
@@ -498,6 +502,7 @@ const patches = [
   ],
   [
     'x=y=>{const v=$D[y.key];v&&v(t,y,o)}',
+    'x=y=>{if(y.key==="cc_impact"||y.key==="skill_spectacle"){tsConfig.impact?.playImpactFx?.(t,y,o,{qo,bn,Lr,Ni,H0,U0,jo,vs,Lt,Mt,Xt,Ft,oe,qe,sn,$n});return}if(y.key==="petrify_hit"){tsConfig.skillsEx?.playPetrifyCast?.(t,y.pos?.x??0,y.pos?.y??0,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}if(y.key==="ink_seal"){tsConfig.skillsEx?.playInkSealCast?.(t,y.pos?.x??0,y.pos?.y??0,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}if(y.key==="petrify_break"){tsConfig.skillsEx?.playPetrifyBreak?.(t,y,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}if(y.key==="ink_break"){tsConfig.skillsEx?.playInkSealBreak?.(t,y,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}const v=$D[y.key];v&&v(t,y,o)}',
     'x=y=>{if(y.key==="cc_impact"||y.key==="skill_spectacle"){tsConfig.impact?.playImpactFx?.(t,y,o,{qo,bn,Lr,Ni,H0,U0,jo,vs,Lt,Mt,Xt,Ft,oe,qe,sn,$n});return}if(y.key==="petrify_break"){tsConfig.skillsEx?.playPetrifyBreak?.(t,y,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}if(y.key==="ink_break"){tsConfig.skillsEx?.playInkSealBreak?.(t,y,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});return}const v=$D[y.key];v&&v(t,y,o)}',
     'x=y=>{if(y.key==="cc_impact"||y.key==="skill_spectacle"){tsConfig.impact?.playImpactFx?.(t,y,o,{qo,bn,Lr,Ni,H0,U0,jo,vs,Lt,Mt,Xt,Ft,oe});return}const v=$D[y.key];v&&v(t,y,o)}',
   ],
@@ -551,6 +556,7 @@ const patches = [
   ],
   [
     'ds(t,"fengling_ult_cast",e.pos,e.team,{unitId:e.id}),Zo(t,{visual:"telegraph",owner:e,pos:s',
+    'const _wDrop=()=>{e.alive&&!t.nav.isFree(e.pos.x,e.pos.y,e.rt.navR)&&hy(t,e,e.pos.x,e.pos.y)};Wn(t,e,"ts_qinggong_wencheng",{duration:1.85,sourceId:e.id,merge:"replace",onExpire:_wDrop,onRemove:_wDrop}),ds(t,"fengling_ult_cast",e.pos,e.team,{unitId:e.id,targetPos:s}),ds(t,"qinggong_soar",e.pos,e.team,{unitId:e.id}),Zo(t,{visual:"telegraph",owner:e,pos:s',
     'Wn(t,e,"ts_qinggong_wencheng",{duration:1.85,sourceId:e.id,merge:"replace"}),ds(t,"fengling_ult_cast",e.pos,e.team,{unitId:e.id,targetPos:s}),ds(t,"qinggong_soar",e.pos,e.team,{unitId:e.id}),Zo(t,{visual:"telegraph",owner:e,pos:s',
   ],
   [
@@ -563,6 +569,7 @@ const patches = [
   ],
   [
     'function cW(n,t,e){const s=t.rt;if(s.moveMode===Jh){const i=t.stats.moveSpeed*e,a=t.pos.x,o=t.pos.y;n.nav.moveWithCollision(t.pos,s.dirX*i,s.dirY*i,s.navR),t.facing=Math.atan2(s.dirY,s.dirX);const r=t.pos.x-a,l=t.pos.y-o,c=r*r+l*l;c>1e-10&&(s.moved=!0),c<i*i*b6*b6&&lW(n,t,i)&&(s.moved=!0)}else s.moveMode===Fm&&(s.path===null&&Ph(n,t,s.goalX,s.goalY,!1),Yk(n,t,e)||(s.moveMode=Qh))}function dy(n,t,e,s,i){const a=t.rt,o=n.state.time,r=e-a.goalX,l=s-a.goalY,c=o-a.pathTime,f=a.path;if(f===null){if(c<v6)return;Ph(n,t,e,s,!1)}else c>2||c>=v6&&r*r+l*l>y6*y6?Ph(n,t,e,s,!1):f.length===1&&a.pathIdx===0&&(f[0].x=e,f[0].y=s);Yk(n,t,i)}function Kk(n,t,e,s,i){const a=e-t.pos.x,o=s-t.pos.y,r=Math.hypot(a,o);if(r<.05)return!1;const l=Math.min(r,t.stats.moveSpeed*i),c=t.pos.x,f=t.pos.y;n.nav.moveWithCollision(t.pos,a/r*l,o/r*l,t.rt.navR);const d=t.pos.x-c,h=t.pos.y-f;return d*d+h*h>1e-10?(t.facing=Math.atan2(o,a),t.rt.moved=!0,!0):!1}',
+    'function _tsCanFly(t){if(t.kind!=="hero")return!1;for(let i=0;i<t.buffs.length;i++)if(t.buffs[i].id==="chijin_spin"||t.buffs[i].id==="ts_qinggong_wencheng")return!0;return!1}function _tsFlyStep(n,t,dx,dy){const nx=t.pos.x+dx,ny=t.pos.y+dy,lim=(n.map?.bound??48)-t.rt.navR-.9;if(Math.abs(nx)>lim||Math.abs(ny)>lim)return!1;if(n.nav.sample(n.nav.base,nx,ny)<-6.5)return!1;return t.pos.x=nx,t.pos.y=ny,!0}function cW(n,t,e){const s=t.rt;if(s.moveMode===Jh){const i=t.stats.moveSpeed*e,a=t.pos.x,o=t.pos.y;(_tsCanFly(t)&&_tsFlyStep(n,t,s.dirX*i,s.dirY*i))||n.nav.moveWithCollision(t.pos,s.dirX*i,s.dirY*i,s.navR),t.facing=Math.atan2(s.dirY,s.dirX);const r=t.pos.x-a,l=t.pos.y-o,c=r*r+l*l;c>1e-10&&(s.moved=!0),!_tsCanFly(t)&&c<i*i*b6*b6&&lW(n,t,i)&&(s.moved=!0)}else if(s.moveMode===Fm){if(_tsCanFly(t)){const dx=s.goalX-t.pos.x,dy=s.goalY-t.pos.y,dist=Math.hypot(dx,dy);if(dist<=.15)s.path=null,s.moveMode=Qh;else{const step=Math.min(dist,t.stats.moveSpeed*e),ux=dx/dist,uy=dy/dist;_tsFlyStep(n,t,ux*step,uy*step)||n.nav.moveWithCollision(t.pos,ux*step,uy*step,s.navR),t.facing=Math.atan2(uy,ux),s.moved=!0;if(dist<=step+.15)s.path=null,s.moveMode=Qh}}else s.path===null&&Ph(n,t,s.goalX,s.goalY,!1),Yk(n,t,e)||(s.moveMode=Qh)}}function dy(n,t,e,s,i){if(_tsCanFly(t)){const a=t.rt;a.goalX=e,a.goalY=s;const dx=e-t.pos.x,dy2=s-t.pos.y,dist=Math.hypot(dx,dy2);if(dist>.12){const step=Math.min(dist,t.stats.moveSpeed*i),ux=dx/dist,uy=dy2/dist;_tsFlyStep(n,t,ux*step,uy*step)||n.nav.moveWithCollision(t.pos,ux*step,uy*step,a.navR),t.facing=Math.atan2(uy,ux),a.moved=!0}return}const a=t.rt,o=n.state.time,r=e-a.goalX,l=s-a.goalY,c=o-a.pathTime,f=a.path;if(f===null){if(c<v6)return;Ph(n,t,e,s,!1)}else c>2||c>=v6&&r*r+l*l>y6*y6?Ph(n,t,e,s,!1):f.length===1&&a.pathIdx===0&&(f[0].x=e,f[0].y=s);Yk(n,t,i)}function Kk(n,t,e,s,i){const a=e-t.pos.x,o=s-t.pos.y,r=Math.hypot(a,o);if(r<.05)return!1;const l=Math.min(r,t.stats.moveSpeed*i),c=t.pos.x,f=t.pos.y;(_tsCanFly(t)&&_tsFlyStep(n,t,a/r*l,o/r*l))||n.nav.moveWithCollision(t.pos,a/r*l,o/r*l,t.rt.navR);const d=t.pos.x-c,h=t.pos.y-f;return d*d+h*h>1e-10?(t.facing=Math.atan2(o,a),t.rt.moved=!0,!0):!1}',
     'function _tsCanFly(t){if(t.kind!=="hero")return!1;for(let i=0;i<t.buffs.length;i++)if(t.buffs[i].id==="chijin_spin")return!0;return!1}function _tsFlyStep(n,t,dx,dy){const nx=t.pos.x+dx,ny=t.pos.y+dy,lim=(n.map?.bound??48)-t.rt.navR-.9;if(Math.abs(nx)>lim||Math.abs(ny)>lim)return!1;if(n.nav.sample(n.nav.base,nx,ny)<-6.5)return!1;return t.pos.x=nx,t.pos.y=ny,!0}function cW(n,t,e){const s=t.rt;if(s.moveMode===Jh){const i=t.stats.moveSpeed*e,a=t.pos.x,o=t.pos.y;(_tsCanFly(t)&&_tsFlyStep(n,t,s.dirX*i,s.dirY*i))||n.nav.moveWithCollision(t.pos,s.dirX*i,s.dirY*i,s.navR),t.facing=Math.atan2(s.dirY,s.dirX);const r=t.pos.x-a,l=t.pos.y-o,c=r*r+l*l;c>1e-10&&(s.moved=!0),!_tsCanFly(t)&&c<i*i*b6*b6&&lW(n,t,i)&&(s.moved=!0)}else if(s.moveMode===Fm){if(_tsCanFly(t)){const dx=s.goalX-t.pos.x,dy=s.goalY-t.pos.y,dist=Math.hypot(dx,dy);if(dist<=.15)s.path=null,s.moveMode=Qh;else{const step=Math.min(dist,t.stats.moveSpeed*e),ux=dx/dist,uy=dy/dist;_tsFlyStep(n,t,ux*step,uy*step)||n.nav.moveWithCollision(t.pos,ux*step,uy*step,s.navR),t.facing=Math.atan2(uy,ux),s.moved=!0;if(dist<=step+.15)s.path=null,s.moveMode=Qh}}else s.path===null&&Ph(n,t,s.goalX,s.goalY,!1),Yk(n,t,e)||(s.moveMode=Qh)}}function dy(n,t,e,s,i){if(_tsCanFly(t)){const a=t.rt;a.goalX=e,a.goalY=s;const dx=e-t.pos.x,dy2=s-t.pos.y,dist=Math.hypot(dx,dy2);if(dist>.12){const step=Math.min(dist,t.stats.moveSpeed*i),ux=dx/dist,uy=dy2/dist;_tsFlyStep(n,t,ux*step,uy*step)||n.nav.moveWithCollision(t.pos,ux*step,uy*step,a.navR),t.facing=Math.atan2(uy,ux),a.moved=!0}return}const a=t.rt,o=n.state.time,r=e-a.goalX,l=s-a.goalY,c=o-a.pathTime,f=a.path;if(f===null){if(c<v6)return;Ph(n,t,e,s,!1)}else c>2||c>=v6&&r*r+l*l>y6*y6?Ph(n,t,e,s,!1):f.length===1&&a.pathIdx===0&&(f[0].x=e,f[0].y=s);Yk(n,t,i)}function Kk(n,t,e,s,i){const a=e-t.pos.x,o=s-t.pos.y,r=Math.hypot(a,o);if(r<.05)return!1;const l=Math.min(r,t.stats.moveSpeed*i),c=t.pos.x,f=t.pos.y;(_tsCanFly(t)&&_tsFlyStep(n,t,a/r*l,o/r*l))||n.nav.moveWithCollision(t.pos,a/r*l,o/r*l,t.rt.navR);const d=t.pos.x-c,h=t.pos.y-f;return d*d+h*h>1e-10?(t.facing=Math.atan2(o,a),t.rt.moved=!0,!0):!1}',
   ],
   // K26 3D 骨骼定格 + 石化/墨封/寒霜/刀影材质 + 奇观 VFX 桥接
@@ -618,6 +625,39 @@ const patches = [
   [
     'const f=n.particles.use(Mt.spark).tint(ba,cs.deep),d=n.n(8);for(let h=0;h<d;h++){const u=a.next()*oe,m=i*a.range(.8,1);f.spawn(e+Math.cos(u)*m,a.range(.5,1.5),s+Math.sin(u)*m,Math.sin(u)*a.range(6,10),a.range(.5,3),-Math.cos(u)*a.range(6,10),a.range(.2,.3),.12,.04)}_tsPetalBurst(n,e,.9,s,7,i*.85,5.5,cs.glow,cs.hot)',
     'const _fl=r&&n.a.unit?(tsConfig.skillsEx?.computeUnitVisualState?.(n.a.unit,0)?.flightLift??0):0,f=n.particles.use(Mt.spark).tint(ba,cs.deep),d=n.n(8);for(let h=0;h<d;h++){const u=a.next()*oe,m=i*a.range(.8,1);f.spawn(e+Math.cos(u)*m,_fl+a.range(.4,1.3),s+Math.sin(u)*m,Math.sin(u)*a.range(6,10),a.range(.5,3),-Math.cos(u)*a.range(6,10),a.range(.2,.3),.12,.04)}_tsPetalBurst(n,e,_fl+.8,s,7,i*.85,5.5,cs.glow,cs.hot)',
+  ],
+  // K28 全六位英雄前中后期轻功腾空 + 大招悬空/踏风 + 玩家 1-tick 进草零延迟（零数值改动）
+  [
+    'YW(this,e),t.tick%vq===0&&x6(this);',
+    'YW(this,e);{const _pm=this.byId.get(t.playerId);_pm&&(_pm.bushId=_pm.alive?qk(this.map,_pm.pos):-1)}t.tick%vq===0&&x6(this);',
+  ],
+  [
+    '_tsSilkBurst(n,e.x,.9,e.y,8,.9,4.5,di.accent,di.hot),n.after(l,',
+    '_tsSilkBurst(n,e.x,1.5,e.y,8,.9,4.5,di.accent,di.hot),tsConfig.skillsEx?.playWenchengDashFlight?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs}),n.after(l,',
+  ],
+  [
+    'ds(t,"yeque_s1_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Hm(',
+    'ds(t,"yeque_s1_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Wn(t,e,"ts_qinggong_yeque_dash",{duration:Math.max(.3,n.range/n.val("dashSpeed")),sourceId:e.id,merge:"replace"}),ds(t,"qinggong_soar",s,e.team,{unitId:e.id}),Hm(',
+  ],
+  [
+    '_tsRuneBurst(n,1,(s.x+i.x)/2,.85,(s.y+i.y)/2,3,.8,3.2,Ci.hot,Ci.accent),n.after(l,',
+    '_tsRuneBurst(n,1,(s.x+i.x)/2,1.5,(s.y+i.y)/2,3,.8,3.2,Ci.hot,Ci.accent),tsConfig.skillsEx?.playYequeDashFlight?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs}),n.after(l,',
+  ],
+  [
+    'ds(t,"panyue_s1_dash",n.origin,e.team,{unitId:e.id,dir:Cs(n.dir)}),Hm(',
+    'ds(t,"panyue_s1_dash",n.origin,e.team,{unitId:e.id,dir:Cs(n.dir)}),Wn(t,e,"ts_qinggong_panyue_dash",{duration:Math.max(.32,n.range/n.val("dashSpeed")),sourceId:e.id,merge:"replace"}),Hm(',
+  ],
+  [
+    'wD=(n,t)=>{',
+    'wD=(n,t)=>{tsConfig.skillsEx?.playQinqiongDashLeap?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});',
+  ],
+  [
+    'ds(t,"xingli_ult_cast",e.pos,e.team,{unitId:e.id}),Zo(t,{visual:"telegraph",owner:e,pos:s',
+    'Wn(t,e,"ts_qinggong_xingli_ult",{duration:1.65,sourceId:e.id,merge:"replace"}),ds(t,"qinggong_soar",e.pos,e.team,{unitId:e.id}),ds(t,"xingli_ult_cast",e.pos,e.team,{unitId:e.id}),Zo(t,{visual:"telegraph",owner:e,pos:s',
+  ],
+  [
+    'LD=(n,t)=>{',
+    'LD=(n,t)=>{tsConfig.skillsEx?.playXingliUltLevitation?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs});',
   ],
   [
     'function ut(N){C.length=0;for(const J of N.buffs){',
