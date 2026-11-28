@@ -1,10 +1,10 @@
 /**
- * tangsongMatchmake.ts — 「汴京寻将 · 5v5 实时匹配」拟真开局弹层
+ * tangsongMatchmake.ts — 王者荣耀式「5v5 匹配确认」弹窗
  *
- * 在大厅点击「开始匹配」或预选名士卡片时弹出：
- *   - 自动化测试环境（navigator.webdriver 且未传 `?matchmake=1`）零延迟直接通过，保证 smoke 门禁稳定；
- *   - 真实玩家体验约 1.8~2.2 秒的流畅匹配：10 席青玉/朱红灯笼错落点亮并伴随编钟/古筝音提示，
- *     凑齐十方豪杰后自动或点击「即刻入席」伴随 WebGL2 `wash` 水波转场丝滑进入点将台。
+ * 特点：
+ *   - 纯固定几何 + GPU scaleX 进度条 + 零负外扩装饰框 + 暂停背后手卷动画，彻底消灭高频抖动与滚动条；
+ *   - 采用 10 枚环形英雄席位灯（上排盛唐青玉 5 席 / 下排赤壁朱红 5 席），亮灯仅切换边框/颜色/亮绿「✓」对勾，无任何位移跳动；
+ *   - 自动化测试环境（navigator.webdriver 且未传 `?matchmake=1`）零延迟直接通过，保证 smoke 门禁稳定。
  */
 import { createMatchSession } from '../config/playerHandles';
 import { type HeroId } from '../config/heroes';
@@ -59,44 +59,54 @@ export function openMatchmakeOverlay(opts: MatchmakeOptions): () => void {
     timers.push(id);
   };
 
+  if (typeof document !== 'undefined') {
+    document.body.classList.add('ts-mm-open');
+  }
+
   const cleanup = () => {
     if (closed) return;
     closed = true;
     for (const id of timers) window.clearTimeout(id);
     timers.length = 0;
+    if (typeof document !== 'undefined') {
+      document.body.classList.remove('ts-mm-open');
+    }
     backdrop.remove();
   };
 
-  const countEl = el('span', 'ts-mm__count sf-num', '1 / 10');
-  const statusEl = el('p', 'ts-mm__status', '正在寻访十方名士…');
+  const titleEl = el('h2', 'sf-title sf-metal', '汴京寻将');
+  const countEl = el('span', 'ts-mm__count sf-num', '1 / 10 已就绪');
   const timerEl = el('span', 'ts-mm__timer sf-num', '00:00');
+  const statusEl = el('p', 'ts-mm__status', '正在等待十方豪杰确认入席…');
   const fillEl = el('i', 'ts-mm__bar-fill');
 
-  const createSide = (team: 0 | 1) => {
+  const createRow = (team: 0 | 1) => {
     const handles = team === 0 ? session.blueHandles : session.redHandles;
-    const seats = handles.map((name, idx) => {
+    const slots = handles.map((name, idx) => {
       const isMe = team === 0 && idx === 0;
-      const chip = el(
+      const glyph = el('span', 'ts-mm__glyph', isMe ? '✓' : String(idx + 1));
+      const ring = el('div', 'ts-mm__ring', glyph);
+      const label = el('span', 'ts-mm__name', isMe ? '少侠(你)' : '等待中');
+      const cell = el(
         'div',
-        `ts-mm__seat ${team === 0 ? 'is-blue' : 'is-red'}${isMe ? ' is-ready is-me' : ''}`,
-        el('span', 'ts-mm__lantern', isMe ? '我' : '待'),
-        el('span', 'ts-mm__handle', isMe ? '少侠(你)' : '寻觅中…'),
+        `ts-mm__slot ${team === 0 ? 'is-blue' : 'is-red'}${isMe ? ' is-ready is-me' : ''}`,
+        ring,
+        label,
       );
-      chip.dataset.realHandle = name;
-      return chip;
+      cell.dataset.realHandle = name;
+      return cell;
     });
-    const list = el('div', 'ts-mm__team-list', ...seats);
-    const box = el(
+    const row = el(
       'div',
       `ts-mm__team ${team === 0 ? 'is-blue' : 'is-red'}`,
       el('div', 'ts-mm__team-head', team === 0 ? '盛唐青玉方' : '赤壁朱红方'),
-      list,
+      el('div', 'ts-mm__row', ...slots),
     );
-    return { box, seats };
+    return { row, slots };
   };
 
-  const blue = createSide(0);
-  const red = createSide(1);
+  const blue = createRow(0);
+  const red = createRow(1);
 
   const cancelBtn = el('button', 'sf-btn sf-btn--ghost ts-mm__cancel', '取消匹配');
   cancelBtn.type = 'button';
@@ -106,44 +116,47 @@ export function openMatchmakeOverlay(opts: MatchmakeOptions): () => void {
     opts.onCancel();
   });
 
-  const enterBtn = el('button', 'sf-btn sf-btn--primary ts-mm__enter', '十方齐聚 · 步入点将台');
+  const enterBtn = el('button', 'sf-btn sf-btn--primary ts-mm__enter', '等待全员就绪…');
   enterBtn.type = 'button';
-  enterBtn.hidden = true;
+  enterBtn.disabled = true;
+
   const proceed = () => {
     if (closed) return;
     opts.onAudioUi?.('confirm');
     cleanup();
     opts.onComplete(seed);
   };
-  enterBtn.addEventListener('click', proceed);
+  enterBtn.addEventListener('click', () => {
+    if (!enterBtn.disabled) proceed();
+  });
 
   const card = el(
     'section',
-    'sf-panel ts-mm__card',
-    el('div', 'ts-mm__head', el('h2', 'sf-title sf-metal', '汴京寻将'), el('p', 'ts-mm__sub', '5v5 演武实时匹配')),
+    'ts-mm__card',
+    el('div', 'ts-mm__head', titleEl, el('span', 'ts-mm__sub', '5v5 演武实时匹配')),
     el('div', 'ts-mm__meta', countEl, statusEl, timerEl),
     el('div', 'ts-mm__bar', fillEl),
-    el('div', 'ts-mm__sides', blue.box, el('span', 'ts-mm__vs sf-metal', 'VS'), red.box),
+    el('div', 'ts-mm__grid', blue.row, el('div', 'ts-mm__divider', el('span', 'ts-mm__vs sf-metal', 'VS')), red.row),
     el('footer', 'ts-mm__foot', cancelBtn, enterBtn),
   );
   const mountHost = opts.root && opts.root.isConnected ? opts.root : document.body;
   const backdrop = el('div', mountHost === document.body ? 'sf-root ts-mm' : 'ts-mm', card);
   mountHost.appendChild(backdrop);
 
-  const allIncoming: HTMLElement[] = [
-    blue.seats[1],
-    red.seats[0],
-    red.seats[1],
-    blue.seats[2],
-    red.seats[2],
-    blue.seats[3],
-    red.seats[3],
-    blue.seats[4],
-    red.seats[4],
+  const incoming: HTMLElement[] = [
+    blue.slots[1],
+    red.slots[0],
+    red.slots[1],
+    blue.slots[2],
+    red.slots[2],
+    blue.slots[3],
+    red.slots[3],
+    blue.slots[4],
+    red.slots[4],
   ];
-  const scheduleMs = [210, 340, 520, 690, 880, 1060, 1250, 1430, 1620];
+  const scheduleMs = [180, 310, 460, 620, 790, 960, 1140, 1320, 1500];
 
-  fillEl.style.width = '10%';
+  fillEl.style.transform = 'scaleX(0.1)';
   later(1000, () => {
     timerEl.textContent = '00:01';
   });
@@ -151,25 +164,27 @@ export function openMatchmakeOverlay(opts: MatchmakeOptions): () => void {
     timerEl.textContent = '00:02';
   });
 
-  allIncoming.forEach((seat, idx) => {
+  incoming.forEach((slot, idx) => {
     later(scheduleMs[idx], () => {
-      seat.classList.add('is-ready');
-      const lantern = seat.querySelector('.ts-mm__lantern');
-      const label = seat.querySelector('.ts-mm__handle');
-      if (lantern) lantern.textContent = '✓';
-      if (label) label.textContent = seat.dataset.realHandle || '豪杰';
+      slot.classList.add('is-ready');
+      const glyph = slot.querySelector('.ts-mm__glyph');
+      const nameEl = slot.querySelector('.ts-mm__name');
+      if (glyph) glyph.textContent = '✓';
+      if (nameEl) nameEl.textContent = slot.dataset.realHandle || '豪杰';
       const joined = idx + 2;
-      countEl.textContent = `${joined} / 10`;
-      fillEl.style.width = `${joined * 10}%`;
+      countEl.textContent = `${joined} / 10 已就绪`;
+      fillEl.style.transform = `scaleX(${(joined / 10).toFixed(2)})`;
       if (idx === 0 || idx === 3 || idx === 6 || idx === 8) {
         opts.onAudioUi?.('select');
       }
       if (joined === 10) {
-        statusEl.textContent = '十方豪杰悉数就位！即将开卷点将…';
+        titleEl.textContent = '匹配成功';
+        statusEl.textContent = '十方豪杰悉数就绪！即将步入点将台…';
         card.classList.add('is-complete');
-        enterBtn.hidden = false;
+        enterBtn.disabled = false;
+        enterBtn.textContent = '进入选将';
         playTangSongCue('seal-small');
-        later(460, proceed);
+        later(380, proceed);
       }
     });
   });

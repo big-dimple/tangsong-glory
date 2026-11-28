@@ -1,10 +1,11 @@
 /**
- * tangsongDraft.ts — 选将殿堂「实时 5v5 点将席位带」与锁定等待逻辑
+ * tangsongDraft.ts — 王者荣耀式左侧英雄卡内嵌就绪打勾逻辑（彻底移除顶部冗余席位横带）
  *
- * 将原本冷冰冰的单人选将改造为 5v5 实时同台点将：
- *   - 左侧青玉 5 席：第 1 席为玩家本人，实时联动当前预览英雄与待锁定态；第 2~5 席队友带着唐宋雅号陆续亮出英雄与「已锁」印，若玩家选中队友刚预选的英雄，该队友会自动换补空位；
- *   - 右侧朱红 5 席：盲选机制下展示敌方 5 位侠客雅号与隐墨牌背，陆续亮起「已就绪 ✓」封蜡印；
- *   - 玩家点击「锁定出战」时，若尚有未锁席位会在 0.75s 内陆续落锁（自动化环境即时完成）。
+ * 职责：
+ *   1. 不再向选将页顶部插入任何额外席位条（零顶部复杂度、保持主舞台清爽大气）；
+ *   2. 复用左侧 6 张英雄卡片 `.sf-hcard[data-hero]`，直接在每张卡右侧（竖屏右上角）
+ *      展示「我 · 已选 / ✓ 已就绪」与队友的实时选将、绿色「✓ 就绪」动态标记；
+ *   3. 保持 `DraftBarHandle` 对接接口完全兼容，点击「锁定出战」后平稳过渡等待余位就绪并触发 `onAllLocked`。
  */
 import { HEROES, type HeroId } from '../config/heroes';
 import { ensureMatchSession, type MatchSessionState } from '../config/playerHandles';
@@ -17,23 +18,10 @@ export interface DraftBarHandle {
   dispose: () => void;
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className?: string,
-  ...children: (Node | string | null | undefined)[]
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  for (const c of children) {
-    if (c !== null && c !== undefined) node.append(typeof c === 'string' ? document.createTextNode(c) : c);
-  }
-  return node;
-}
-
 export function mountTangSongDraftBar(
   selectScreen: HTMLElement,
   initialHeroId: string,
-  getPortraitUrl: (heroId: string) => string,
+  _getPortraitUrl: (heroId: string) => string,
 ): DraftBarHandle {
   let session: MatchSessionState = ensureMatchSession((initialHeroId as HeroId) || 'sushi');
   let playerHero = session.playerHeroId;
@@ -48,110 +36,91 @@ export function mountTangSongDraftBar(
     timers.push(id);
   };
 
-  // 每席的选定与锁定时间（非等距，真实玩家错落感）
-  const allyPickMs = [0, 620, 1280, 1950, 2650];
-  const allyLockMs = [0, 1450, 2350, 3150, 3980];
-  const enemyLockMs = [920, 1680, 2500, 3420, 4350];
+  // 若旧 DOM 中残留历史席位条则先清理
+  selectScreen.querySelector('.ts-draft-bar')?.remove();
 
+  // 每位队友错落选将与打勾确认的时间（ms）
+  const allyPickMs = [0, 520, 1080, 1680, 2260];
+  const allyLockMs = [0, 1250, 1980, 2720, 3450];
   const allyPicked = [true, false, false, false, false];
   const allyLocked = [false, false, false, false, false];
-  const enemyLocked = [false, false, false, false, false];
 
-  interface SeatDom {
-    root: HTMLElement;
-    avatar: HTMLImageElement | null;
-    heroLabel: HTMLElement;
-    stateLabel: HTMLElement;
+  const cardMap = new Map<string, { card: HTMLElement; statusEl: HTMLElement }>();
+  for (const card of Array.from(selectScreen.querySelectorAll<HTMLElement>('.sf-hcard[data-hero]'))) {
+    const id = card.dataset.hero;
+    if (!id) continue;
+    card.querySelector('.ts-hcard-status')?.remove();
+    const statusEl = document.createElement('span');
+    statusEl.className = 'ts-hcard-status';
+    statusEl.setAttribute('aria-hidden', 'true');
+    card.appendChild(statusEl);
+    cardMap.set(id, { card, statusEl });
   }
 
-  const blueSeats: SeatDom[] = [];
-  const redSeats: SeatDom[] = [];
+  const goBtn = selectScreen.querySelector<HTMLButtonElement>('.sf-select__go .sf-btn--primary');
 
-  const bar = el('div', 'ts-draft-bar');
-  bar.setAttribute('aria-label', '双方点将席位');
+  function setStatus(
+    entry: { card: HTMLElement; statusEl: HTMLElement },
+    mode: 'idle' | 'me' | 'me-locked' | 'ally-pick' | 'ally-locked',
+    handleName = '',
+  ): void {
+    const { card, statusEl } = entry;
+    card.classList.remove('is-pick-me', 'is-pick-ally', 'is-pick-locked');
+    statusEl.innerHTML = '';
 
-  const blueRow = el('div', 'ts-draft-bar__side is-blue');
-  const redRow = el('div', 'ts-draft-bar__side is-red');
-  const statusPill = el('div', 'ts-draft-bar__center', el('span', 'ts-draft-bar__phase', '点将中'));
+    if (mode === 'idle') return;
 
-  for (let i = 0; i < 5; i++) {
-    const isMe = i === 0;
-    const handle = session.blueHandles[i] ?? '队友';
-    const img = el('img', 'ts-draft-seat__img');
-    img.alt = '';
-    img.draggable = false;
-    const heroSpan = el('span', 'ts-draft-seat__hero');
-    const stSpan = el('span', 'ts-draft-seat__state', isMe ? '待定' : '寻策');
-    const node = el(
-      'div',
-      `ts-draft-seat is-blue${isMe ? ' is-me' : ''}`,
-      el('span', 'ts-draft-seat__pic', img),
-      el('span', 'ts-draft-seat__meta', el('span', 'ts-draft-seat__name', isMe ? '你 · 本尊' : handle), heroSpan),
-      stSpan,
-    );
-    blueSeats.push({ root: node, avatar: img, heroLabel: heroSpan, stateLabel: stSpan });
-    blueRow.append(node);
+    const shortHandle = handleName.length > 4 ? handleName.slice(0, 4) : handleName;
+    const dot = document.createElement('i');
+    dot.className = 'ts-hcard-status__dot';
+    const text = document.createElement('span');
+    text.className = 'ts-hcard-status__txt';
+
+    if (mode === 'me') {
+      card.classList.add('is-pick-me');
+      dot.textContent = '我';
+      text.textContent = '已选';
+    } else if (mode === 'me-locked') {
+      card.classList.add('is-pick-me', 'is-pick-locked');
+      dot.textContent = '✓';
+      text.textContent = '就绪';
+    } else if (mode === 'ally-pick') {
+      card.classList.add('is-pick-ally');
+      dot.textContent = '…';
+      text.textContent = '选将';
+    } else {
+      card.classList.add('is-pick-ally', 'is-pick-locked');
+      dot.textContent = '✓';
+      text.textContent = '就绪';
+    }
+    if (shortHandle) statusEl.title = shortHandle;
+    statusEl.append(dot, text);
   }
-
-  for (let i = 0; i < 5; i++) {
-    const handle = session.redHandles[i] ?? '豪杰';
-    const heroSpan = el('span', 'ts-draft-seat__hero', '隐墨待出');
-    const stSpan = el('span', 'ts-draft-seat__state', '选将');
-    const node = el(
-      'div',
-      'ts-draft-seat is-red',
-      el('span', 'ts-draft-seat__pic is-mystery', '墨'),
-      el('span', 'ts-draft-seat__meta', el('span', 'ts-draft-seat__name', handle), heroSpan),
-      stSpan,
-    );
-    redSeats.push({ root: node, avatar: null, heroLabel: heroSpan, stateLabel: stSpan });
-    redRow.append(node);
-  }
-
-  bar.append(blueRow, statusPill, redRow);
-
-  const mainEl = selectScreen.querySelector('.sf-select__main');
-  if (mainEl) selectScreen.insertBefore(bar, mainEl);
-  else selectScreen.append(bar);
 
   function refreshSeats(): void {
     if (disposed) return;
     session = ensureMatchSession(playerHero, session.seed);
-    for (let i = 0; i < 5; i++) {
-      const seat = blueSeats[i];
+
+    for (const entry of cardMap.values()) {
+      setStatus(entry, 'idle');
+    }
+
+    const myEntry = cardMap.get(session.teams.blue[0]);
+    if (myEntry) {
+      setStatus(myEntry, playerLocked ? 'me-locked' : 'me');
+    }
+
+    for (let i = 1; i < 5; i++) {
       const hid = session.teams.blue[i];
-      const hero = HEROES[hid] ?? HEROES.sushi;
-      const picked = i === 0 || allyPicked[i];
-      const locked = i === 0 ? playerLocked : allyLocked[i];
-      seat.root.classList.toggle('is-picked', picked);
-      seat.root.classList.toggle('is-locked', locked);
-      if (seat.avatar) {
-        if (picked) {
-          seat.avatar.src = getPortraitUrl(hero.id);
-          seat.avatar.style.opacity = '1';
-        } else {
-          seat.avatar.removeAttribute('src');
-          seat.avatar.style.opacity = '0';
-        }
-      }
-      seat.heroLabel.textContent = picked ? hero.name : '思索中';
-      seat.stateLabel.textContent = locked ? '✓' : picked ? '选' : '…';
+      const entry = cardMap.get(hid);
+      if (!entry) continue;
+      if (!allyPicked[i] && !allyLocked[i]) continue;
+      setStatus(entry, allyLocked[i] ? 'ally-locked' : 'ally-pick', session.blueHandles[i] ?? '队友');
     }
-    for (let i = 0; i < 5; i++) {
-      const seat = redSeats[i];
-      const locked = enemyLocked[i];
-      seat.root.classList.toggle('is-locked', locked);
-      seat.heroLabel.textContent = locked ? '已就位' : '挑选中';
-      seat.stateLabel.textContent = locked ? '✓' : '…';
-    }
-    const lockedCount =
-      (playerLocked ? 1 : 0) +
-      allyLocked.slice(1).filter(Boolean).length +
-      enemyLocked.filter(Boolean).length;
-    const phaseEl = statusPill.querySelector('.ts-draft-bar__phase');
-    if (phaseEl) {
-      phaseEl.textContent =
-        lockedCount === 10 ? '十将齐聚' : playerLocked ? `待余将落锁 ${lockedCount}/10` : `点将 ${lockedCount}/10`;
+
+    if (playerLocked && goBtn) {
+      const readyAllies = 1 + allyLocked.slice(1).filter(Boolean).length;
+      goBtn.textContent = readyAllies >= 5 ? '全员就绪 · 进入对阵' : `等待队友就绪 ${readyAllies}/5…`;
     }
   }
 
@@ -163,12 +132,6 @@ export function mountTangSongDraftBar(
     later(allyLockMs[i], () => {
       allyPicked[i] = true;
       allyLocked[i] = true;
-      refreshSeats();
-    });
-  }
-  for (let i = 0; i < 5; i++) {
-    later(enemyLockMs[i], () => {
-      enemyLocked[i] = true;
       refreshSeats();
     });
   }
@@ -189,44 +152,33 @@ export function mountTangSongDraftBar(
       if (!simulate) {
         allyPicked.fill(true);
         allyLocked.fill(true);
-        enemyLocked.fill(true);
         refreshSeats();
         onAllLocked(session.seed);
         return;
       }
 
       refreshSeats();
-      const pendingSteps: (() => void)[] = [];
+      const pendingAllies: number[] = [];
       for (let i = 1; i < 5; i++) {
-        if (!allyLocked[i]) {
-          pendingSteps.push(() => {
-            allyPicked[i] = true;
-            allyLocked[i] = true;
-            onUiAudio?.('select');
-            refreshSeats();
-          });
-        }
-      }
-      for (let i = 0; i < 5; i++) {
-        if (!enemyLocked[i]) {
-          pendingSteps.push(() => {
-            enemyLocked[i] = true;
-            refreshSeats();
-          });
-        }
+        if (!allyLocked[i]) pendingAllies.push(i);
       }
 
-      if (pendingSteps.length === 0) {
+      if (pendingAllies.length === 0) {
         playTangSongCue('seal-small');
-        later(220, () => onAllLocked(session.seed));
+        later(180, () => onAllLocked(session.seed));
         return;
       }
 
-      const span = Math.min(720, Math.max(260, pendingSteps.length * 105));
-      pendingSteps.forEach((stepFn, idx) => {
-        later(Math.round(((idx + 1) / pendingSteps.length) * span), stepFn);
+      const span = Math.min(540, Math.max(220, pendingAllies.length * 130));
+      pendingAllies.forEach((slotIdx, step) => {
+        later(Math.round(((step + 1) / pendingAllies.length) * span), () => {
+          allyPicked[slotIdx] = true;
+          allyLocked[slotIdx] = true;
+          onUiAudio?.('select');
+          refreshSeats();
+        });
       });
-      later(span + 240, () => {
+      later(span + 180, () => {
         playTangSongCue('seal-small');
         onAllLocked(session.seed);
       });
@@ -235,7 +187,11 @@ export function mountTangSongDraftBar(
       disposed = true;
       for (const id of timers) window.clearTimeout(id);
       timers.length = 0;
-      bar.remove();
+      for (const { card, statusEl } of cardMap.values()) {
+        card.classList.remove('is-pick-me', 'is-pick-ally', 'is-pick-locked');
+        statusEl.remove();
+      }
+      cardMap.clear();
     },
   };
 }

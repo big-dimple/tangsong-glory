@@ -1250,7 +1250,11 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   pointer-events: none;
 }
 
-/* ── 12b. 「汴京寻将 · 5v5 实时匹配」拟真弹窗与 5v5 点将席位带 ── */
+/* ── 12b. 王者荣耀式「汴京寻将 · 5v5 匹配确认」弹层 + 左侧英雄卡就绪打勾（零抖动、零滚动条） ── */
+body.ts-mm-open .ts-lobby__canvas,
+body.ts-mm-open .ts-lobby__bg {
+  animation-play-state: paused !important;
+}
 .ts-mm,
 .ts-mm * {
   box-sizing: border-box;
@@ -1262,49 +1266,51 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   display: grid;
   place-items: center;
   padding: max(12px, var(--sf-safe-t, env(safe-area-inset-top, 0px))) 12px max(12px, var(--sf-safe-b, env(safe-area-inset-bottom, 0px)));
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
-  background: rgba(8, 14, 16, 0.74);
-  backdrop-filter: blur(8px);
-  animation: sf-fade-in 0.2s ease-out both;
+  background: radial-gradient(circle at 50% 45%, rgba(12, 22, 26, 0.84), rgba(5, 8, 10, 0.94));
 }
 .ts-mm__card {
-  width: min(680px, 100%);
-  max-height: calc(100dvh - 24px);
-  overflow-y: auto;
+  width: min(520px, calc(100vw - 24px));
+  overflow: hidden;
+  contain: layout paint style;
   padding: 20px 22px 18px;
-  border-radius: 8px;
-  border: 1px solid rgba(233, 189, 98, 0.62);
+  border-radius: 10px;
+  border: 1px solid rgba(233, 189, 98, 0.56);
   background:
-    linear-gradient(180deg, rgba(233, 189, 98, 0.12), transparent 28%),
-    linear-gradient(160deg, rgba(20, 34, 38, 0.96), rgba(14, 20, 22, 0.98) 60%, rgba(28, 16, 12, 0.98));
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(233, 189, 98, 0.2);
+    linear-gradient(180deg, rgba(233, 189, 98, 0.12), transparent 32%),
+    linear-gradient(160deg, rgba(16, 28, 32, 0.98), rgba(11, 17, 20, 0.99));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.82), inset 0 1px 0 rgba(255, 232, 178, 0.16);
   color: #f7eedc;
+}
+.ts-mm__card.is-complete {
+  border-color: rgba(255, 224, 128, 0.86);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.86), 0 0 28px rgba(233, 189, 98, 0.22);
 }
 .ts-mm__head {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 6px 14px;
+  gap: 8px 14px;
   flex-wrap: wrap;
 }
 .ts-mm__head .sf-title {
   margin: 0;
-  font-size: clamp(24px, 3vw, 34px);
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.15;
 }
 .ts-mm__sub {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.16em;
+  font-size: 12px;
+  letter-spacing: 0.14em;
   color: #e4cfa4;
 }
 .ts-mm__meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  margin-top: 12px;
+  margin-top: 10px;
   font-size: 13px;
 }
 .ts-mm__count {
@@ -1312,10 +1318,16 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   white-space: nowrap;
   padding: 2px 10px;
   border-radius: 99px;
-  background: rgba(181, 69, 52, 0.35);
+  background: rgba(181, 69, 52, 0.34);
   border: 1px solid rgba(240, 188, 110, 0.55);
   color: #ffe8b0;
   font-weight: 700;
+  font-size: 12px;
+}
+.ts-mm__card.is-complete .ts-mm__count {
+  background: rgba(26, 98, 66, 0.55);
+  border-color: rgba(102, 232, 168, 0.72);
+  color: #b7ffda;
 }
 .ts-mm__status {
   flex: 1 1 auto;
@@ -1323,7 +1335,7 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   margin: 0;
   text-align: center;
   color: #f2dfb8;
-  font-size: 14px;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1331,11 +1343,12 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
 .ts-mm__timer {
   flex: none;
   white-space: nowrap;
+  font-size: 12px;
   color: #8cc5e6;
 }
 .ts-mm__bar {
-  height: 6px;
-  margin: 10px 0 16px;
+  height: 5px;
+  margin: 10px 0 14px;
   border-radius: 99px;
   background: rgba(8, 12, 14, 0.85);
   border: 1px solid rgba(233, 189, 98, 0.28);
@@ -1343,379 +1356,268 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
 }
 .ts-mm__bar-fill {
   display: block;
+  width: 100%;
   height: 100%;
-  width: 10%;
   border-radius: 99px;
+  transform-origin: left center;
+  transform: scaleX(0.1);
   background: linear-gradient(90deg, #4a92c4, #e9bd62 65%, #fff2c2);
-  transition: width 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.ts-mm__sides {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
-}
-.ts-mm__team {
-  min-width: 0;
-}
-.ts-mm__vs {
-  font-family: var(--ts-font-brush);
-  font-size: 26px;
-  color: #e9bd62;
-  text-shadow: 0 2px 10px rgba(233, 189, 98, 0.45);
+.ts-mm__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .ts-mm__team-head {
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
+  text-align: center;
   color: #8cc5e6;
 }
 .ts-mm__team.is-red .ts-mm__team-head {
-  text-align: right;
-  color: #f07b6b;
+  color: #f0897b;
 }
-.ts-mm__team-list {
+.ts-mm__row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+.ts-mm__slot {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.ts-mm__seat {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
-  padding: 6px 10px;
-  border-radius: 4px;
-  background: rgba(12, 20, 22, 0.72);
-  border: 1px solid rgba(233, 189, 98, 0.16);
   opacity: 0.56;
-  transform: translateY(2px);
-  transition: opacity 0.22s ease, transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+  transition: opacity 0.18s ease;
 }
-.ts-mm__seat.is-red {
-  flex-direction: row-reverse;
-  text-align: right;
-}
-.ts-mm__seat.is-ready {
+.ts-mm__slot.is-ready {
   opacity: 1;
-  transform: none;
-  border-color: rgba(107, 180, 219, 0.56);
-  background: linear-gradient(90deg, rgba(24, 58, 78, 0.55), rgba(14, 24, 27, 0.85));
 }
-.ts-mm__seat.is-red.is-ready {
-  border-color: rgba(240, 90, 70, 0.54);
-  background: linear-gradient(270deg, rgba(112, 32, 26, 0.55), rgba(18, 14, 13, 0.85));
-}
-.ts-mm__seat.is-me.is-ready {
-  border-color: rgba(255, 224, 112, 0.85);
-  box-shadow: 0 0 12px rgba(233, 189, 98, 0.24);
-}
-.ts-mm__lantern {
-  flex: none;
-  width: 22px;
-  height: 22px;
+.ts-mm__ring {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #cbb996;
-  background: rgba(26, 36, 40, 0.9);
-  border: 1px solid rgba(233, 189, 98, 0.35);
+  background: rgba(14, 22, 26, 0.92);
+  border: 2px solid rgba(233, 189, 98, 0.24);
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
 }
-.ts-mm__seat.is-ready .ts-mm__lantern {
-  color: #24160c;
-  background: linear-gradient(180deg, #fff2c2, #e0a943);
-  border-color: #fff6d6;
+.ts-mm__slot.is-blue.is-ready .ts-mm__ring {
+  border-color: #6bb4db;
+  background: radial-gradient(circle at 35% 30%, rgba(56, 128, 168, 0.55), rgba(14, 28, 36, 0.95));
+  box-shadow: 0 0 12px rgba(107, 180, 219, 0.28);
 }
-.ts-mm__handle {
-  min-width: 0;
+.ts-mm__slot.is-red.is-ready .ts-mm__ring {
+  border-color: #ea6c5a;
+  background: radial-gradient(circle at 35% 30%, rgba(164, 54, 42, 0.55), rgba(30, 14, 12, 0.95));
+  box-shadow: 0 0 12px rgba(234, 108, 90, 0.26);
+}
+.ts-mm__slot.is-me.is-ready .ts-mm__ring {
+  border-color: #ffe28a;
+  background: radial-gradient(circle at 35% 30%, rgba(196, 142, 52, 0.58), rgba(32, 22, 12, 0.96));
+  box-shadow: 0 0 14px rgba(255, 224, 112, 0.36);
+}
+.ts-mm__glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   font-size: 13px;
-  color: #f5ebd6;
+  font-weight: 800;
+  color: rgba(212, 196, 164, 0.72);
+  line-height: 1;
+}
+.ts-mm__slot.is-ready .ts-mm__glyph {
+  color: #0e2618;
+  background: #48db92;
+  box-shadow: 0 0 8px rgba(72, 219, 146, 0.55);
+}
+.ts-mm__slot.is-me.is-ready .ts-mm__glyph {
+  background: linear-gradient(180deg, #fff1b8, #e4b44a);
+  color: #26160a;
+  box-shadow: 0 0 8px rgba(255, 224, 112, 0.55);
+}
+.ts-mm__name {
+  width: 100%;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #c8bba2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.ts-mm__slot.is-ready .ts-mm__name {
+  color: #f7eedc;
+}
+.ts-mm__divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0;
+}
+.ts-mm__divider::before,
+.ts-mm__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(233, 189, 98, 0.34), transparent);
+}
+.ts-mm__vs {
+  font-family: var(--ts-font-brush);
+  font-size: 18px;
+  line-height: 1;
+  color: #e9bd62;
 }
 .ts-mm__foot {
   display: flex;
   justify-content: center;
   gap: 12px;
-  flex-wrap: wrap;
   margin-top: 16px;
 }
-.ts-mm__enter[hidden] {
-  display: none !important;
+.ts-mm__foot .sf-btn {
+  min-width: 126px;
+}
+.ts-mm__enter:disabled {
+  opacity: 0.58;
+  filter: grayscale(0.45);
+  cursor: default;
 }
 
-/* 选将殿堂 5v5 实时点将席位带：紧凑嵌入顶部与主区之间，不挤压舞台中线 */
-.ts-draft-bar {
-  flex: none;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0 6px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, rgba(20, 44, 58, 0.72), rgba(20, 16, 14, 0.82) 50%, rgba(72, 24, 20, 0.72));
-  border: 1px solid rgba(233, 189, 98, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 232, 173, 0.12);
+/* 选将界面左侧英雄卡片内嵌就绪打勾（王者荣耀式零额外顶部条） */
+body .sf-root .sf-hcard {
+  gap: calc(var(--sf-u, 1px) * 9);
 }
-.ts-draft-bar__side {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 5px;
+body .sf-root .sf-hcard__info {
   min-width: 0;
+  overflow: hidden;
 }
-.ts-draft-bar__center {
-  display: flex;
+body .sf-root .sf-hcard__title,
+body .sf-root .sf-hcard__meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body .sf-root .sf-hcard > .ts-hcard-status {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  bottom: auto;
+  z-index: 3;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-}
-.ts-draft-bar__phase {
-  padding: 3px 10px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #ffe8b0;
-  background: rgba(164, 48, 34, 0.65);
-  border: 1px solid rgba(233, 189, 98, 0.55);
+  padding: 0;
+  border: 0;
+  background: transparent;
   white-space: nowrap;
 }
-.ts-draft-seat {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 3px 5px;
-  border-radius: 4px;
-  background: rgba(12, 18, 20, 0.74);
-  border: 1px solid rgba(233, 189, 98, 0.2);
+body .sf-root .sf-hcard > .ts-hcard-status:empty {
+  display: none;
 }
-.ts-draft-seat.is-me {
-  border-color: rgba(255, 224, 112, 0.76);
-  background: rgba(34, 58, 72, 0.84);
+.ts-hcard-status__txt {
+  display: none;
 }
-.ts-draft-seat.is-locked {
-  border-color: rgba(233, 189, 98, 0.65);
-}
-.ts-draft-seat.is-red.is-locked {
-  border-color: rgba(240, 90, 70, 0.65);
-}
-.ts-draft-seat__pic {
+.ts-hcard-status__dot {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  overflow: hidden;
-  border: 1px solid rgba(233, 189, 98, 0.5);
-  background: rgba(28, 22, 18, 0.9);
   display: grid;
   place-items: center;
-  font-size: 10px;
-  color: #d6c3a4;
-}
-.ts-draft-seat__pic.is-mystery {
-  font-family: var(--ts-font-brush);
-  color: #f49b8e;
-  background: radial-gradient(circle, rgba(96, 26, 22, 0.9), rgba(24, 12, 10, 0.95));
-}
-.ts-draft-seat__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 18%;
-  transition: opacity 0.2s ease;
-}
-.ts-draft-seat__meta {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-.ts-draft-seat__name {
+  font-style: normal;
   font-size: 11px;
-  font-weight: 600;
-  color: #f6ecd6;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 900;
+  line-height: 1;
+  border: 1.5px solid rgba(91, 180, 219, 0.52);
+  background: rgba(16, 36, 48, 0.92);
+  color: #a6dcf7;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
-.ts-draft-seat__hero {
-  font-size: 10px;
-  color: #bca98c;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+body .sf-root .sf-hcard.is-pick-me > .ts-hcard-status,
+body .sf-root .sf-hcard.is-pick-locked > .ts-hcard-status {
+  border: 0;
+  background: transparent;
 }
-.ts-draft-seat__state {
-  margin-left: auto;
-  flex: none;
-  font-size: 10px;
-  color: #9bc9e6;
+body .sf-root .sf-hcard.is-pick-me .ts-hcard-status__dot {
+  border-color: #ffe8a8;
+  background: #e9bd62;
+  color: #24160a;
+  box-shadow: 0 0 8px rgba(233, 189, 98, 0.55);
 }
-.ts-draft-seat.is-locked .ts-draft-seat__state {
-  color: #ffe08a;
-  font-weight: 700;
-}
-.ts-draft-seat.is-red .ts-draft-seat__state {
-  color: #ea9a8f;
+body .sf-root .sf-hcard.is-pick-locked .ts-hcard-status__dot {
+  border-color: #b7ffda;
+  background: #42dc90;
+  color: #0b2618;
+  box-shadow: 0 0 8px rgba(66, 220, 144, 0.65);
 }
 
-@media (max-width: 980px), (orientation: portrait) {
-  .ts-draft-bar {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    padding: 3px 6px;
-    margin: 2px 0 4px;
-    gap: 4px;
+@media (max-width: 1080px), (orientation: portrait) {
+  body .sf-root .sf-hcard > .ts-hcard-status,
+  body .sf-root .sf-hcard.is-pick-me > .ts-hcard-status,
+  body .sf-root .sf-hcard.is-pick-locked > .ts-hcard-status {
+    position: absolute;
+    top: 4px;
+    bottom: auto;
+    right: 4px;
+    z-index: 3;
+    padding: 0;
+    border: 0;
+    background: transparent;
   }
-  .ts-draft-bar__side {
-    gap: 3px;
-  }
-  .ts-draft-seat {
-    padding: 2px;
-    justify-content: center;
-  }
-  .ts-draft-seat__meta,
-  .ts-draft-seat__state {
+  .ts-hcard-status__txt {
     display: none;
   }
-  .ts-draft-seat__pic {
-    width: 22px;
-    height: 22px;
-  }
-  .ts-draft-seat.is-locked::after {
-    content: '✓';
-    position: absolute;
-    right: 1px;
-    bottom: 0;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-size: 8px;
-    font-weight: 800;
-    line-height: 1;
-    background: #e9bd62;
-    color: #24160c;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  }
-  .ts-draft-seat.is-red.is-locked::after {
-    background: #f05a46;
-    color: #fff6e0;
-  }
-  .ts-draft-bar__phase {
-    padding: 2px 6px;
+  .ts-hcard-status__dot {
+    width: 17px;
+    height: 17px;
     font-size: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.78);
   }
 }
 
-/* 手机竖屏 / 窄屏：匹配弹窗保持左右双栏 5v5 并排对照，一屏内完整容纳全部按钮与倒计时 */
-@media (orientation: portrait), (max-width: 640px) {
+/* 手机竖屏 / 窄屏：王者荣耀式 5+5 环形确认卡自适应 */
+@media (orientation: portrait), (max-width: 560px) {
   .ts-mm {
     padding: max(10px, var(--sf-safe-t, env(safe-area-inset-top, 0px))) 10px max(10px, var(--sf-safe-b, env(safe-area-inset-bottom, 0px)));
   }
   .ts-mm__card {
-    width: 100%;
-    max-width: min(440px, calc(100vw - 20px));
-    max-height: calc(100dvh - 20px);
-    padding: 14px 10px 14px;
-  }
-  .ts-mm__head {
-    gap: 4px 10px;
+    width: calc(100vw - 20px);
+    max-width: 440px;
+    padding: 15px 12px 14px;
   }
   .ts-mm__head .sf-title {
-    font-size: clamp(22px, 6.2vw, 28px);
+    font-size: clamp(20px, 6vw, 26px);
   }
   .ts-mm__sub {
     font-size: 11px;
-    letter-spacing: 0.1em;
   }
-  .ts-mm__meta {
-    margin-top: 8px;
-    gap: 6px;
-    font-size: 12px;
+  .ts-mm__ring {
+    width: 38px;
+    height: 38px;
   }
-  .ts-mm__count {
-    padding: 1px 8px;
+  .ts-mm__slot.is-ready .ts-mm__glyph {
+    width: 20px;
+    height: 20px;
     font-size: 11px;
   }
-  .ts-mm__status {
-    font-size: 12px;
-  }
-  .ts-mm__timer {
-    font-size: 12px;
-  }
-  .ts-mm__bar {
-    height: 5px;
-    margin: 8px 0 12px;
-  }
-  .ts-mm__sides {
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 6px;
-    align-items: start;
-  }
-  .ts-mm__team-head {
-    margin-bottom: 5px;
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  .ts-mm__team-list {
-    gap: 5px;
-  }
-  .ts-mm__vs {
-    font-size: 15px;
-    align-self: center;
-    padding-top: 18px;
-  }
-  .ts-mm__seat {
-    padding: 5px 6px;
-    gap: 5px;
-  }
-  .ts-mm__lantern {
-    width: 18px;
-    height: 18px;
+  .ts-mm__name {
     font-size: 10px;
-  }
-  .ts-mm__handle {
-    font-size: 12px;
   }
   .ts-mm__foot {
     margin-top: 12px;
     gap: 8px;
   }
   .ts-mm__foot .sf-btn {
+    min-width: 108px;
     min-height: 38px;
-    padding: 6px 16px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 345px) {
-  .ts-mm__seat {
-    padding: 4px 4px;
-    gap: 4px;
-  }
-  .ts-mm__lantern {
-    width: 16px;
-    height: 16px;
-    font-size: 9px;
-  }
-  .ts-mm__handle {
-    font-size: 11px;
-  }
-  .ts-mm__vs {
+    padding: 6px 14px;
     font-size: 13px;
-  }
-  .ts-draft-seat__pic {
-    width: 18px;
-    height: 18px;
   }
 }
 
@@ -1949,6 +1851,10 @@ body.ts-reduce-motion .ts-seal-shake { animation: none !important; }
 body.ts-reduce-motion .sf-root .sf-hud__banner-title { animation: none; }
 body.ts-reduce-motion .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
 body.ts-reduce-motion .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }
+@media (prefers-reduced-motion: reduce) {
+  .ts-eyes-cutin { animation: ts-cutin-quiet .8s linear both; }
+  body .sf-root .sf-hud__feed > .ts-eyes-cutin { animation-duration: .8s !important; }
+}
 
 /* ── 15. 王者荣耀式多阶合成商店 & 竖屏商店交互强化 ── */
 body .sf-root .sf-hud__shop-grid {
@@ -2115,7 +2021,7 @@ body .sf-root .sf-hud__shop-list {
   margin-top: 1px;
   margin-bottom: 2px;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: max(9px, 10u);
+  font-size: max(9px, calc(var(--sf-u, 1px) * 10));
   font-weight: 800;
   letter-spacing: 0.24em;
   text-transform: uppercase;

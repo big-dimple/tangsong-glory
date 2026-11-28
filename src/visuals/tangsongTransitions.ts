@@ -769,30 +769,40 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   ctx.fillRect(0, 0, w, h);
 
   if (snap.scene === 'matchmake') {
-    ctx.fillStyle = 'rgba(8, 14, 16, 0.78)';
+    ctx.fillStyle = 'rgba(8, 14, 16, 0.84)';
     ctx.fillRect(0, 0, w, h);
-    const cw = portrait ? w * 0.88 : 560;
-    const ch = portrait ? 410 : 350;
+    const cw = portrait ? w * 0.88 : 520;
+    const ch = portrait ? 340 : 320;
     const cx = (w - cw) / 2;
     const cy = (h - ch) / 2;
-    ctx.fillStyle = 'rgba(16, 28, 30, 0.96)';
+    ctx.fillStyle = 'rgba(14, 24, 28, 0.98)';
     ctx.fillRect(cx, cy, cw, ch);
-    ctx.strokeStyle = 'rgba(233, 189, 98, 0.58)';
+    ctx.strokeStyle = 'rgba(233, 189, 98, 0.56)';
     ctx.lineWidth = 2;
     ctx.strokeRect(cx, cy, cw, ch);
     ctx.fillStyle = '#fce3a6';
     ctx.textAlign = 'center';
-    ctx.font = 'bold 28px serif';
-    ctx.fillText('汴京寻将 · 十方齐聚', w / 2, cy + 54);
+    ctx.font = 'bold 26px serif';
+    ctx.fillText('匹配成功 · 全员就绪', w / 2, cy + 48);
     ctx.fillStyle = 'rgba(233, 189, 98, 0.85)';
-    ctx.fillRect(cx + 30, cy + 84, cw - 60, 4);
-    const seatW = (cw - 88) / 2;
+    ctx.fillRect(cx + 28, cy + 74, cw - 56, 4);
+    const gap = (cw - 64) / 5;
     for (let i = 0; i < 5; i++) {
-      const sy = cy + 114 + i * 44;
-      ctx.fillStyle = 'rgba(42, 108, 128, 0.38)';
-      ctx.fillRect(cx + 28, sy, seatW, 32);
-      ctx.fillStyle = 'rgba(166, 56, 48, 0.38)';
-      ctx.fillRect(cx + cw - 28 - seatW, sy, seatW, 32);
+      const rx = cx + 32 + gap * (i + 0.5);
+      ctx.beginPath();
+      ctx.arc(rx, cy + 132, 20, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(56, 128, 168, 0.55)';
+      ctx.fill();
+      ctx.strokeStyle = '#6bb4db';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(rx, cy + 216, 20, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(164, 54, 42, 0.55)';
+      ctx.fill();
+      ctx.strokeStyle = '#ea6c5a';
+      ctx.stroke();
     }
   } else if (snap.scene === 'lobby') {
     ctx.fillStyle = '#fff4d9';
