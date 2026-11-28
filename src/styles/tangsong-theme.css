@@ -702,12 +702,253 @@ body .sf-root .sf-hcard.is-active {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
 }
 
-@media (max-height: 520px) and (orientation: landscape) {
+/* ── 选将页面全局减负：去掉重复职业说教/段位长文案/重复职业后缀 ── */
+body .sf-root .sf-select__rolebrief,
+body .sf-root .sf-select__diff-desc,
+body .sf-root .sf-select__name-role {
+  display: none;
+}
+body .sf-root .sf-select__tips {
+  padding: 6px 9px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+body .sf-root .sf-select__tips > span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+body .sf-root .sf-select__go {
+  align-items: center;
+  padding: 8px 12px;
+  gap: 12px;
+}
+body .sf-root .sf-select__diff-head .sf-heading {
+  display: none;
+}
+
+/* 中等/窄横屏下分段与锁定按钮上下分排，杜绝按钮压住「赛场段位」 */
+@media (max-width: 1120px) and (orientation: landscape), (max-height: 560px) and (orientation: landscape) {
+  body .sf-root .sf-select__go {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+    padding: 6px 8px;
+  }
+  body .sf-root .sf-select__diff {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 100%;
+  }
+  body .sf-root .sf-select__diff-head {
+    display: flex;
+    width: 100%;
+  }
+  body .sf-root .sf-select__diff-head .sf-seg {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  body .sf-root .sf-select__diff-head .sf-seg__opt {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 26px;
+    padding: 0 4px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  body .sf-root .sf-select__go > .sf-btn--lg {
+    width: 100%;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 14px;
+    letter-spacing: 0.16em;
+    align-self: stretch;
+  }
+}
+
+/* 手机横屏（如 844×390 / 740×360）：精简右侧大段说教，首屏直显技能与数值；6 位英雄一屏放全 */
+@media (max-height: 560px) and (orientation: landscape) {
+  body .sf-root .sf-select {
+    padding-top: max(4px, var(--sf-safe-t, env(safe-area-inset-top, 0px)));
+    padding-bottom: max(6px, var(--sf-safe-b, env(safe-area-inset-bottom, 0px)));
+  }
+  body .sf-root .sf-select__top {
+    height: 36px;
+  }
+  body .sf-root .sf-select__main {
+    gap: 6px 10px;
+    grid-template-columns: clamp(144px, 21vw, 192px) minmax(0, 1fr) clamp(256px, 37vw, 336px);
+  }
+  body .sf-root .sf-select__roster {
+    gap: 4px;
+    overflow: hidden;
+  }
+  body .sf-root .sf-hcard {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+    padding: 2px 6px;
+    gap: 7px;
+  }
+  body .sf-root .sf-hcard__pic {
+    height: min(34px, 80%);
+    width: auto;
+  }
+  body .sf-root .sf-hcard__role {
+    width: 15px;
+    height: 15px;
+    right: -4px;
+    bottom: 4%;
+  }
+  body .sf-root .sf-hcard__name {
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+  body .sf-root .sf-hcard__title,
+  body .sf-root .sf-hcard__meta > span:last-child,
   .ts-hcard__era {
     display: none;
   }
-  .ts-select__pc-wrap {
-    inset: calc(var(--sf-u, 1px) * 4) 4% calc(var(--sf-u, 1px) * 2) 4%;
+  body .sf-root .sf-hcard__meta {
+    font-size: 10px;
+  }
+  body .sf-root .ts-select__motto {
+    display: none;
+  }
+  body .sf-root .sf-select__plate {
+    top: 2px;
+    left: 2px;
+    max-width: 48%;
+    gap: 2px;
+  }
+  body .sf-root .ts-select__era-pill {
+    padding: 1px 7px;
+    font-size: 10px;
+  }
+  body .sf-root .sf-select__name {
+    font-size: clamp(20px, 3vw, 26px);
+    letter-spacing: 0.05em;
+  }
+  body .sf-root .sf-select__sub {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    gap: 6px;
+  }
+  body .sf-root .sf-select__sub::before {
+    width: 10px;
+  }
+  body .sf-root .sf-select__nav {
+    top: 56%;
+  }
+  body .sf-root .sf-select__nav .sf-iconbtn {
+    width: 32px;
+    height: 32px;
+  }
+  body .sf-root .ts-select__pc-wrap {
+    inset: calc(var(--sf-u, 1px) * 2) 2% 0 2%;
+  }
+  body .sf-root .sf-select__detail-body {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  body .sf-root .sf-select__tags {
+    gap: 4px;
+  }
+  body .sf-root .sf-select__tips {
+    display: none;
+  }
+  body .sf-root .sf-select__detail-body > h4.sf-heading:first-of-type {
+    display: none;
+  }
+  body .sf-root .sf-skills {
+    gap: 5px;
+  }
+  body .sf-root .sf-skill {
+    gap: 2px;
+    font-size: 10px;
+  }
+  body .sf-root .sf-skill .sf-slot {
+    --sf-slot: 36px;
+  }
+  body .sf-root .sf-skills__sum {
+    height: 36px;
+    gap: 3px;
+    padding-left: 6px;
+  }
+  body .sf-root .sf-skills__sum .sf-slot {
+    --sf-slot: 22px;
+  }
+  body .sf-root .sf-skilldesc {
+    padding: 6px 8px;
+    min-height: 0;
+  }
+  body .sf-root .sf-skilldesc__head {
+    margin-bottom: 3px;
+  }
+  body .sf-root .sf-skilldesc__name {
+    font-size: 14px;
+  }
+  body .sf-root .sf-skilldesc__brief {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  body .sf-root .sf-skilldesc__meta {
+    margin: 4px 0 3px;
+    padding-top: 4px;
+    gap: 3px 5px;
+  }
+  body .sf-root .sf-skilldesc__text {
+    font-size: 11px;
+    line-height: 1.42;
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 760px) {
+  body .sf-root .sf-select__main {
+    grid-template-columns: max(58px, calc(var(--sf-u, 1px) * 72)) minmax(0, 1fr) clamp(240px, 39vw, 290px);
+  }
+  body .sf-root .sf-select__roster {
+    gap: 4px;
+  }
+  body .sf-root .sf-hcard {
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px;
+    text-align: center;
+  }
+  body .sf-root .sf-hcard__pic-wrap {
+    height: auto;
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  body .sf-root .sf-hcard__pic {
+    height: max(30px, calc(var(--sf-u, 1px) * 38));
+  }
+  body .sf-root .sf-hcard__role,
+  body .sf-root .sf-hcard__meta {
+    display: none;
+  }
+  body .sf-root .sf-hcard__info {
+    flex: none;
+    align-items: center;
+  }
+  body .sf-root .sf-hcard__name {
+    font-size: var(--sf-fs-sm);
+    letter-spacing: 0.04em;
+  }
+  body .sf-root .sf-select__go .sf-seg__opt {
+    font-size: 10px;
+    padding: 0 2px;
+    letter-spacing: 0.02em;
   }
 }
 
