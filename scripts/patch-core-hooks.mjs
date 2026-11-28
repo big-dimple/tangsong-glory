@@ -432,7 +432,12 @@ const patches = [
   ],
   [
     'ds(t,"chijin_s1_slash",e.pos,e.team,{unitId:e.id,dir:Cs(n.dir),radius:n.range,angle:n.angle});for(const i of $j(t,e.pos,n.dir,n.range,n.angle,ia(e.team)))wo(n,i,s,"physical"),tr(t,i,n.val("slow"),n.val("slowDur"),e,"chijin_s1")',
+    'ds(t,"chijin_s1_slash",e.pos,e.team,{unitId:e.id,dir:Cs(n.dir),radius:n.range,angle:n.angle}),ds(t,"skill_spectacle",e.pos,e.team,{unitId:e.id,style:"chijin_wave",dir:Cs(n.dir),radius:n.range,angle:n.angle});for(const i of $j(t,e.pos,n.dir,n.range,n.angle,ia(e.team)))wo(n,i,s,"physical"),tr(t,i,n.val("slow"),n.val("slowDur"),e,"chijin_s1"),i.alive&&_tsKb(t,i,e.pos,2.0,15,e)',
     'ds(t,"chijin_s1_slash",e.pos,e.team,{unitId:e.id,dir:Cs(n.dir),radius:n.range,angle:n.angle}),ds(t,"skill_spectacle",e.pos,e.team,{unitId:e.id,style:"chijin_wave",dir:Cs(n.dir),radius:n.range});for(const i of $j(t,e.pos,n.dir,n.range,n.angle,ia(e.team)))wo(n,i,s,"physical"),tr(t,i,n.val("slow"),n.val("slowDur"),e,"chijin_s1"),i.alive&&_tsKb(t,i,e.pos,2.0,15,e)',
+  ],
+  [
+    'n.decals.add(Xt.ink,s+a*1.8,i+o*1.8,l*.55,.55).rot(r,.28).params(2.5,.7).color(cs.glow,1.2).under(cs.dark,.8),_tsPetalBurst(n,s+a*2.2,1,i+o*2.2,10,l*.55,6,cs.glow,cs.hot)',
+    'n.decals.add(Xt.ink,s+a*l*.56,i+o*l*.56,l*.32,.5).rot(r,.28).params(2.5,.7).color(cs.glow,1.15).under(cs.dark,.7)',
   ],
   [
     'hitRadius:n.width*.5,filter:ia(e.team),onHit(i){wo(n,i,oa(n,"damage",{ad:"adRatio"}),"physical")}})}});Oi("chijin","ult"',
@@ -596,6 +601,23 @@ const patches = [
   [
     'n.shake(bo(t,e)?.4:.25,s,i)},HD=',
     'tsConfig.skillsEx?.playXinqijiCrossDive?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs}),n.shake(bo(t,e)?.4:.25,s,i)},HD=',
+  ],
+  // K27 花蕊夫人轻功御剑显性强化（S2 凌波微步跃空弧 + R 起跳升腾风柱 + tick 高空粒子同步）
+  [
+    'ds(t,"chijin_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Wn(t,e,"chijin_blaze"',
+    'ds(t,"chijin_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Wn(t,e,"ts_qinggong_dash",{duration:Math.max(.34,n.range/n.val("dashSpeed")),sourceId:e.id,merge:"replace"}),ds(t,"qinggong_soar",s,e.team,{unitId:e.id}),Wn(t,e,"chijin_blaze"',
+  ],
+  [
+    '_tsPetalBurst(n,(s.x+i.x)/2,.9,(s.y+i.y)/2,9,1.2,5.5,cs.glow,cs.hot),t.unitId===e.playerId&&n.shake(.08,s.x,s.y)},qP=',
+    '_tsPetalBurst(n,(s.x+i.x)/2,1.6,(s.y+i.y)/2,9,1.2,5.5,cs.glow,cs.hot),tsConfig.skillsEx?.playChijinDashFlight?.(n,t,{Lt,Mt,Xt,Ft,oe,qe,sn,$n,bn,vs}),t.unitId===e.playerId&&n.shake(.08,s.x,s.y)},qP=',
+  ],
+  [
+    '_tsPetalBurst(n,s,1,i,16,a*.65,7,cs.glow,cs.hot),n.light(s,i,1.8,cs.glow,le.lightMax,10,.35)',
+    '_tsPetalBurst(n,s,1.4,i,16,a*.65,7,cs.glow,cs.hot);{const _qs=n.particles.use(Mt.streak).tint(Lt(0xa8fff0),W.white);for(let h=0;h<n.n(10);h++){const _qa=h/10*oe;_qs.spawn(s+Math.cos(_qa)*.75,.25,i+Math.sin(_qa)*.75,Math.cos(_qa)*.8,l.range(10,16),Math.sin(_qa)*.8,.34,.18,.04,h*.012)}}n.light(s,i,1.8,cs.glow,le.lightMax,10,.35)',
+  ],
+  [
+    'const f=n.particles.use(Mt.spark).tint(ba,cs.deep),d=n.n(8);for(let h=0;h<d;h++){const u=a.next()*oe,m=i*a.range(.8,1);f.spawn(e+Math.cos(u)*m,a.range(.5,1.5),s+Math.sin(u)*m,Math.sin(u)*a.range(6,10),a.range(.5,3),-Math.cos(u)*a.range(6,10),a.range(.2,.3),.12,.04)}_tsPetalBurst(n,e,.9,s,7,i*.85,5.5,cs.glow,cs.hot)',
+    'const _fl=r&&n.a.unit?(tsConfig.skillsEx?.computeUnitVisualState?.(n.a.unit,0)?.flightLift??0):0,f=n.particles.use(Mt.spark).tint(ba,cs.deep),d=n.n(8);for(let h=0;h<d;h++){const u=a.next()*oe,m=i*a.range(.8,1);f.spawn(e+Math.cos(u)*m,_fl+a.range(.4,1.3),s+Math.sin(u)*m,Math.sin(u)*a.range(6,10),a.range(.5,3),-Math.cos(u)*a.range(6,10),a.range(.2,.3),.12,.04)}_tsPetalBurst(n,e,_fl+.8,s,7,i*.85,5.5,cs.glow,cs.hot)',
   ],
   [
     'function ut(N){C.length=0;for(const J of N.buffs){',

@@ -149,6 +149,9 @@ export interface AreaStateLike {
   _isLiue?: boolean;
   _tsArenaCount?: number;
   _tsFlightBaseCount?: number;
+  _lastX?: number;
+  _lastY?: number;
+  _lastZ?: number;
 }
 
 export function isUnitLiue(unit?: UnitLike): boolean {
@@ -206,7 +209,11 @@ export function computeUnitVisualState(
     else if (b.id === 'chijin_spin') {
       flightKind = 'huarui';
       const p = buffProgress(b, now);
-      flightLift = Math.max(flightLift, envelopeLift(p, 2.35, 0.12, 0.14, 0.14, 3));
+      flightLift = Math.max(flightLift, envelopeLift(p, 3.65, 0.1, 0.14, 0.18, 3));
+    } else if (b.id === 'ts_qinggong_dash') {
+      flightKind = 'huarui';
+      const p = buffProgress(b, now);
+      flightLift = Math.max(flightLift, Math.sin(Math.PI * Math.max(0, Math.min(1, p))) * 2.15);
     } else if (b.id === 'ts_qinggong_wencheng') {
       flightKind = 'wencheng';
       const p = buffProgress(b, now);
@@ -231,27 +238,38 @@ export function computeUnitVisualState(
   return { ccState, flightKind, flightLift };
 }
 
-/** 花蕊夫人御剑踏梅：创建脚下青金飞剑与高空双环 */
+/** 花蕊夫人御剑踏梅：创建脚下青金飞剑（horizontal +X blade）与高空剑光环 */
 export function initChijinFlight(kit: SkillsExKit, area: AreaStateLike, fx: SkillsExHelpers): void {
   const { qe, sn, Lt } = fx;
   area._tsFlightBaseCount = area.meshes.length;
+  area._lastX = area.x;
+  area._lastY = 3.2;
+  area._lastZ = area.z;
+
+  // 清透竖直上升风柱（从地面直连高空飞剑，制造强立体纵深对比）
+  const cone = area.meshes[0];
+  if (cone) {
+    cone.color(Lt(0x8ff5e0), 0.9, 0.65);
+    cone.add = 0.24;
+  }
 
   const blade = kit.glow.hold(qe.dagger, sn.solid);
-  blade.color(Lt(0xffd890), 1.65, 0.4);
+  blade.color(Lt(0xa8fff0), 1.85, 0.92);
+  blade.add = 0.35;
   area.meshes.push(blade);
 
   const hiltGlow = kit.glow.hold(qe.diamond, sn.core);
-  hiltGlow.color(Lt(0xff6b82), 1.9, 0);
-  hiltGlow.add = 0.45;
+  hiltGlow.color(Lt(0xffe082), 2.15, 0.95);
+  hiltGlow.add = 0.55;
   area.meshes.push(hiltGlow);
 
   const footHalo = kit.glow.hold(qe.hoop, sn.hoop);
-  footHalo.color(Lt(0xffb5c8), 1.5, 0.9);
-  footHalo.add = 0.35;
+  footHalo.color(Lt(0xff9eb8), 1.65, 0.92);
+  footHalo.add = 0.4;
   area.meshes.push(footHalo);
 }
 
-/** 花蕊夫人御剑踏梅：每帧跟随飞行高度抬升剑舞环与脚底飞剑 */
+/** 花蕊夫人御剑踏梅：3.65m 高空清晰御剑、通天升腾风柱、空中流光剑迹 */
 export function updateChijinFlight(
   kit: SkillsExKit,
   area: AreaStateLike,
@@ -260,54 +278,87 @@ export function updateChijinFlight(
 ): void {
   const baseIdx = area._tsFlightBaseCount ?? 4;
   const p = Math.max(0, Math.min(1, area.duration > 0 ? area.age / area.duration : 0.5));
-  const lift = envelopeLift(p, 2.35, 0.12, 0.14, 0.14, 3);
+  const lift = envelopeLift(p, 3.65, 0.1, 0.14, 0.18, 3);
   const fade = Math.max(0, Math.min(1, (area.duration - area.age) * 3.2));
   const grow = Math.min(1, area.age * 4.5);
   const owner = kit.anchors.unit(area.ownerId);
   const facing = owner?.facing ?? area.age * 2.4;
+  const hoverTilt = 0.06 * Math.sin(area.age * 6);
 
-  // 将原本贴地的旋风锥体和 3 道剑气环一起拉升至御剑空域
+  // 1) 从地面（y=0.06）延伸至御剑脚底的细长升腾灵风柱，凸显地面影子与高空的高度差
   const cone = area.meshes[0];
   if (cone) {
-    const a = area.radius * 0.52 * grow;
-    cone.at(area.x, Math.max(0.08, lift - 1.15), area.z).scale3(a, 1.95 * grow, a).rot(0, area.age * 7.5, 0);
-    cone.a = (kit.lowQ ? 0.16 : 0.3) * fade;
+    const colR = 0.72 * grow;
+    const colH = Math.max(0.45, lift - 0.22);
+    cone.at(area.x, 0.06, area.z).scale3(colR, colH, colR).rot(0, area.age * 6.5, 0);
+    cone.a = (kit.lowQ ? 0.14 : 0.22) * fade;
   }
+
+  // 2) 高空薄纱剑环：收轻透明度与直径，不遮挡角色御剑身姿
   for (let i = 1; i < baseIdx; i++) {
     const slash = area.meshes[i];
     if (!slash) continue;
-    const c = area.radius * (0.88 + 0.08 * i) * (0.42 + 0.58 * grow);
+    const c = area.radius * (0.76 + 0.06 * i) * (0.45 + 0.55 * grow);
     slash
-      .at(area.x, lift + 0.42 + (i - 1) * 0.38, area.z)
+      .at(area.x, lift + 0.38 + (i - 1) * 0.34, area.z)
       .scale(c)
-      .rot(i === 1 ? 0.14 : i === 2 ? -0.14 : 0.05, area.phase + area.age * (12 + i) + (i * fx.oe) / 3, 0);
-    slash.a = 0.62 * fade;
+      .rot(i === 1 ? 0.12 : i === 2 ? -0.12 : 0.04, area.phase + area.age * (12 + i) + (i * fx.oe) / 3, 0);
+    slash.a = 0.36 * fade;
   }
 
-  // 脚下御剑（qe.dagger + qe.diamond）与踏风足环
+  // 3) 脚下横置青金飞剑（qe.dagger 沿 +X 展平，rot.y = -facing 精准顺向踏剑而行）
   const blade = area.meshes[baseIdx];
   if (blade) {
     blade
-      .at(area.x, Math.max(0.18, lift - 0.14), area.z)
-      .scale3(0.46, 2.65, 0.24)
-      .rot(Math.PI * 0.5, -facing + Math.PI * 0.5, 0.08 * Math.sin(area.age * 6));
-    blade.a = 0.95 * fade;
+      .at(area.x, Math.max(0.22, lift - 0.18), area.z)
+      .scale3(3.6, 2.6, 2.8)
+      .rot(0, -facing, hoverTilt);
+    blade.a = 0.96 * fade;
   }
   const hilt = area.meshes[baseIdx + 1];
   if (hilt) {
-    hilt.at(area.x, Math.max(0.18, lift - 0.14), area.z).scale3(0.48, 0.22, 1.45).rot(0, -facing + Math.PI * 0.5, 0);
-    hilt.a = 0.88 * fade;
+    hilt
+      .at(area.x, Math.max(0.22, lift - 0.18), area.z)
+      .scale3(1.15, 0.32, 1.35)
+      .rot(0, -facing, hoverTilt);
+    hilt.a = 0.9 * fade;
   }
   const halo = area.meshes[baseIdx + 2];
   if (halo) {
-    halo.at(area.x, Math.max(0.12, lift - 0.2), area.z).scale(1.15 * (0.5 + 0.5 * grow)).rot(0, area.age * 5.2, 0);
-    halo.a = 0.72 * fade;
+    halo.at(area.x, Math.max(0.16, lift - 0.24), area.z).scale(1.42 * (0.65 + 0.35 * grow)).rot(0, area.age * 5.2, 0);
+    halo.a = 0.82 * fade;
   }
 
-  // 高空飞落绯红梅花瓣与绸带残影
+  // 4) 空中御剑流光拖尾（翻墙掠空时在半空留下青金/绯红丝带轨迹）
+  const lx = area._lastX ?? area.x;
+  const ly = area._lastY ?? lift;
+  const lz = area._lastZ ?? area.z;
+  if (kit.ribbons && Math.hypot(area.x - lx, area.z - lz) > 0.36) {
+    kit.ribbons.trace(fx.$n.string, lx, ly + 0.05, lz, area.x, lift + 0.05, area.z, 0.44, fx.Lt(0xa8fff0), fx.Lt(0xff6b88));
+    area._lastX = area.x;
+    area._lastY = lift;
+    area._lastZ = area.z;
+  }
+
+  // 5) 地面垂直升腾气流线 + 高空落梅与绯绸
   if (kit.rnd.chance(Math.min(1, dt * 36))) {
     const a = kit.rnd.next() * fx.oe;
-    const rr = area.radius * kit.rnd.range(0.35, 0.92);
+    const rr = area.radius * kit.rnd.range(0.32, 0.9);
+    kit.particles
+      .use(fx.Mt.streak)
+      .tint(fx.Lt(0xa8fff0), fx.Lt(0xffffff))
+      .spawn(
+        area.x + Math.cos(a) * 0.65,
+        kit.rnd.range(0.25, Math.max(0.8, lift * 0.5)),
+        area.z + Math.sin(a) * 0.65,
+        0,
+        kit.rnd.range(6.5, 11.5),
+        0,
+        0.28,
+        0.16,
+        0.04,
+        0,
+      );
     kit.particles
       .use(fx.Mt.leaf)
       .tint(fx.Lt(0xff9eb8), fx.Lt(0xe83a5c))
@@ -339,6 +390,79 @@ export function updateChijinFlight(
         0,
       );
   }
+}
+
+/** 花蕊夫人二技能「凌波突进」：前中期立即可见的轻功御剑跃空弧线 */
+export function playChijinDashFlight(
+  kit: SkillsExKit,
+  ev: { unitId?: number; from?: { x: number; y: number }; to?: { x: number; y: number }; dir?: { x: number; y: number } },
+  fx: SkillsExHelpers,
+): void {
+  const uid = ev.unitId ?? -1;
+  if (uid < 0 || !kit.track || !kit.anchor(uid)) return;
+  const x0 = ev.from?.x ?? kit.a.x;
+  const z0 = ev.from?.y ?? kit.a.z;
+  if (kit.focusDist(x0, z0) > 54) return;
+
+  const x1 = ev.to?.x ?? x0;
+  const z1 = ev.to?.y ?? z0;
+  const dist = Math.hypot(x1 - x0, z1 - z0);
+  const dur = Math.max(0.34, dist / 14);
+  const baseYaw = Math.atan2(ev.dir?.y ?? (z1 - z0), ev.dir?.x ?? (x1 - x0));
+
+  const { qe, sn, Lt, Mt, $n } = fx;
+  const blade = kit.glow.hold(qe.dagger, sn.solid);
+  blade.color(Lt(0xa8fff0), 1.75, 0.9);
+  blade.add = 0.35;
+
+  const ring = kit.glow.hold(qe.hoop, sn.hoop);
+  ring.color(Lt(0xff9eb8), 1.55, 0.9);
+  ring.add = 0.35;
+
+  const petal = kit.particles.use(Mt.leaf).tint(Lt(0xffb4c8), Lt(0xe83a5c));
+  let prevX = x0;
+  let prevY = 0.4;
+  let prevZ = z0;
+
+  kit.track(
+    uid,
+    dur,
+    (u, p, dt) => {
+      const fade = p > 0.78 ? Math.max(0, (1 - p) / 0.22) : Math.min(1, p * 6);
+      const facing = u.unit?.facing ?? baseYaw;
+      const by = Math.max(0.2, u.y - 0.14);
+
+      blade.at(u.x, by, u.z).scale3(2.9, 2.2, 2.2).rot(0, -facing, -0.08 * Math.cos(Math.PI * p));
+      blade.a = 0.92 * fade;
+      ring.at(u.x, by - 0.06, u.z).scale(1.18).rot(0, p * fx.oe * 2, 0);
+      ring.a = 0.72 * fade;
+
+      if (kit.ribbons && Math.hypot(u.x - prevX, u.z - prevZ) > 0.28) {
+        kit.ribbons.trace($n.string, prevX, prevY, prevZ, u.x, u.y + 0.55, u.z, 0.32, Lt(0xffe096), Lt(0xff6b88));
+        prevX = u.x;
+        prevY = u.y + 0.55;
+        prevZ = u.z;
+      }
+      if (kit.rnd.chance(Math.min(1, dt * 32))) {
+        petal.spawn(
+          u.x + kit.rnd.signed() * 0.45,
+          u.y + 0.55,
+          u.z + kit.rnd.signed() * 0.45,
+          kit.rnd.signed() * 1.4,
+          kit.rnd.range(-0.6, 1.2),
+          kit.rnd.signed() * 1.4,
+          0.46,
+          0.26,
+          0.14,
+          0,
+        );
+      }
+    },
+    () => {
+      kit.glow.release(blade);
+      kit.glow.release(ring);
+    },
+  );
 }
 
 /** 文成公主敦煌飞天：脚踏金莲祥云 + 飞天飘带 + 空中天音弦线 */
@@ -822,6 +946,7 @@ export const TANGSONG_SKILLS_EX_API = {
   computeUnitVisualState,
   initChijinFlight,
   updateChijinFlight,
+  playChijinDashFlight,
   playWenchengFlight,
   playXinqijiAerialShadows,
   playXinqijiCrossDive,

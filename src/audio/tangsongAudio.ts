@@ -1597,11 +1597,60 @@ export function attachTangSongSfx(
       playGuqin(p, midi(62), 0.6, 1.8, 0.7);
       playBianzhong(p, midi(62), 0.6, 1.6, 0.46);
     });
-    // 隐草（方案 1 · 干脆拨草）：双层物理草叶沙沙 + 极轻衣袂落定闷声，零乐器笛哨杂音
-    cue(CUE_KEYS['stealth-in'], { len: 0.28, gap: 0.35, rev: 0.06 }, (p) => {
-      p.noise({ k: 'white', flt: 'bandpass', fc: 3400, fc1: 1750, fct: 0.09, q: 1.6, t: 0, a: 0.008, h: 0.018, d: 0.085, g: 0.14 });
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 1050, fc1: 520, fct: 0.16, q: 1.2, t: 0.025, a: 0.015, h: 0.035, d: 0.13, g: 0.16 });
-      p.osc({ w: 'sine', f: 96, f1: 58, ft: 0.09, t: 0.04, a: 0.008, d: 0.085, g: 0.07 });
+    // 隐草（干脆物理拨草）：多层错落草叶沙沙 + 拨草主体扫频 + 草丛合拢尾音，零振荡器/零笛哨/不压 BGM
+    cue(CUE_KEYS['stealth-in'], { len: 0.36, gap: 0.28, rev: 0.04 }, (p) => {
+      // 1) 错落草叶摩擦颗粒（模拟衣摆与腿部连续拨开草茎）
+      p.scatter(6, 0, 0.14, (t, idx) => {
+        const fc = 3600 + (idx % 3) * 650;
+        p.noise({
+          k: 'white',
+          flt: 'bandpass',
+          fc,
+          fc1: fc * 0.52,
+          fct: 0.055,
+          q: 1.7,
+          t,
+          a: 0.003,
+          d: 0.055,
+          g: 0.34 + (idx % 2) * 0.08,
+        });
+      });
+      // 2) 拨草主体“沙——刷”声（自然草丛主频段）
+      p.noise({
+        k: 'pink',
+        flt: 'bandpass',
+        fc: 1750,
+        fc1: 660,
+        fct: 0.18,
+        q: 1.0,
+        t: 0.008,
+        a: 0.012,
+        h: 0.038,
+        d: 0.19,
+        g: 0.54,
+      });
+      // 3) 蹲稳后草叶轻合尾音 + 轻衣袂扫过
+      p.noise({
+        k: 'white',
+        flt: 'bandpass',
+        fc: 3100,
+        fc1: 1450,
+        fct: 0.13,
+        q: 1.35,
+        t: 0.11,
+        a: 0.014,
+        d: 0.13,
+        g: 0.28,
+      });
+      p.noise({
+        k: 'pink',
+        flt: 'lowpass',
+        fc: 520,
+        t: 0.02,
+        a: 0.01,
+        d: 0.12,
+        g: 0.22,
+      });
     });
     // 硬控爆发（击飞 / 眩晕 / 击退 / 聚拢）：沉稳建鼓低频重砸 + 编钟清脆震音，加强打击确认感
     cue('fx_cc_impact', { len: 0.55, gap: 0.16, poly: 2, prio: 2, rev: 0.14, range: 36, jitter: 0.06 }, (p) => {
@@ -1698,7 +1747,7 @@ export function playTangSongCue(cue: TangSongCue): void {
   if (typeof document !== 'undefined' && document.hidden) return;
   try {
     if (!mixer.play(CUE_KEYS[cue])) return;
-    if (cue !== 'seal-small') mixer.duck?.(0.5, 0.8);
+    if (cue !== 'seal-small' && cue !== 'stealth-in') mixer.duck?.(0.5, 0.8);
   } catch {
     // 听觉落款不是必需品：出错就不响
   }

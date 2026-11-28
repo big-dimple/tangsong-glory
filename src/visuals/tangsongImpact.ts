@@ -39,6 +39,7 @@ export interface ImpactEventLike {
   dx?: number;
   dy?: number;
   radius?: number;
+  angle?: number;
 }
 
 export interface ImpactStateLike {
@@ -264,14 +265,135 @@ export function playImpactFx(
         if (mine) triggerHitStop(big ? 0.058 : 0.044);
         break;
       }
-      case 'chijin_wave':
+      case 'chijin_wave': {
+        const dx = ev.dir?.x ?? 1;
+        const dz = ev.dir?.y ?? 0;
+        const dLen = Math.hypot(dx, dz) || 1;
+        const ux = dx / dLen;
+        const uz = dz / dLen;
+        const baseAng = Math.atan2(uz, ux);
+        const angle = Math.max(0.6, Math.min(Math.PI * 1.4, ev.angle ?? 1.92));
+        const halfAng = angle * 0.5;
+        const rnd = kit.rnd;
+
+        // 1) 贴合真实扇形判定区的绯金地面印记（严格前向 fan，零身后 360° 圆圈）
+        kit.decals
+          .add(Xt.cone, x, z, r, 0.56)
+          .rot(baseAng)
+          .params(halfAng, 0.84)
+          .color(cHot, 1.95, 0.94)
+          .under(cDeep, 0.56);
+
+        // 2) 扇区内部 3 道错落纵深新月剑气弧（严格按 k = angle / 2.5 裁剪至扇形角内）
+        const kArc = Math.min(1, angle / 2.5);
+        const layers: Array<[number, number, number, number, unknown, number, number]> = [
+          [r * 0.44, 0.72, 0.24, 0.08, cHot, 2.25, 0.0],
+          [r * 0.72, 0.96, 0.30, -0.09, cGlow, 1.95, Math.PI],
+          [r * 0.98, 1.12, 0.36, 0.05, cHot, 2.4, 0.0],
+        ];
+        for (const [arcR, ay, dur, tilt, col, gain, flip] of layers) {
+          const arc = qo(kit, x, ay, z, baseAng, arcR, dur, col, gain, flip + tilt, true, 0.92) as {
+            scale: (a: number, b?: number) => { fade: (a: number, b: number) => void };
+            k?: number;
+          };
+          arc.scale(arcR * 0.9, arcR).fade(0.02, 0.55);
+          arc.k = kArc;
+        }
+
+        // 3) 扇区内部漫天落红花瓣（Mt.leaf）与绯金剑丝（Mt.silk）—— 面积均匀洒满整个扇形区域
+        const petalPool = kit.particles.use(Mt.leaf).tint(Lt(0xffb4c8), Lt(0xe02848));
+        const silkPool = kit.particles.use(Mt.silk).tint(Lt(0xffe096), Lt(0xff5272));
+        const fanCount = kit.n(28);
+        for (let i = 0; i < fanCount; i++) {
+          const frac = Math.sqrt(rnd.next());
+          const rr = r * (0.20 + 0.78 * frac);
+          const a = baseAng + (rnd.next() * 2 - 1) * halfAng * 0.92;
+          const px = x + Math.cos(a) * rr;
+          const pz = z + Math.sin(a) * rr;
+          const tx = -Math.sin(a);
+          const tz = Math.cos(a);
+          const sweepSp = rnd.range(2.2, 5.4);
+          petalPool.spawn(
+            px,
+            rnd.range(0.35, 1.35),
+            pz,
+            tx * sweepSp + Math.cos(a) * rnd.range(0.8, 2.4),
+            rnd.range(1.1, 3.0),
+            tz * sweepSp + Math.sin(a) * rnd.range(0.8, 2.4),
+            rnd.range(0.45, 0.78),
+            rnd.range(0.24, 0.36),
+            0.14,
+            (i / Math.max(1, fanCount)) * 0.08,
+          );
+          if (i % 2 === 0) {
+            silkPool.spawn(
+              px,
+              rnd.range(0.45, 1.2),
+              pz,
+              tx * sweepSp * 1.15 + Math.cos(a) * 1.4,
+              rnd.range(0.5, 1.8),
+              tz * sweepSp * 1.15 + Math.sin(a) * 1.4,
+              0.38,
+              0.24,
+              0.10,
+              (i / Math.max(1, fanCount)) * 0.06,
+            );
+          }
+        }
+
+        // 4) 扇区纵深刀光掠影 + 外弧边沿剑芒星火（全部严格落在 [baseAng - halfAng, baseAng + halfAng]）
+        const streakPool = kit.particles.use(Mt.streak).tint(Lt(0xffffff), cGlow);
+        const sparkPool = kit.particles.use(Mt.spark).tint(cHot, cDeep);
+        const glintPool = kit.particles.use(Mt.glint).tint(Lt(0xffffff), cGlow);
+        const slashCount = kit.n(14);
+        for (let i = 0; i < slashCount; i++) {
+          const u = (i + 0.5) / slashCount;
+          const a = baseAng - halfAng * 0.92 + u * angle * 0.92;
+          const rr = r * rnd.range(0.28, 0.95);
+          const px = x + Math.cos(a) * rr;
+          const pz = z + Math.sin(a) * rr;
+          const tx = -Math.sin(a);
+          const tz = Math.cos(a);
+          streakPool.spawn(px, rnd.range(0.55, 1.3), pz, tx * 9.5 + ux * 2.5, rnd.signed() * 0.9, tz * 9.5 + uz * 2.5, 0.16, 0.13, 0.04, u * 0.07);
+          const rimR = r * rnd.range(0.84, 1.0);
+          sparkPool.spawn(
+            x + Math.cos(a) * rimR,
+            rnd.range(0.4, 1.15),
+            z + Math.sin(a) * rimR,
+            Math.cos(a) * rnd.range(2.2, 4.8) + tx * 3.0,
+            rnd.range(1.2, 3.2),
+            Math.sin(a) * rnd.range(2.2, 4.8) + tz * 3.0,
+            0.32,
+            0.16,
+            0.05,
+            u * 0.06,
+          );
+          if (i % 2 === 0) {
+            glintPool.spawn(
+              x + Math.cos(a) * r * rnd.range(0.45, 0.92),
+              rnd.range(0.45, 1.1),
+              z + Math.sin(a) * r * rnd.range(0.45, 0.92),
+              Math.cos(a) * 1.6,
+              rnd.range(0.8, 2.1),
+              Math.sin(a) * 1.6,
+              0.38,
+              0.24,
+              0.08,
+              u * 0.05,
+            );
+          }
+        }
+
+        kit.light(x + ux * r * 0.52, z + uz * r * 0.52, 1.45, cGlow, 5.8, r * 1.8, 0.32);
+        if (mine) triggerHitStop(0.036);
+        break;
+      }
       case 'chijin_finisher': {
-        const isFin = ev.style === 'chijin_finisher';
-        kit.decals.add(Xt.star, x, z, r, isFin ? 0.85 : 0.52).params(6, 1).color(cGlow, 1.9, 0.92).under(cDeep, 0.38);
-        spawnRingParticles(kit, Mt.star, Lt(0xffc6d4), Lt(0xd8324c), x, 0.8, z, isFin ? 22 : 14, 5.5, 2.2, 6.2, 0.65, 0.28);
+        kit.decals.add(Xt.star, x, z, r, 0.85).params(6, 1).color(cGlow, 1.9, 0.92).under(cDeep, 0.38);
+        spawnRingParticles(kit, Mt.star, Lt(0xffc6d4), Lt(0xd8324c), x, 0.8, z, 22, 5.5, 2.2, 6.2, 0.65, 0.28);
         bn(kit, x, z, r, 0.42, cHot, 1.7, 0.25, 0.2);
         kit.light(x, z, 1.3, cGlow, 5.2, r * 2, 0.3);
-        if (mine) triggerHitStop(isFin ? 0.05 : 0.036);
+        if (mine) triggerHitStop(0.05);
         break;
       }
       case 'xingli_vortex':

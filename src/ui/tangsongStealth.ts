@@ -126,7 +126,7 @@ export function updateStealth(
   const prev = currentState;
   currentState = next;
   applyState(next);
-  if (prev === 'none' && next === 'hidden') {
+  if (prev === 'none' && next !== 'none') {
     onEnterStealth?.();
   }
 }
