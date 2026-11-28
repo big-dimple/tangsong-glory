@@ -770,6 +770,47 @@ body .sf-root .sf-hcard.is-active {
   body .sf-root .sf-select__sub::before { width: 10px; }
   body .sf-root .sf-select__rings { left: 0; right: 0; }
   body .sf-root .sf-select__glow { left: 8%; right: 8%; }
+  body .sf-root .sf-lcard__tag {
+    left: 2px;
+    right: 2px;
+    top: 3px;
+    transform: none;
+    display: flex;
+    justify-content: center;
+  }
+  body .sf-root .sf-lcard__tag .sf-badge {
+    max-width: 100%;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 9px;
+    letter-spacing: 0;
+    line-height: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (orientation: portrait) and (max-height: 740px) {
+  body .sf-root .sf-select__top { height: 40px; }
+  body .sf-root .sf-select__main {
+    grid-template-rows: auto minmax(96px, 0.72fr) minmax(0, 1.95fr) auto;
+    gap: 5px;
+  }
+  body .sf-root .sf-select__detail-body { padding: 8px 10px; gap: 5px; }
+  body .sf-root .sf-select__lore { font-size: 12px; line-height: 1.42; }
+  body .sf-root .sf-select__tips { padding: 6px 8px; font-size: 11px; line-height: 1.42; }
+  body .sf-root .sf-select__go { gap: 5px; }
+  body .sf-root .sf-select__diff { padding: 6px 8px; gap: 4px; }
+  body .sf-root .sf-select__diff-desc { font-size: 11px; line-height: 1.35; }
+  body .sf-root .sf-select__go > .sf-btn--primary { min-height: 40px; padding-block: 6px; }
+}
+
+body .sf-root .sf-lcard__tag .sf-badge--mute {
+  background: rgba(14, 18, 22, 0.82);
+  color: #f4e6c6;
+  border: 1px solid rgba(233, 189, 98, 0.42);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
 }
 
 /* ── 7. 局内朱漆鎏金 HUD 全面重写（覆盖所有深蓝科幻控件） ── */
@@ -1210,20 +1251,28 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
 }
 
 /* ── 12b. 「汴京寻将 · 5v5 实时匹配」拟真弹窗与 5v5 点将席位带 ── */
+.ts-mm,
+.ts-mm * {
+  box-sizing: border-box;
+}
 .ts-mm {
   position: fixed;
   inset: 0;
   z-index: 9500;
   display: grid;
   place-items: center;
-  padding: 16px;
-  background: rgba(8, 14, 16, 0.72);
+  padding: max(12px, var(--sf-safe-t, env(safe-area-inset-top, 0px))) 12px max(12px, var(--sf-safe-b, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(8, 14, 16, 0.74);
   backdrop-filter: blur(8px);
   animation: sf-fade-in 0.2s ease-out both;
 }
 .ts-mm__card {
-  width: min(680px, 94vw);
-  padding: 20px 24px 18px;
+  width: min(680px, 100%);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 20px 22px 18px;
   border-radius: 8px;
   border: 1px solid rgba(233, 189, 98, 0.62);
   background:
@@ -1236,7 +1285,8 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 14px;
+  gap: 6px 14px;
+  flex-wrap: wrap;
 }
 .ts-mm__head .sf-title {
   margin: 0;
@@ -1252,11 +1302,14 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
   margin-top: 12px;
   font-size: 13px;
 }
 .ts-mm__count {
+  flex: none;
+  white-space: nowrap;
   padding: 2px 10px;
   border-radius: 99px;
   background: rgba(181, 69, 52, 0.35);
@@ -1265,11 +1318,19 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   font-weight: 700;
 }
 .ts-mm__status {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  text-align: center;
   color: #f2dfb8;
   font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ts-mm__timer {
+  flex: none;
+  white-space: nowrap;
   color: #8cc5e6;
 }
 .ts-mm__bar {
@@ -1290,9 +1351,12 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
 }
 .ts-mm__sides {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 14px;
+}
+.ts-mm__team {
+  min-width: 0;
 }
 .ts-mm__vs {
   font-family: var(--ts-font-brush);
@@ -1315,18 +1379,24 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 .ts-mm__seat {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 4px;
   background: rgba(12, 20, 22, 0.72);
   border: 1px solid rgba(233, 189, 98, 0.16);
-  opacity: 0.52;
+  opacity: 0.56;
   transform: translateY(2px);
   transition: opacity 0.22s ease, transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.ts-mm__seat.is-red {
+  flex-direction: row-reverse;
+  text-align: right;
 }
 .ts-mm__seat.is-ready {
   opacity: 1;
@@ -1335,7 +1405,6 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   background: linear-gradient(90deg, rgba(24, 58, 78, 0.55), rgba(14, 24, 27, 0.85));
 }
 .ts-mm__seat.is-red.is-ready {
-  flex-direction: row-reverse;
   border-color: rgba(240, 90, 70, 0.54);
   background: linear-gradient(270deg, rgba(112, 32, 26, 0.55), rgba(18, 14, 13, 0.85));
 }
@@ -1362,6 +1431,7 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   border-color: #fff6d6;
 }
 .ts-mm__handle {
+  min-width: 0;
   font-size: 13px;
   color: #f5ebd6;
   white-space: nowrap;
@@ -1372,6 +1442,7 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   display: flex;
   justify-content: center;
   gap: 12px;
+  flex-wrap: wrap;
   margin-top: 16px;
 }
 .ts-mm__enter[hidden] {
@@ -1416,6 +1487,7 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
   white-space: nowrap;
 }
 .ts-draft-seat {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1497,10 +1569,13 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
 
 @media (max-width: 980px), (orientation: portrait) {
   .ts-draft-bar {
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 3px 6px;
     margin: 2px 0 4px;
     gap: 4px;
+  }
+  .ts-draft-bar__side {
+    gap: 3px;
   }
   .ts-draft-seat {
     padding: 2px;
@@ -1511,20 +1586,136 @@ body.ts-film .sf-root.sf-loading-root.is-closing {
     display: none;
   }
   .ts-draft-seat__pic {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
+  }
+  .ts-draft-seat.is-locked::after {
+    content: '✓';
+    position: absolute;
+    right: 1px;
+    bottom: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 1;
+    background: #e9bd62;
+    color: #24160c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+  .ts-draft-seat.is-red.is-locked::after {
+    background: #f05a46;
+    color: #fff6e0;
   }
   .ts-draft-bar__phase {
     padding: 2px 6px;
     font-size: 10px;
   }
+}
+
+/* 手机竖屏 / 窄屏：匹配弹窗保持左右双栏 5v5 并排对照，一屏内完整容纳全部按钮与倒计时 */
+@media (orientation: portrait), (max-width: 640px) {
+  .ts-mm {
+    padding: max(10px, var(--sf-safe-t, env(safe-area-inset-top, 0px))) 10px max(10px, var(--sf-safe-b, env(safe-area-inset-bottom, 0px)));
+  }
+  .ts-mm__card {
+    width: 100%;
+    max-width: min(440px, calc(100vw - 20px));
+    max-height: calc(100dvh - 20px);
+    padding: 14px 10px 14px;
+  }
+  .ts-mm__head {
+    gap: 4px 10px;
+  }
+  .ts-mm__head .sf-title {
+    font-size: clamp(22px, 6.2vw, 28px);
+  }
+  .ts-mm__sub {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .ts-mm__meta {
+    margin-top: 8px;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .ts-mm__count {
+    padding: 1px 8px;
+    font-size: 11px;
+  }
+  .ts-mm__status {
+    font-size: 12px;
+  }
+  .ts-mm__timer {
+    font-size: 12px;
+  }
+  .ts-mm__bar {
+    height: 5px;
+    margin: 8px 0 12px;
+  }
   .ts-mm__sides {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 6px;
+    align-items: start;
+  }
+  .ts-mm__team-head {
+    margin-bottom: 5px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .ts-mm__team-list {
+    gap: 5px;
   }
   .ts-mm__vs {
-    text-align: center;
-    font-size: 18px;
+    font-size: 15px;
+    align-self: center;
+    padding-top: 18px;
+  }
+  .ts-mm__seat {
+    padding: 5px 6px;
+    gap: 5px;
+  }
+  .ts-mm__lantern {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+  }
+  .ts-mm__handle {
+    font-size: 12px;
+  }
+  .ts-mm__foot {
+    margin-top: 12px;
+    gap: 8px;
+  }
+  .ts-mm__foot .sf-btn {
+    min-height: 38px;
+    padding: 6px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 345px) {
+  .ts-mm__seat {
+    padding: 4px 4px;
+    gap: 4px;
+  }
+  .ts-mm__lantern {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+  .ts-mm__handle {
+    font-size: 11px;
+  }
+  .ts-mm__vs {
+    font-size: 13px;
+  }
+  .ts-draft-seat__pic {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -1642,6 +1833,14 @@ body .sf-root .sf-result__titlewrap > .ts-seal {
 body .sf-root .sf-result__wing--r { left: calc(100% + var(--sf-u, 1px) * 26); }
 body .sf-root .sf-result__titlewrap:has(> .ts-seal) .sf-result__wing--r {
   left: calc(100% + var(--sf-u, 1px) * 34 + var(--ts-result-seal-h) * 0.57);
+}
+body .sf-root .sf-result__summary {
+  align-self: center;
+  padding: 4px 14px;
+  border-radius: 99px;
+  background: rgba(14, 10, 8, 0.56);
+  border: 1px solid rgba(233, 189, 98, 0.28);
+  backdrop-filter: blur(4px);
 }
 /* 击杀横幅：小朱印压在阵亡者头像的右下角 */
 body .sf-root .sf-hud__banner-face > .ts-seal {

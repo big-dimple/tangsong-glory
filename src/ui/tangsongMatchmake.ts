@@ -126,8 +126,9 @@ export function openMatchmakeOverlay(opts: MatchmakeOptions): () => void {
     el('div', 'ts-mm__sides', blue.box, el('span', 'ts-mm__vs sf-metal', 'VS'), red.box),
     el('footer', 'ts-mm__foot', cancelBtn, enterBtn),
   );
-  const backdrop = el('div', 'ts-mm', card);
-  document.body.appendChild(backdrop);
+  const mountHost = opts.root && opts.root.isConnected ? opts.root : document.body;
+  const backdrop = el('div', mountHost === document.body ? 'sf-root ts-mm' : 'ts-mm', card);
+  mountHost.appendChild(backdrop);
 
   const allIncoming: HTMLElement[] = [
     blue.seats[1],

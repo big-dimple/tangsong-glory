@@ -708,8 +708,9 @@ function drawCoverImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w:
 
 /** 极速同步绘制各主要界面的 2D 快照纹理，供 WebGL2 转场着色器直接消费。 */
 export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasElement {
-  const w = 960;
-  const h = 540;
+  const portrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+  const w = portrait ? 540 : 960;
+  const h = portrait ? 960 : 540;
   const cv = document.createElement('canvas');
   cv.width = w;
   cv.height = h;
@@ -737,7 +738,7 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   };
 
   const bg = preloadImage(artMap[snap.scene]);
-  if (bg) drawCoverImage(ctx, bg, w, h, snap.scene === 'lobby' ? 0.62 : 0.5, snap.scene === 'lobby' ? 0.38 : 0.5);
+  if (bg) drawCoverImage(ctx, bg, w, h, snap.scene === 'lobby' ? (portrait ? 0.74 : 0.62) : 0.5, snap.scene === 'lobby' ? (portrait ? 0.5 : 0.38) : 0.5);
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, 'rgba(10, 14, 16, 0.45)');
@@ -748,53 +749,86 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
 
   if (snap.scene === 'lobby') {
     ctx.fillStyle = '#fff4d9';
-    ctx.font = 'bold 58px serif';
-    ctx.fillText('唐宋荣耀', 56, h - 120);
-    ctx.fillStyle = '#f7e6bf';
-    ctx.font = '20px serif';
-    ctx.fillText('汴京演武 · 5v5 实时匹配', 58, h - 82);
+    if (portrait) {
+      ctx.font = 'bold 52px serif';
+      ctx.fillText('唐宋荣耀', 32, 148);
+      ctx.fillStyle = '#f7e6bf';
+      ctx.font = '18px serif';
+      ctx.fillText('汴京演武 · 5v5 实时匹配', 34, 186);
+    } else {
+      ctx.font = 'bold 58px serif';
+      ctx.fillText('唐宋荣耀', 56, h - 120);
+      ctx.fillStyle = '#f7e6bf';
+      ctx.font = '20px serif';
+      ctx.fillText('汴京演武 · 5v5 实时匹配', 58, h - 82);
+    }
   } else if (snap.scene === 'select') {
     const hero = HEROES[(snap.heroId as HeroId) ?? 'sushi'] ?? HEROES.sushi;
     const pcImg = preloadImage(hero.assets.pc);
     if (pcImg?.complete && pcImg.naturalWidth > 0) {
-      const targetH = h * 0.86;
-      const targetW = targetH * (pcImg.naturalWidth / pcImg.naturalHeight);
-      ctx.drawImage(pcImg, (w - targetW) * 0.5, h - targetH, targetW, targetH);
+      const targetH = portrait ? h * 0.56 : h * 0.86;
+      const ratio = pcImg.naturalWidth / pcImg.naturalHeight;
+      const targetW = Math.min(w * 0.88, targetH * ratio);
+      const drawH = targetW / ratio;
+      ctx.drawImage(pcImg, (w - targetW) * 0.5, (portrait ? h * 0.68 : h) - drawH, targetW, drawH);
     }
     ctx.fillStyle = '#fff5dc';
-    ctx.font = 'bold 42px serif';
-    ctx.fillText(`${hero.era} · ${hero.name}`, 36, 92);
+    ctx.font = portrait ? 'bold 34px serif' : 'bold 42px serif';
+    ctx.fillText(`${hero.era} · ${hero.name}`, portrait ? 28 : 36, portrait ? 72 : 92);
   } else if (snap.scene === 'loading') {
     ctx.fillStyle = '#fce3a6';
     ctx.textAlign = 'center';
-    ctx.font = 'bold 34px serif';
-    ctx.fillText('汴京演武 · 5v5 对阵', w / 2, 58);
+    ctx.font = portrait ? 'bold 28px serif' : 'bold 34px serif';
+    ctx.fillText('汴京演武 · 5v5 对阵', w / 2, portrait ? 72 : 58);
     ctx.font = 'bold 28px serif';
     ctx.fillStyle = '#e9bd62';
-    ctx.fillText('VS', w / 2, h / 2 + 12);
+    ctx.fillText('VS', w / 2, portrait ? 488 : h / 2 + 12);
     const blue = snap.teams?.blue ?? ['sushi', 'qinqiong', 'xinqiji', 'wencheng', 'huarui'];
     const red = snap.teams?.red ?? ['liue', 'qinqiong', 'xinqiji', 'wencheng', 'huarui'];
-    const drawTeam = (list: string[], startX: number, color: string) => {
-      list.slice(0, 5).forEach((id, i) => {
-        const x = startX + i * 74;
-        const y = 128;
-        ctx.fillStyle = 'rgba(28, 17, 12, 0.88)';
-        ctx.fillRect(x, y, 64, 240);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, 64, 240);
-        const hero = HEROES[id as HeroId] ?? HEROES.sushi;
-        const port = preloadImage(hero.assets.portrait);
-        if (port?.complete && port.naturalWidth > 0) {
-          ctx.drawImage(port, x + 2, y + 2, 60, 185);
-        }
-        ctx.fillStyle = '#fff2d2';
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText(hero.name, x + 32, y + 216);
-      });
-    };
-    drawTeam(blue, 44, '#6bb4db');
-    drawTeam(red, w - 44 - 5 * 74 + 10, '#f05a46');
+    if (portrait) {
+      const drawRow = (list: string[], y: number, color: string) => {
+        list.slice(0, 5).forEach((id, i) => {
+          const x = 24 + i * 100;
+          ctx.fillStyle = 'rgba(28, 17, 12, 0.88)';
+          ctx.fillRect(x, y, 92, 210);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, 92, 210);
+          const hero = HEROES[id as HeroId] ?? HEROES.sushi;
+          const port = preloadImage(hero.assets.portrait);
+          if (port?.complete && port.naturalWidth > 0) {
+            ctx.drawImage(port, x + 2, y + 2, 88, 162);
+          }
+          ctx.fillStyle = '#fff2d2';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.fillText(hero.name, x + 46, y + 190);
+        });
+      };
+      drawRow(blue, 210, '#6bb4db');
+      drawRow(red, 540, '#f05a46');
+    } else {
+      const drawTeam = (list: string[], startX: number, color: string) => {
+        list.slice(0, 5).forEach((id, i) => {
+          const x = startX + i * 74;
+          const y = 128;
+          ctx.fillStyle = 'rgba(28, 17, 12, 0.88)';
+          ctx.fillRect(x, y, 64, 240);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, 64, 240);
+          const hero = HEROES[id as HeroId] ?? HEROES.sushi;
+          const port = preloadImage(hero.assets.portrait);
+          if (port?.complete && port.naturalWidth > 0) {
+            ctx.drawImage(port, x + 2, y + 2, 60, 185);
+          }
+          ctx.fillStyle = '#fff2d2';
+          ctx.font = 'bold 13px sans-serif';
+          ctx.fillText(hero.name, x + 32, y + 216);
+        });
+      };
+      drawTeam(blue, 44, '#6bb4db');
+      drawTeam(red, w - 44 - 5 * 74 + 10, '#f05a46');
+    }
   }
   return cv;
 }
@@ -900,7 +934,7 @@ export function playTangSongTransition(kind: TransitionKind, opts: PlayTransitio
   stopActiveTransition();
 
   const w = Math.max(320, Math.min(1600, Math.round(window.innerWidth * Math.min(window.devicePixelRatio || 1, 1.5))));
-  const h = Math.max(240, Math.min(900, Math.round(window.innerHeight * Math.min(window.devicePixelRatio || 1, 1.5))));
+  const h = Math.max(240, Math.min(1600, Math.round(window.innerHeight * Math.min(window.devicePixelRatio || 1, 1.5))));
   overlayCanvas.width = w;
   overlayCanvas.height = h;
   overlayCanvas.style.display = 'block';
