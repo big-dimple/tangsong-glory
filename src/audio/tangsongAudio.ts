@@ -1597,16 +1597,44 @@ export function attachTangSongSfx(
       playGuqin(p, midi(62), 0.6, 1.8, 0.7);
       playBianzhong(p, midi(62), 0.6, 1.6, 0.46);
     });
-    // 隐草：竹叶轻拂 + 极轻一声高音洞箫气声（不抢战斗声）
-    cue(CUE_KEYS['stealth-in'], { len: 0.65, gap: 0.45, rev: 0.3 }, (p) => {
-      p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, fc1: 880, fct: 0.24, q: 1.4, t: 0, a: 0.015, h: 0.05, d: 0.2, g: 0.11 });
-      playXiao(p, midi(86), 0.02, 0.36, 0.22);
+    // 隐草（方案 1 · 干脆拨草）：双层物理草叶沙沙 + 极轻衣袂落定闷声，零乐器笛哨杂音
+    cue(CUE_KEYS['stealth-in'], { len: 0.28, gap: 0.35, rev: 0.06 }, (p) => {
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3400, fc1: 1750, fct: 0.09, q: 1.6, t: 0, a: 0.008, h: 0.018, d: 0.085, g: 0.14 });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1050, fc1: 520, fct: 0.16, q: 1.2, t: 0.025, a: 0.015, h: 0.035, d: 0.13, g: 0.16 });
+      p.osc({ w: 'sine', f: 96, f1: 58, ft: 0.09, t: 0.04, a: 0.008, d: 0.085, g: 0.07 });
     });
     // 硬控爆发（击飞 / 眩晕 / 击退 / 聚拢）：沉稳建鼓低频重砸 + 编钟清脆震音，加强打击确认感
     cue('fx_cc_impact', { len: 0.55, gap: 0.16, poly: 2, prio: 2, rev: 0.14, range: 36, jitter: 0.06 }, (p) => {
       playWarDrum(p, 0, 0.72, 1.12);
       playBianzhong(p, midi(79), 0.012, 0.24, 0.48);
       p.noise({ k: 'pink', flt: 'bandpass', fc: 1750, q: 1.1, t: 0, a: 0.002, d: 0.07, g: 0.24 });
+    });
+    // 刘娥·青石石化：低沉石印镇封 + 矿物结晶锁紧脆鸣
+    cue('fx_petrify_hit', { len: 0.52, gap: 0.14, poly: 2, prio: 3, rev: 0.14, range: 40, jitter: 0.05 }, (p) => {
+      p.osc({ f: 145, f1: 58, ft: 0.12, a: 0.002, d: 0.28, g: 0.62 });
+      playSealThump(p, 0.005, 0.85, 0.78);
+      p.noise({ k: 'white', flt: 'bandpass', fc: 3200, fc1: 4600, fct: 0.14, q: 2.2, t: 0.012, a: 0.004, d: 0.14, g: 0.28 });
+      playQing(p, midi(62), 0.015, 0.24, 0.38);
+    });
+    // 刘娥·石化崩解：三声错落碎岩爆裂 + 碎石洒落
+    cue('fx_petrify_break', { len: 0.42, gap: 0.14, poly: 2, prio: 2, rev: 0.12, range: 40, jitter: 0.06 }, (p) => {
+      [0, 0.032, 0.068].forEach((t, i) => {
+        p.noise({ k: 'white', flt: 'bandpass', fc: 2400 + i * 1300, q: 1.8, t, a: 0.001, d: 0.055, g: 0.34 - i * 0.06 });
+      });
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1100, fc1: 380, fct: 0.2, q: 1.1, t: 0.01, a: 0.004, d: 0.22, g: 0.26 });
+      p.osc({ f: 195, f1: 72, ft: 0.08, t: 0, a: 0.002, d: 0.12, g: 0.28 });
+    });
+    // 苏轼·赤壁墨封：泼墨顿笔声 + 清脆收弦泛音定格
+    cue('fx_ink_seal', { len: 0.46, gap: 0.14, poly: 2, prio: 3, rev: 0.18, range: 40, jitter: 0.05 }, (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1650, fc1: 440, fct: 0.18, q: 1.2, t: 0, a: 0.005, d: 0.18, g: 0.32 });
+      playGuqin(p, midi(74), 0.01, 0.24, 0.58);
+      playQing(p, midi(81), 0.02, 0.18, 0.32);
+    });
+    // 轻功腾空起势：衣袂御风上扬呼啸 + 高频气丝 + 极轻风铃点缀
+    cue('fx_qinggong_soar', { len: 0.48, gap: 0.2, poly: 2, prio: 3, rev: 0.16, range: 42, jitter: 0.05 }, (p) => {
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 420, fc1: 2200, fct: 0.24, q: 1.4, t: 0, a: 0.015, h: 0.08, d: 0.2, g: 0.28 });
+      p.noise({ k: 'white', flt: 'highpass', fc: 3400, t: 0.04, a: 0.02, d: 0.18, g: 0.15 });
+      playQing(p, midi(86), 0.03, 0.22, 0.22);
     });
   }
 

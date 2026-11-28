@@ -10,8 +10,16 @@
 import { kitOf } from '../config/heroes';
 import { cinematicFlowEnabled } from '../ui/tangsongMotion';
 import type { MonsterVfxHelpers, MonsterVfxKit } from './tangsongMonsterVfx';
+import {
+  playInkSealCast,
+  playLiueSealSlam,
+  playPetrifyCast,
+  playSushiWaveWall,
+  type SkillsExHelpers,
+  type SkillsExKit,
+} from './tangsongSkillsEx';
 
-export type CcKind = 'airborne' | 'stun' | 'knockback' | 'pull';
+export type CcKind = 'airborne' | 'stun' | 'knockback' | 'pull' | 'petrify' | 'ink_seal';
 
 export interface CcPopupSpec {
   text: string;
@@ -41,6 +49,8 @@ export interface ImpactStateLike {
 const CC_POPUPS: Record<CcKind, CcPopupSpec> = {
   airborne: { text: '击飞!', color: '#fff099', stroke: 'rgba(92,42,0,0.96)', size: 19 },
   stun: { text: '眩晕!', color: '#ffc966', stroke: 'rgba(84,28,0,0.96)', size: 18 },
+  petrify: { text: '石化!', color: '#e9d2ff', stroke: 'rgba(54,18,88,0.96)', size: 20 },
+  ink_seal: { text: '墨封!', color: '#b4fff0', stroke: 'rgba(10,42,48,0.96)', size: 20 },
   knockback: { text: '击退!', color: '#ff9468', stroke: 'rgba(86,16,8,0.96)', size: 17 },
   pull: { text: '聚拢!', color: '#84f5e4', stroke: 'rgba(8,52,58,0.96)', size: 17 },
 };
@@ -181,16 +191,23 @@ export function playImpactFx(
       return;
     }
 
-    if (cc === 'stun') {
-      bn(kit, tx, tz, 1.9, 0.38, Lt(0xffc966), 1.5, 0.2, 0.28);
-      spawnRingParticles(kit, Mt.bolt, Lt(0xfff0aa), Lt(0xff8c24), tx, 1.3, tz, 10, 3.6, 1.4, 3.8, 0.32, 0.24);
-      spawnRingParticles(kit, Mt.glint, Lt(0xffffff), Lt(0xffc966), tx, 1.4, tz, 8, 2.4, 0.8, 2.6, 0.34, 0.2);
-      vs(kit, tx, 1.25, tz, 1.45, Lt(0xfff5cc), Lt(0xffa030), 0, 0, 8, 0.12, 10);
+    if (cc === 'stun' || cc === 'petrify' || cc === 'ink_seal') {
+      const isPet = cc === 'petrify';
+      const isInk = cc === 'ink_seal';
+      const cMain = isPet ? Lt(0xd488ff) : isInk ? Lt(0x64e0cb) : Lt(0xffc966);
+      const cSpark = isPet ? Lt(0xe8d4ff) : isInk ? Lt(0xb4fff0) : Lt(0xfff0aa);
+      const cHotStun = isPet ? Lt(0xf5ebff) : isInk ? Lt(0xe8fff9) : Lt(0xfff5cc);
+      bn(kit, tx, tz, isPet || isInk ? 2.15 : 1.9, 0.38, cMain, 1.55, 0.22, 0.28);
+      spawnRingParticles(kit, Mt.bolt, cSpark, cMain, tx, 1.3, tz, 10, 3.6, 1.4, 3.8, 0.32, 0.24);
+      spawnRingParticles(kit, Mt.glint, Lt(0xffffff), cMain, tx, 1.4, tz, 8, 2.4, 0.8, 2.6, 0.34, 0.2);
+      vs(kit, tx, 1.25, tz, 1.5, cHotStun, cMain, 0, 0, 8, 0.12, 10);
+      if (isPet) playPetrifyCast(kit as unknown as SkillsExKit, tx, tz, fx as unknown as SkillsExHelpers);
+      if (isInk) playInkSealCast(kit as unknown as SkillsExKit, tx, tz, fx as unknown as SkillsExHelpers);
       if (typeof ev.targetId === 'number') {
-        kits.anchors.flashTint?.(ev.targetId, Lt(0xffdc80), 0.78, 0.24);
+        kits.anchors.flashTint?.(ev.targetId, isPet ? Lt(0x9ea8b4) : isInk ? Lt(0x1e282d) : Lt(0xffdc80), 0.82, 0.26);
       }
-      kit.shake(mine ? 0.17 : 0.07, tx, tz);
-      if (mine) triggerHitStop(0.042);
+      kit.shake(mine ? 0.19 : 0.08, tx, tz);
+      if (mine) triggerHitStop(isPet || isInk ? 0.048 : 0.042);
       return;
     }
 
@@ -260,9 +277,17 @@ export function playImpactFx(
       case 'xingli_vortex':
       case 'xingli_wave': {
         const isVortex = ev.style === 'xingli_vortex';
+        const actor = typeof ev.unitId === 'number' ? kit.anchors.unit(ev.unitId) : undefined;
+        const isLiue = (actor as { heroId?: string } | undefined)?.heroId === 'liue';
         kit.decals.add(Xt.rune, x, z, r, 0.85).params(8, 1.1).color(cGlow, 1.85, 0.94).under(cDeep, 0.35);
         spawnRingParticles(kit, Mt.glint, cHot, cGlow, x, 0.5, z, isVortex ? 16 : 12, isVortex ? 3.2 : 4.8, 3.8, 8.2, 0.52, 0.26);
         bn(kit, x, z, r * 0.95, 0.46, cHot, 1.55, 0.22, 0.28);
+        if (isVortex && isLiue && (fx as unknown as SkillsExHelpers).qe) {
+          playLiueSealSlam(kit as unknown as SkillsExKit, x, z, r, fx as unknown as SkillsExHelpers);
+        }
+        if (!isVortex && !isLiue && (fx as unknown as SkillsExHelpers).qe) {
+          playSushiWaveWall(kit as unknown as SkillsExKit, x, z, r, fx as unknown as SkillsExHelpers);
+        }
         kit.light(x, z, 1.8, cGlow, 5.5, r * 2, 0.34);
         if (mine && isVortex) triggerHitStop(0.042);
         break;

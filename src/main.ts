@@ -104,6 +104,7 @@ import { hasTeamSight, teamVision } from './visuals/teamVision';
 import { RenderResolution } from './visuals/renderResolution';
 import { beginEntryShot, filmFrame, patchFinalShader, pulseUltExposure } from './visuals/tangsongFilm';
 import { TANGSONG_IMPACT_API } from './visuals/tangsongImpact';
+import { TANGSONG_SKILLS_EX_API } from './visuals/tangsongSkillsEx';
 import {
   installTransitionDebugHandle,
   playTangSongTransition,
@@ -327,6 +328,7 @@ bootTangSongGlory({
   ) => patchTangSongSpriteAtlas(vb, Ft, api),
   combatFeel: TANGSONG_COMBAT_FEEL,
   impact: TANGSONG_IMPACT_API,
+  skillsEx: TANGSONG_SKILLS_EX_API,
   items: TANGSONG_ITEMS_API,
   teamTactics,
   heroes3D: {
@@ -431,8 +433,12 @@ bootTangSongGlory({
   onSettingsChange() {
     syncMotionClasses();
   },
-  onFrame(renderer: Parameters<typeof filmFrame>[0], dt: number, state: Parameters<typeof updateStealth>[0]) {
-    filmFrame(renderer, dt);
+  onFrame(
+    renderer: Parameters<typeof filmFrame>[0],
+    dt: number,
+    state: Parameters<typeof updateStealth>[0] & Parameters<typeof filmFrame>[2],
+  ) {
+    filmFrame(renderer, dt, state);
     updateStealth(state, () => playTangSongCue('stealth-in'));
   },
   onPhaseChange(phase: string) {

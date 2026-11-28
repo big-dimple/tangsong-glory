@@ -149,10 +149,29 @@ interface FilmRendererLike {
   engine?: FilmEngineLike;
 }
 
+interface FilmStateLike {
+  playerId?: number;
+  heroes?: { id: number; alive?: boolean; buffs?: { id: string; key?: string }[] }[];
+}
+
 const toned = new WeakSet<object>();
 let ultPulseAge = Infinity;
 let entryAge = Infinity;
+let flightZoom = 0;
 let filmTime = 0;
+
+function isPlayerFlying(state: FilmStateLike | null | undefined): boolean {
+  const heroes = state?.heroes;
+  if (!heroes) return false;
+  const me = heroes.find((h) => h.id === state?.playerId) ?? heroes[0];
+  if (!me || me.alive === false || !me.buffs) return false;
+  return me.buffs.some(
+    (b) =>
+      b.id === 'chijin_spin' ||
+      b.id === 'ts_qinggong_wencheng' ||
+      (b.id === 'untargetable' && b.key === 'yeque_ult'),
+  );
+}
 
 /** 我方大招出手时调用。关闭「演出动效」时不呼吸。 */
 export function pulseUltExposure(): void {
@@ -233,7 +252,11 @@ function applyEntryShot(engine: FilmEngineLike): void {
 }
 
 /** K2 每帧钩子：内核推进完阵亡色调之后、渲染之前调用。 */
-export function filmFrame(renderer: FilmRendererLike | null | undefined, dt: number): void {
+export function filmFrame(
+  renderer: FilmRendererLike | null | undefined,
+  dt: number,
+  state?: FilmStateLike | null,
+): void {
   const engine = renderer?.engine;
   if (!engine) return;
   const step = dt > 0 ? Math.min(dt, 0.1) : 0;
@@ -242,5 +265,21 @@ export function filmFrame(renderer: FilmRendererLike | null | undefined, dt: num
   if (entryAge !== Infinity) {
     applyEntryShot(engine);
     entryAge += step;
+  } else {
+    const flying = cinematicFlowEnabled() && isPlayerFlying(state);
+    const targetZoom = flying ? 1 : 0;
+    if (flightZoom > 0.001 || targetZoom > 0) {
+      const rate = flying ? 5.5 : 4.2;
+      flightZoom += (targetZoom - flightZoom) * Math.min(1, step * rate);
+      if (flightZoom < 0.001 && targetZoom === 0) flightZoom = 0;
+      const rig = engine.rig;
+      if (rig && typeof rig.applyLens === 'function') {
+        rig.applyLens();
+        if (flightZoom > 0) {
+          rig.distance *= 1 + 0.07 * flightZoom;
+          rig.pitch -= 0.042 * flightZoom;
+        }
+      }
+    }
   }
 }
