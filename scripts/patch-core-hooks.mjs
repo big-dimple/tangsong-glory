@@ -31,8 +31,12 @@ const patches = [
     'uDesaturate:{value:0},uDim:{value:0}',
     'uDesaturate:{value:0},uDim:{value:0},uTsTime:{value:0}',
   ],
-  // K2 每帧钩子：阵亡色调推进之后、渲染之前，表现层在这里写成片参数与入画镜头
-  ['q(lt.dt),d?.render(v,lt.alpha,lt.dt);', 'q(lt.dt),tsConfig.onFrame?.(d,lt.dt,v),d?.render(v,lt.alpha,lt.dt);'],
+  // K2 每帧钩子：阵亡色调推进之后、渲染之前，表现层在这里写成片参数、入画镜头与微顿帧 dt 缩放
+  [
+    'q(lt.dt),d?.render(v,lt.alpha,lt.dt);',
+    'q(lt.dt),tsConfig.onFrame?.(d,lt.dt,v),d?.render(v,lt.alpha,tsConfig.impact?.scaleRenderDt?.(lt.dt)??lt.dt);',
+    'q(lt.dt),tsConfig.onFrame?.(d,lt.dt,v),d?.render(v,lt.alpha,lt.dt);',
+  ],
   // K4 加载页关闭时长
   [
     'f.classList.add("is-closing"),window.setTimeout(()=>{d.dispose(),f.remove()},400)',
@@ -334,6 +338,153 @@ const patches = [
   [
     'k=()=>v.setVolumes({master:_.masterVolume,sfx:_.sfxVolume,music:_.musicVolume});k();',
     'k=()=>{v.setVolumes({master:_.masterVolume,sfx:_.sfxVolume,music:_.musicVolume});v.music?.setBattleBgmEnabled?.(_.battleBgm!==!1)};k();',
+  ],
+  // K20 召唤师技能全量更名：「闪现」→「闪身步」
+  [
+    'flash:{name:"闪现",brief:"朝一个方向瞬移一小段",desc:"向指定方向瞬移一小段距离，可穿越薄墙。",range:5,cooldown:110}',
+    'flash:{name:"闪身步",brief:"朝一个方向凌波瞬移一小段",desc:"脚踏闪身步向指定方向瞬移一小段距离，可穿越薄墙。",range:5,cooldown:110}',
+  ],
+  [
+    'cast_flash:At("技能施放","闪现·启动"',
+    'cast_flash:At("技能施放","闪身步·启动"',
+  ],
+  [
+    'fx_flash:At("状态与系统","闪现"',
+    'fx_flash:At("状态与系统","闪身步"',
+  ],
+  [
+    '<em>F</em> 闪现(朝鼠标) · <em>G</em> 疗伤 · <em>B</em> 回城',
+    '<em>F</em> 闪身步(朝鼠标) · <em>G</em> 疗伤 · <em>B</em> 回城',
+  ],
+  [
+    '闪现(可拖动选方向) · 疗伤 · 回城',
+    '闪身步(可拖动选方向) · 疗伤 · 回城',
+  ],
+  [
+    'z("span",null,...l("F","G","B"),"闪现 / 疗伤 / 回城")',
+    'z("span",null,...l("F","G","B"),"闪身步 / 疗伤 / 回城")',
+  ],
+  [
+    '/* 通用技能键的名字(闪现 / 疗伤 / 回城)：',
+    '/* 通用技能键的名字(闪身步 / 疗伤 / 回城)：',
+  ],
+  // K21 王者风格英文高燃播报语音 + 首杀/连杀公屏公告（带英文大字副标）
+  [
+    'const MT={first_blood:"第一滴血",double_kill:"双杀",triple_kill:"三连破阵",quadra_kill:"四海惊雷",penta_kill:"五杀，名垂青史",killing_spree:"势如破竹",unstoppable:"锐不可当",legendary:"千古风流",shutdown:"终结连胜",ace:"敌军全灭",victory:"大获全胜",defeat:"败走沙场"},kT=[];function ST(n){const t=n.filter(e=>/^zh([-_]|$)/i.test(e.lang));return t[0]??null}',
+    'const MT={first_blood:"First Blood!",double_kill:"Double Kill!",triple_kill:"Triple Kill!",quadra_kill:"Quadra Kill!",penta_kill:"Penta Kill!",killing_spree:"Killing Spree!",unstoppable:"Unstoppable!",legendary:"Legendary!",shutdown:"Shut Down!",ace:"Aced!",victory:"Victory!",defeat:"Defeat!"},kT=[];function ST(n){const e=n.filter(t=>/^en([-_]|$)/i.test(t.lang));if(!e.length)return null;const p=e.find(t=>/Aria|Jenny|Sonia|Libby|Emma|Guy|Google US English|Google UK English|Samantha|Zira|David|Natural/i.test(t.name));return p??e[0]}',
+  ],
+  [
+    'o.lang=this.voice.lang,o.voice=this.voice,o.rate=.92,o.pitch=e?.5:.75,o.volume=this.volume',
+    'o.lang=this.voice.lang,o.voice=this.voice,o.rate=.96,o.pitch=e?.88:1.03,o.volume=this.volume',
+  ],
+  [
+    'E2={first_blood:"首杀",double_kill:"双杀",triple_kill:"三杀",quadra_kill:"四杀",penta_kill:"五杀·名垂青史",killing_spree:"锐不可当",unstoppable:"气吞万里",legendary:"千古风流",shutdown:"终结"};',
+    'E2={first_blood:"首杀",double_kill:"双杀",triple_kill:"三连决胜",quadra_kill:"四连超凡",penta_kill:"五连绝世",killing_spree:"锋芒毕露",unstoppable:"天下无双",legendary:"超神",shutdown:"终结"};const _tsAnnEn={first_blood:"FIRST BLOOD",double_kill:"DOUBLE KILL",triple_kill:"TRIPLE KILL",quadra_kill:"QUADRA KILL",penta_kill:"PENTA KILL",killing_spree:"KILLING SPREE",unstoppable:"UNSTOPPABLE",legendary:"LEGENDARY",shutdown:"SHUT DOWN",ace:"ACED",victory:"VICTORY",defeat:"DEFEAT"};',
+  ],
+  [
+    'z("div","sf-hud__banner-text",z("div","sf-hud__banner-title sf-metal",p.title),p.sub?z("div","sf-hud__banner-sub",...p.sub):null)',
+    'z("div","sf-hud__banner-text",z("div","sf-hud__banner-title sf-metal",p.title),p.en?z("div","ts-banner-en",p.en):null,p.sub?z("div","sf-hud__banner-sub",...p.sub):null)',
+  ],
+  [
+    'if(!g&&(!k||v.isPlayer))return null;const M=Na(y.host,v,y.team,"is-dead");if(!_){const C=y.unit(p.killerId)?.kind,R=C==="tower"||C==="core"?"防御塔":C==="monster"?"野怪":C==="minion"?"小兵":"战场",I=Vt(C==="tower"||C==="core"?"tower":C==="monster"?"monster":"cs"),P=v.team===0?1:0;return{tier:2,tone:v.team===y.team?"foe":"ally",title:"助攻",sub:[h(v,y),`被${R}击杀`],left:Rl(I,Dl(P,y.team)),right:M,slain:!0}}const S=_.team===y.team?"ally":"foe",b=g?.key??null;let w=b?E2[b]??"击杀":_.isPlayer?"击杀":"助攻",T=b?p4[b]:2,E;return b==="shutdown"?E=[h(_,y),"终结了",h(v,y),"的连杀"]:b==="killing_spree"||b==="unstoppable"||b==="legendary"?E=[h(_,y),`已连续击杀 ${p.streak} 人`]:E=[h(_,y),"击杀了",h(v,y)],b==="legendary"&&p.streak>7&&(w=`${w}·${p.streak}连杀`),_.isPlayer&&T<4&&b&&(T=T+1),_.isPlayer&&p.bounty>0&&E.push(z("span","is-gold",_e(Vt("gold")),`+${Math.round(p.bounty)}`)),{tier:T,tone:S,title:w,sub:E,left:Na(y.host,_,y.team),right:M,slain:!0}',
+    'const M=Na(y.host,v,y.team,"is-dead");if(!_){if(!g&&(!k||v.isPlayer))return null;const C=y.unit(p.killerId)?.kind,R=C==="tower"||C==="core"?"防御塔":C==="monster"?"野怪":C==="minion"?"小兵":"战场",I=Vt(C==="tower"||C==="core"?"tower":C==="monster"?"monster":"cs"),P=v.team===0?1:0;return{tier:2,tone:v.team===y.team?"foe":"ally",title:"助攻",en:null,sub:[h(v,y),`被${R}击杀`],left:Rl(I,Dl(P,y.team)),right:M,slain:!0}}const S=_.team===y.team?"ally":"foe",b=g?.key??null;if(!g&&!k)return{tier:1,tone:S,title:"击败",en:S==="ally"?"ENEMY SLAIN":"ALLY SLAIN",sub:[h(_,y),"击杀了",h(v,y)],left:Na(y.host,_,y.team),right:M,slain:!0};let w=b?E2[b]??"击杀":_.isPlayer?"击杀":"助攻",T=b?p4[b]:2,E;return b==="shutdown"?E=[h(_,y),"终结了",h(v,y),"的连杀"]:b==="killing_spree"||b==="unstoppable"||b==="legendary"?E=[h(_,y),`已连续击杀 ${p.streak} 人`]:E=[h(_,y),"击杀了",h(v,y)],b==="legendary"&&p.streak>7&&(w=`${w}·${p.streak}连杀`),_.isPlayer&&T<4&&b&&(T=T+1),_.isPlayer&&p.bounty>0&&E.push(z("span","is-gold",_e(Vt("gold")),`+${Math.round(p.bounty)}`)),{tier:T,tone:S,title:w,en:b?(_tsAnnEn[b]??null):(_.isPlayer?"ELIMINATED":null),sub:E,left:Na(y.host,_,y.team),right:M,slain:!0}',
+  ],
+  [
+    'case"ace":return{...M,title:"团灭",sub:[y?"敌方全员阵亡，趁现在推塔！":"我方全员阵亡，守住玉玺！"]};case"victory":case"defeat":return{...M,title:y?"敌方玉玺已摧毁":"我方玉玺被摧毁",sub:[y?"我方获胜":"敌方获胜"]};',
+    'case"ace":return{...M,title:"团灭",en:_tsAnnEn.ace,sub:[y?"敌方全员阵亡，趁现在推塔！":"我方全员阵亡，守住玉玺！"]};case"victory":case"defeat":return{...M,title:y?"敌方玉玺已摧毁":"我方玉玺被摧毁",en:y?_tsAnnEn.victory:_tsAnnEn.defeat,sub:[y?"我方获胜":"敌方获胜"]};',
+  ],
+  // K22 大胆高燃技能打击感与硬控反馈（击飞/眩晕/击退/聚拢 + 3D 抛空悬停 + 飘字 + 微顿帧）
+  [
+    'function Gj(n,t,e,s){return Wn(n,t,"stun",{duration:e,sourceId:s?s.id:-1})!==null}function yS(n,t,e,s){return Wn(n,t,"airborne",{duration:e,sourceId:s?s.id:-1})!==null}',
+    'function Gj(n,t,e,s){const r=Wn(n,t,"stun",{duration:e,sourceId:s?s.id:-1})!==null;return r&&t.kind==="hero"&&ds(n,"cc_impact",t.pos,s?s.team:t.team,{unitId:s?s.id:-1,targetId:t.id,cc:"stun"}),r}function yS(n,t,e,s){const r=Wn(n,t,"airborne",{duration:e,sourceId:s?s.id:-1})!==null;return r&&t.kind==="hero"&&ds(n,"cc_impact",t.pos,s?s.team:t.team,{unitId:s?s.id:-1,targetId:t.id,cc:"airborne"}),r}',
+  ],
+  [
+    'function Yj(n,t,e,s,i=14){const a=e.x-t.pos.x,o=e.y-t.pos.y,r=Math.hypot(a,o);return r<.05?!1:dW(n,t,a,o,Math.min(s,r),i)}',
+    'function Yj(n,t,e,s,i=14){const a=e.x-t.pos.x,o=e.y-t.pos.y,r=Math.hypot(a,o);if(r<.05)return!1;const ok=dW(n,t,a,o,Math.min(s,r),i);return ok&&t.kind==="hero"&&ds(n,"cc_impact",t.pos,t.team,{unitId:-1,targetId:t.id,cc:"pull",dx:a,dy:o}),ok}function _tsKb(n,t,e,s,i=15,c){if(!t||!t.alive)return!1;let a=t.pos.x-e.x,o=t.pos.y-e.y;const r=Math.hypot(a,o);r<.05?(a=c?Math.cos(c.facing):1,o=c?Math.sin(c.facing):0):(a/=r,o/=r);const ok=dW(n,t,a,o,s,i);return ok&&t.kind==="hero"&&ds(n,"cc_impact",t.pos,c?c.team:t.team,{unitId:c?c.id:-1,targetId:t.id,cc:"knockback",dx:a,dy:o}),ok}',
+  ],
+  [
+    'ds(t,"panyue_s1_impact",e.pos,e.team,{unitId:e.id,radius:a});for(const r of Pr(t,e.pos,a,s))wo(n,r,o,"physical"),yS(t,r,n.val("knockup"),e)}})}});Oi("panyue","s2"',
+    'ds(t,"panyue_s1_impact",e.pos,e.team,{unitId:e.id,radius:a}),ds(t,"skill_spectacle",e.pos,e.team,{unitId:e.id,style:"panyue_slam",radius:a});for(const r of Pr(t,e.pos,a,s))wo(n,r,o,"physical"),yS(t,r,Math.max(.85,n.val("knockup")),e),_tsKb(t,r,e.pos,1.8,14,e)}})}});Oi("panyue","s2"',
+  ],
+  [
+    'for(const o of Pr(t,e.pos,n.radius,ia(e.team)))wo(n,o,a,"magic"),tr(t,o,n.val("slow"),n.val("slowDur"),e,"panyue_s2")}});',
+    'for(const o of Pr(t,e.pos,n.radius,ia(e.team)))wo(n,o,a,"magic"),tr(t,o,n.val("slow"),n.val("slowDur"),e,"panyue_s2"),o.alive&&(_tsKb(t,o,e.pos,2.1,15,e),Math.hypot(o.pos.x-e.pos.x,o.pos.y-e.pos.y)<2.7&&Gj(t,o,.35,e))}});',
+  ],
+  [
+    'ds(t,"panyue_ult_land",f,e.team,{unitId:e.id,radius:n.radius});for(const h of Pr(t,f,n.radius,a))wo(n,h,d,"physical"),yS(t,h,n.val("knockup"),e);',
+    'ds(t,"panyue_ult_land",f,e.team,{unitId:e.id,radius:n.radius}),ds(t,"skill_spectacle",f,e.team,{unitId:e.id,style:"panyue_ult",radius:n.radius});for(const h of Pr(t,f,n.radius,a))wo(n,h,d,"physical"),yS(t,h,Math.max(1.05,n.val("knockup")),e),_tsKb(t,h,f,1.6,13,e);',
+  ],
+  [
+    'ds(t,"chijin_s1_slash",e.pos,e.team,{unitId:e.id,dir:Cs(n.dir),radius:n.range,angle:n.angle});for(const i of $j(t,e.pos,n.dir,n.range,n.angle,ia(e.team)))wo(n,i,s,"physical"),tr(t,i,n.val("slow"),n.val("slowDur"),e,"chijin_s1")',
+    'ds(t,"chijin_s1_slash",e.pos,e.team,{unitId:e.id,dir:Cs(n.dir),radius:n.range,angle:n.angle}),ds(t,"skill_spectacle",e.pos,e.team,{unitId:e.id,style:"chijin_wave",dir:Cs(n.dir),radius:n.range});for(const i of $j(t,e.pos,n.dir,n.range,n.angle,ia(e.team)))wo(n,i,s,"physical"),tr(t,i,n.val("slow"),n.val("slowDur"),e,"chijin_s1"),i.alive&&_tsKb(t,i,e.pos,2.0,15,e)',
+  ],
+  [
+    'hitRadius:n.width*.5,filter:ia(e.team),onHit(i){wo(n,i,oa(n,"damage",{ad:"adRatio"}),"physical")}})}});Oi("chijin","ult"',
+    'hitRadius:n.width*.5,filter:ia(e.team),onHit(i){wo(n,i,oa(n,"damage",{ad:"adRatio"}),"physical"),i.alive&&i.kind==="hero"&&yS(t,i,.45,e)}})}});Oi("chijin","ult"',
+  ],
+  [
+    'ds(l,"chijin_ult_tick",c.pos,e.team,{unitId:e.id,radius:c.radius});for(const d of Pr(l,c.pos,c.radius,o))wo(n,d,f,"physical");Jj(l,e)',
+    'ds(l,"chijin_ult_tick",c.pos,e.team,{unitId:e.id,radius:c.radius}),r===a&&ds(l,"skill_spectacle",c.pos,e.team,{unitId:e.id,style:"chijin_finisher",radius:c.radius});for(const d of Pr(l,c.pos,c.radius,o))wo(n,d,f,"physical"),r===a&&d.alive&&(_tsKb(l,d,c.pos,2.4,16,e),yS(l,d,.45,e));Jj(l,e)',
+  ],
+  [
+    'onHit(i,a,o){zh(i,e,o,s,"magic",n.slot)}})})}});Oi("xingli","s2"',
+    'onHit(i,a,o){zh(i,e,o,s,"magic",n.slot),o.alive&&o.kind==="hero"&&_tsKb(i,o,e.pos,1.4,13,e)}})})}});Oi("xingli","s2"',
+  ],
+  [
+    'for(const c of Pr(a,o.pos,o.radius,ia(e.team)))wo(n,c,l,"magic"),c.alive&&(Yj(a,c,o.pos,n.val("pull")),tr(a,c,n.val("slow"),n.val("slowDur"),e,"xingli_s2"))',
+    'ds(a,"skill_spectacle",o.pos,e.team,{unitId:e.id,style:"xingli_vortex",radius:o.radius});for(const c of Pr(a,o.pos,o.radius,ia(e.team)))wo(n,c,l,"magic"),c.alive&&(Yj(a,c,o.pos,n.val("pull")),yS(a,c,.55,e),tr(a,c,n.val("slow"),n.val("slowDur"),e,"xingli_s2"))',
+  ],
+  [
+    'for(const r of Pr(a,e,s,ia(t.team)))wo(n,r,o,"magic"),tr(a,r,n.val("slow"),n.val("slowDur"),t,"xingli_ult")',
+    'ds(a,"skill_spectacle",e,t.team,{unitId:t.id,style:"xingli_wave",radius:s});for(const r of Pr(a,e,s,ia(t.team)))wo(n,r,o,"magic"),tr(a,r,n.val("slow"),n.val("slowDur"),t,"xingli_ult")',
+  ],
+  [
+    'onHit(i,a,o){return o.kind!=="hero"?(zh(i,e,o,s*n.val("minionRatio"),"physical",n.slot),!1):(zh(i,e,o,s,"physical",n.slot),tr(i,o,n.val("slow"),n.val("slowDur"),e,"fengling_s1"),!0)}',
+    'onHit(i,a,o){return o.kind!=="hero"?(zh(i,e,o,s*n.val("minionRatio"),"physical",n.slot),!1):(zh(i,e,o,s,"physical",n.slot),tr(i,o,n.val("slow"),n.val("slowDur"),e,"fengling_s1"),o.alive&&(_tsKb(i,o,e.pos,2.4,16,e),Gj(i,o,.5,e),ds(i,"skill_spectacle",o.pos,e.team,{unitId:e.id,style:"fengling_pierce",dir:Cs(n.dir)})),!0)}',
+  ],
+  [
+    'ds(t,"fengling_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Hm(t,e,',
+    'for(const _ch of Pr(t,s,3.2,ia(e.team)))_tsKb(t,_ch,s,2.2,16,e);ds(t,"fengling_s2_dash",s,e.team,{unitId:e.id,from:s,to:by(t,e,n.dir,n.range),dir:Cs(n.dir)}),Hm(t,e,',
+  ],
+  [
+    'ds(t,"fengling_ult_tick",u.pos,e.team,{unitId:e.id,radius:u.radius});for(const x of Pr(t,u.pos,u.radius,ia(e.team)))wo(n,x,m,"physical"),tr(t,x,n.val("slow"),n.val("slowDur"),e,"fengling_ult")',
+    'ds(t,"fengling_ult_tick",u.pos,e.team,{unitId:e.id,radius:u.radius}),f===1&&ds(t,"skill_spectacle",u.pos,e.team,{unitId:e.id,style:"fengling_rain",radius:u.radius});for(const x of Pr(t,u.pos,u.radius,ia(e.team)))wo(n,x,m,"physical"),f===1&&x.alive&&x.kind==="hero"&&yS(t,x,.45,e),tr(t,x,n.val("slow"),n.val("slowDur"),e,"fengling_ult")',
+  ],
+  [
+    'onHit(a){const o=a.kind==="hero";wo(n,a,oa(n,"damage",{ad:"adRatio"}),"physical"),o&&!i&&(i=!0,tq(e,"s1",n.val("refund")))}',
+    'onHit(a){const o=a.kind==="hero";wo(n,a,oa(n,"damage",{ad:"adRatio"}),"physical"),o&&a.alive&&(Gj(t,a,.35,e),_tsKb(t,a,e.pos,1.5,14,e)),o&&!i&&(i=!0,tq(e,"s1",n.val("refund")))}',
+  ],
+  [
+    'onHit(f,d,h){const u=r.has(h.id)?n.val("repeatRatio"):1;r.add(h.id),zh(f,e,h,s*u,"physical",n.slot),tr(f,h,n.val("slow"),n.val("slowDur"),e,"yeque_s2")}',
+    'onHit(f,d,h){const _rep=r.has(h.id),u=_rep?n.val("repeatRatio"):1;r.add(h.id),zh(f,e,h,s*u,"physical",n.slot),_rep&&h.alive&&h.kind==="hero"&&Gj(f,h,.55,e),tr(f,h,n.val("slow"),n.val("slowDur"),e,"yeque_s2")}',
+  ],
+  [
+    'ds(t,"yeque_ult_strike",s.pos,e.team,{unitId:e.id,targetId:s.id,from:i,to:r});const l=oa(n,"damage",{ad:"adRatio"})+n.val("missingRatio")*(s.stats.maxHp-s.hp);wo(n,s,l,"physical")',
+    'ds(t,"yeque_ult_strike",s.pos,e.team,{unitId:e.id,targetId:s.id,from:i,to:r}),ds(t,"skill_spectacle",s.pos,e.team,{unitId:e.id,style:"yeque_cross",targetId:s.id});const l=oa(n,"damage",{ad:"adRatio"})+n.val("missingRatio")*(s.stats.maxHp-s.hp);wo(n,s,l,"physical"),s.alive&&yS(t,s,.65,e)',
+  ],
+  [
+    'Q.anim==="leap"?D.lift=4*3.4*O.p*(1-O.p):Q.anim==="airborne"?D.lift=4*Math.min(2.2,Math.max(.8,Q.animDur*1.7))*O.p*(1-O.p):D.lift=0',
+    'Q.anim==="leap"?D.lift=4*3.4*O.p*(1-O.p):Q.anim==="airborne"?D.lift=Math.pow(Math.max(0,4*O.p*(1-O.p)),.78)*Math.min(3.1,Math.max(1.35,Q.animDur*2.8)):D.lift=0',
+  ],
+  [
+    'ot.moveBlend=D.moveBlend;ot.upperTwist=_tw}else{D.moveBlend=0;ot.moveBlend=0;ot.upperTwist=0}',
+    'ot.moveBlend=D.moveBlend;ot.upperTwist=_tw}else{D.moveBlend=0;ot.moveBlend=0;ot.upperTwist=0}ot.anim==="airborne"&&(_ry+=ot.p*Math.PI*1.15);',
+  ],
+  [
+    'case"levelUp":{if(this.hidden(s.unit(o.unitId),a))break;const r=this.spawn(o.unitId,s,0,0,Al.gold,"",1,1,!1);r&&(r.sprite=this.text.get(`升级 Lv.${o.level}`,17,"#ffe58a","rgba(60,34,0,0.95)",800),r.life=1.5,r.oy-=34);break}}}',
+    'case"levelUp":{if(this.hidden(s.unit(o.unitId),a))break;const r=this.spawn(o.unitId,s,0,0,Al.gold,"",1,1,!1);r&&(r.sprite=this.text.get(`升级 Lv.${o.level}`,17,"#ffe58a","rgba(60,34,0,0.95)",800),r.life=1.5,r.oy-=34);break}case"fx":{if((o.key==="cc_impact"||o.key==="skill_spectacle")&&o.cc&&o.targetId!==void 0){const _u=s.unit(o.targetId);if(_u&&!this.hidden(_u,a)){const _cp=tsConfig.impact?.getCcPopup?.(o.cc);if(_cp){const _r=this.spawn(o.targetId,s,o.pos?.x??0,o.pos?.y??0,Al.gold,"",1.08,1,!1);_r&&(_r.sprite=this.text.get(_cp.text,_cp.size,_cp.color,_cp.stroke,900),_r.life=1.15,_r.oy-=46)}}}break}}}',
+  ],
+  [
+    'x=y=>{const v=$D[y.key];v&&v(t,y,o)}',
+    'x=y=>{if(y.key==="cc_impact"||y.key==="skill_spectacle"){tsConfig.impact?.playImpactFx?.(t,y,o,{qo,bn,Lr,Ni,H0,U0,jo,vs,Lt,Mt,Xt,Ft,oe});return}const v=$D[y.key];v&&v(t,y,o)}',
+  ],
+  [
+    'case"damage":if(y.dtype==="magic"&&t.focusDist(y.pos.x,y.pos.y)<=Jr){const _=t.anchors.unit(y.sourceId);_&&_.kind==="monster"&&_.monsterType==="abyss_drake"&&PP(t,y.sourceId,y.targetId)}break',
+    'case"damage":if(y.crit&&(y.sourceId===o.playerId||y.targetId===o.playerId))tsConfig.impact?.triggerHitStop?.(.036);if(y.dtype==="magic"&&t.focusDist(y.pos.x,y.pos.y)<=Jr){const _=t.anchors.unit(y.sourceId);_&&_.kind==="monster"&&_.monsterType==="abyss_drake"&&PP(t,y.sourceId,y.targetId)}break',
+  ],
+  [
+    'onFx(t,e,s,i,a){const o=`fx_${t.key}`,r=t.unitId===s||t.targetId===s;switch(t.key){case"level_up":',
+    'onFx(t,e,s,i,a){const o=`fx_${t.key}`,r=t.unitId===s||t.targetId===s;switch(t.key){case"skill_spectacle":return;case"cc_impact":if(!r1[o])return;break;case"level_up":',
   ],
 ];
 

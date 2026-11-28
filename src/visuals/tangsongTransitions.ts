@@ -1,16 +1,17 @@
 /**
- * tangsongTransitions.ts — 移植自 5MB 视觉工程的四大原生 WebGL2 GLSL 物理/光学转场引擎
+ * tangsongTransitions.ts — 移植自 5MB 视觉工程的四套纯正 WebGL2 GLSL 高级转场引擎
  *
- * 包含 4 套全 GPU 真实着色器转场（零运行时额外 npm 依赖，空闲时停机且常驻开销 = 0）：
- *   1. wash     (水墨青绿波浪冲刷 + Worley 泡沫蕾丝 + 折射悬挂水珠) — 大厅 → 寻将/点将，战败 → 结算
- *   2. slam     (雕版重印冲击：压印前径向空气暗角变焦 + 纸齿吃墨前沿 + 湿墨浮雕 + 61+37 飞散纤维) — 锁定 → 加载
- *   3. tear     (真实 3D 宣纸自上而下撕裂双半卷边 + 透光纤维毛边 + 36 片飘飞纸屑 + 双层投影) — 加载 → 实机 3D 战场
- *   4. daybreak (破晓 40-tap 黄金角猫眼散景 + 12-tap 清理 + Instanced 金色散景星芒粒子) — 胜利 → 结算殿堂
+ * 彻底移除旧版「高频晃动 slam」与「锯齿撕扯 tear」，全部采用干净克制的物理/光学手法（空闲零消耗）：
+ *   1. flaps    (5MB 3D 机械百叶翻牌矩阵) — 匹配寻将 → 点将殿堂
+ *   2. daybreak (5MB 40-tap 黄金角猫眼散景光学焦外虚化 + 星芒粒子) — 点将锁定 → 加载 / 胜利 → 结算
+ *   3. portal   (5MB 光学窗框透视推进揭幕：金漆宫阙框顺滑扩开直通实机 3D 战场) — 加载 → 实机 3D 战场
+ *   4. wash     (水墨青绿波浪冲刷 + Worley 泡沫蕾丝) — 战败 → 结算
  */
 import { HEROES, type HeroId } from '../config/heroes';
 import { cinematicFlowEnabled } from '../ui/tangsongMotion';
 
-export type TransitionKind = 'wash' | 'slam' | 'tear' | 'daybreak';
+export type TransitionKind = 'flaps' | 'daybreak' | 'portal' | 'wash';
+export type TransitionKindOrAlias = TransitionKind | 'slam' | 'tear';
 
 export interface SnapshotContext {
   scene: 'lobby' | 'matchmake' | 'select' | 'loading' | 'match' | 'result';
@@ -33,18 +34,358 @@ void main() {
 const GLSL_SHARED = `
 float hash12(vec2 p){vec3 p3=fract(vec3(p.xyx)*.1031);p3+=dot(p3,p3.yzx+33.33);return fract((p3.x+p3.y)*p3.z);}
 float hash13(vec3 p3){p3=fract(p3*.1031);p3+=dot(p3,p3.zyx+31.32);return fract((p3.x+p3.y)*p3.z);}
-vec2 hash21(float p){vec3 p3=fract(vec3(p)*vec3(.1031,.1030,.0973));p3+=dot(p3,p3.yzx+33.33);return fract((p3.xx+p3.yz)*p3.zy);}
 vec2 hash22(vec2 p){vec3 p3=fract(vec3(p.xyx)*vec3(.1031,.1030,.0973));p3+=dot(p3,p3.yzx+33.33);return fract((p3.xx+p3.yz)*p3.zy);}
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*f*(f*(f*6.-15.)+10.);return mix(mix(hash12(i),hash12(i+vec2(1,0)),f.x),mix(hash12(i+vec2(0,1)),hash12(i+vec2(1,1)),f.x),f.y);}
-float vnoise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*f*(f*(f*6.-15.)+10.);return mix(mix(mix(hash13(i),hash13(i+vec3(1,0,0)),f.x),mix(hash13(i+vec3(0,1,0)),hash13(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash13(i+vec3(0,0,1)),hash13(i+vec3(1,0,1)),f.x),mix(hash13(i+vec3(0,1,1)),hash13(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec2 p){float a=.5,s=0.;mat2 m=mat2(.8,.6,-.6,.8);for(int i=0;i<4;i++){s+=a*vnoise(p);p=m*p*2.03;a*=.5;}return s;}
-float fbm3(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*vnoise3(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
 vec3 toLin(vec3 c){return mix(c/12.92,pow((c+.055)/1.055,vec3(2.4)),step(.04045,c));}
 vec3 toSrgb(vec3 c){c=max(c,0.);return mix(c*12.92,1.055*pow(c,vec3(1./2.4))-.055,step(.0031308,c));}
 float luma(vec3 c){return dot(c,vec3(.2126,.7152,.0722));}
 `;
 
-// ── 1. wash（青绿水墨冲刷 + Worley 泡沫蕾丝 + 弯曲折射水珠）──
+// ── 1. flaps（移植自 5MB transitions-physical.js：3D 百叶机械翻牌阵列）──
+const FLAPS_DUR_SEC = 1.45;
+const FLAPS_TIMING = `
+${GLSL_SHARED}
+uniform vec2 uGrid;
+uniform float uT;
+float tileStart(vec2 id){
+  vec2 c = (id + .5) / uGrid;
+  float d = (c.x * 1.15 + (1. - c.y) * .85) / 2.;
+  float h = hash12(id + 3.7);
+  return .05 + d * .74 + h * .09 + .025 * sin(c.x * 8. + c.y * 5.);
+}
+int tileN(vec2 id){ return hash12(id + 17.3) > .62 ? 3 : 2; }
+float flipDur(int k, int n){ return k == n - 1 ? .25 : (k == 0 ? .16 : .14); }
+vec3 tileState(vec2 id){
+  float t = uT - tileStart(id);
+  int n = tileN(id);
+  if (t <= 0.) return vec3(-1., 0., t);
+  for (int k = 0; k < n; k++) {
+    float d = flipDur(k, n);
+    if (t < d) {
+      float x = t / d, a;
+      if (k == n - 1) {
+        x = t / (d * .64);
+        if (x < 1.) a = x * x * (1.35 - .35 * x);
+        else {
+          float y = (t - d * .64) / (d * .36);
+          a = 1. - .075 * sin(y * 3.14159) * (1. - y);
+        }
+      } else {
+        a = pow(x, 1.7);
+      }
+      return vec3(float(k), a * 3.14159265, 0.);
+    }
+    t -= d;
+  }
+  return vec3(float(n), 0., t);
+}
+vec3 midCard(vec2 f, vec2 id){
+  float h = hash12(id + 8.1);
+  vec3 obsidian = vec3(.014, .022, .026) * (.82 + .36 * h);
+  float outerB = step(abs(f.x - .5), .46) * step(abs(f.y - .5), .45);
+  float innerB = step(abs(f.x - .5), .44) * step(abs(f.y - .5), .43);
+  float rim = outerB * (1. - innerB);
+  vec3 sheen = obsidian * (1.0 + .35 * (1. - f.y));
+  vec3 gold = vec3(.45, .32, .12);
+  return mix(sheen, gold, rim * .78);
+}
+`;
+
+const FLAPS_BG_FRAG = `#version 300 es
+precision highp float;
+precision highp int;
+in vec2 vUv;
+out vec4 o;
+uniform sampler2D tA, tB;
+uniform vec2 uRes;
+uniform float uHasB;
+${FLAPS_TIMING}
+vec4 faceSample(int k, vec2 f, vec2 id){
+  int n = tileN(id);
+  vec2 uv = (id + f) / uGrid;
+  if (k <= 0) return vec4(toLin(clamp(textureLod(tA, uv, 0.).rgb, 0., 1.)), 1.);
+  if (k >= n) {
+    if (uHasB < .5) return vec4(0.);
+    return vec4(toLin(clamp(textureLod(tB, uv, 0.).rgb, 0., 1.)), 1.);
+  }
+  if (k == 1) return vec4(midCard(f, id), 1.);
+  vec2 sh = floor(hash22(id + float(k)) * vec2(uGrid));
+  vec2 j = mod(id + sh, uGrid);
+  return vec4(toLin(clamp(textureLod(tA, (j + f) / uGrid, 0.).rgb, 0., 1.)) * .72, 1.);
+}
+void main(){
+  vec2 g = vUv * uGrid;
+  vec2 id = min(floor(g), uGrid - 1.);
+  vec2 f = g - id;
+  vec3 st = tileState(id);
+  int n = tileN(id);
+  float gap = st.x < -.5 ? smoothstep(-.08, 0., st.z)
+            : st.x > float(n) - .5 ? 1. - smoothstep(0., .12, st.z)
+            : 1.;
+  vec2 tp = uRes / uGrid;
+  if (st.x < -.5 && gap <= 0.) {
+    vec3 c0 = toLin(clamp(textureLod(tA, vUv, 0.).rgb, 0., 1.));
+    o = vec4(toSrgb(c0), 1.);
+    return;
+  }
+  if (st.x > float(n) - .5 && gap <= 0.) {
+    if (uHasB < .5) { o = vec4(0.); return; }
+    o = vec4(textureLod(tB, vUv, 0.).rgb, 1.);
+    return;
+  }
+  vec2 e = min(f, 1. - f) * tp;
+  float line = smoothstep(.1, 1.1, min(e.x, e.y) - .25);
+  float mid = smoothstep(.2, .9, abs(f.y - .5) * tp.y);
+  vec4 smp;
+  float sh = 1.;
+  if (st.x < -.5) {
+    smp = faceSample(0, f, id);
+  } else if (st.x > float(n) - .5) {
+    smp = faceSample(n, f, id);
+  } else {
+    int k = int(st.x + .5);
+    float th = st.y, s = sin(th), q = cos(th);
+    bool top = f.y > .5;
+    float d = abs(f.y - .5) * 2.;
+    if (top) {
+      smp = faceSample(k + 1, f, id);
+      float open = smoothstep(0., 1.35, th);
+      sh = mix(.22, 1., open) * (1. - .35 * (1. - smoothstep(1.4, 3.1, th)) * exp(-d * 3.));
+    } else {
+      smp = faceSample(k, f, id);
+      float len = s * .95 + max(-q, 0.) * 1.05;
+      float soft = .10 + .22 * s;
+      float shade = 1. - smoothstep(len - soft, len + soft * .6, d);
+      sh = 1. - .62 * shade * smoothstep(.05, .8, th);
+    }
+  }
+  if (smp.a <= .002) {
+    float hinge = gap * (1. - mid) * .45;
+    o = vec4(0., 0., 0., hinge);
+    return;
+  }
+  vec3 c = smp.rgb * sh;
+  c *= mix(1., mix(.10, 1., line), gap);
+  c *= mix(1., mix(.55, 1., mid), gap);
+  o = vec4(toSrgb(clamp(c, 0., 1.)), smp.a);
+}`;
+
+const FLAPS_LEAF_VERT = `#version 300 es
+precision highp float;
+precision highp int;
+in vec2 aPos;
+out vec2 vF;
+flat out vec2 vId;
+flat out vec3 vSt;
+uniform float uAsp;
+${FLAPS_TIMING}
+void main(){
+  int c = int(uGrid.x);
+  vec2 id = vec2(float(gl_InstanceID % c), float(gl_InstanceID / c));
+  vec3 st = tileState(id);
+  vId = id;
+  vSt = st;
+  if (st.x < -.5 || st.x > float(tileN(id)) - .5) {
+    gl_Position = vec4(2., 2., 2., 1.);
+    return;
+  }
+  vF = vec2(aPos.x, .5 + aPos.y * .5);
+  vec2 ctr = ((id + vec2(aPos.x, .5)) / uGrid * 2. - 1.) * vec2(uAsp, 1.);
+  float hh = 1. / uGrid.y;
+  float y = aPos.y * hh;
+  float th = st.y;
+  vec3 w = vec3(ctr.x, ctr.y + y * cos(th), y * sin(th));
+  const float D = 2.1;
+  float k = (D - w.z) / D;
+  gl_Position = vec4(w.x / uAsp, w.y, (.5 - w.z) * k * .5, k);
+}`;
+
+const FLAPS_LEAF_FRAG = `#version 300 es
+precision highp float;
+precision highp int;
+in vec2 vF;
+flat in vec2 vId;
+flat in vec3 vSt;
+out vec4 o;
+uniform sampler2D tA, tB;
+uniform vec2 uRes;
+uniform float uHasB;
+${FLAPS_TIMING}
+vec4 faceSample(int k, vec2 f, vec2 id){
+  int n = tileN(id);
+  vec2 uv = (id + f) / uGrid;
+  if (k <= 0) return vec4(toLin(clamp(textureLod(tA, uv, 0.).rgb, 0., 1.)), 1.);
+  if (k >= n) {
+    if (uHasB < .5) return vec4(0.);
+    return vec4(toLin(clamp(textureLod(tB, uv, 0.).rgb, 0., 1.)), 1.);
+  }
+  if (k == 1) return vec4(midCard(f, id), 1.);
+  vec2 sh = floor(hash22(id + float(k)) * vec2(uGrid));
+  vec2 j = mod(id + sh, uGrid);
+  return vec4(toLin(clamp(textureLod(tA, (j + f) / uGrid, 0.).rgb, 0., 1.)) * .72, 1.);
+}
+void main(){
+  float th = vSt.y;
+  int k = int(vSt.x + .5);
+  float s = sin(th), c = cos(th);
+  float d = (vF.y - .5) * 2.;
+  vec2 tp = uRes / uGrid;
+  float gx = min(vF.x, 1. - vF.x) * tp.x;
+  if (gx < .9) discard;
+  bool front = gl_FrontFacing;
+  vec4 smp;
+  float e;
+  if (front) {
+    smp = faceSample(k, vF, vId);
+    float l = .8 * c - .6 * s;
+    e = .32 + .68 * max(l, 0.) / .8;
+    e *= 1. - .18 * s * (1. - d);
+  } else {
+    smp = faceSample(k + 1, vec2(vF.x, 1. - vF.y), vId);
+    float l = .6 * s - .8 * c;
+    e = .32 + .68 * max(l, 0.) / .8;
+    float sp = smoothstep(.12, .0, abs(th - 2.25));
+    e = mix(1., e, s);
+    smp.rgb += vec3(.05) * sp * s;
+  }
+  if (smp.a <= .002) discard;
+  float tip = smoothstep(2.2, .6, (1. - d) * tp.y * .5);
+  vec3 col = mix(smp.rgb, smp.rgb * .55 + vec3(.14, .11, .08), tip * s * .75);
+  o = vec4(toSrgb(min(col * e, vec3(1.))) * smp.a, smp.a);
+}`;
+
+// ── 2. portal（移植自 5MB 光学窗框透视推进揭幕：宫阙金框顺滑扩开，内部直通实时 3D 战场）──
+const PORTAL_FRAG = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 o;
+uniform sampler2D tA, tB;
+uniform float uP, uAsp, uHasB;
+${GLSL_SHARED}
+float sm5(float t){ t = clamp(t, 0., 1.); return t * t * t * (t * (t * 6. - 15.) + 10.); }
+float sdBox(vec2 p, vec2 b, float r){
+  vec2 d = abs(p) - b + vec2(r);
+  return length(max(d, 0.)) + min(max(d.x, d.y), 0.) - r;
+}
+void main(){
+  if (uP <= .001) { o = texture(tA, vUv); return; }
+  if (uP >= .995) { o = vec4(0.); return; }
+  float k = sm5(uP);
+  float ease = pow(k, 1.42);
+  vec2 asp = vec2(uAsp, 1.);
+  vec2 p = (vUv - .5) * asp;
+  // 窗框从中央稳稳扩开直至越出屏幕四角（绝不震颤、绝不撕扯图像）
+  vec2 halfMin = vec2(.18 * uAsp, .14);
+  vec2 halfMax = vec2(.82 * uAsp, .82);
+  vec2 boxB = mix(halfMin, halfMax, ease);
+  float cornerR = mix(.032, .012, ease);
+  float sd = sdBox(p, boxB, cornerR);
+  float px = max(fwidth(sd), .002);
+  float insideMask = 1. - smoothstep(-px * 1.4, px * 1.4, sd);
+  float rimFade = 1. - smoothstep(.72, .97, uP);
+
+  // 框外旧画平缓对称向外推远消隐（刚性均匀缩放，零模糊重影）
+  float zoom = 1. + k * .38;
+  vec2 uvA = clamp((vUv - .5) / zoom + .5, .001, .999);
+  vec3 cA = toLin(clamp(texture(tA, uvA).rgb, 0., 1.));
+  float outerDim = 1. - .38 * k;
+  cA *= outerDim;
+
+  // 框缘鎏金宫阙双线边框 + 柔和内阴影，营造"步入画境"的景深层次
+  float outerGold = exp(-abs(sd - .009) * 145.) * .95;
+  float innerGold = exp(-abs(sd + .007) * 210.) * .55;
+  float rimShadow = exp(min(sd, 0.) * 28.) * smoothstep(-.16, -.002, sd) * .42;
+  vec3 goldTint = vec3(.92, .72, .34);
+
+  if (uHasB > .5) {
+    vec3 cB = toLin(clamp(texture(tB, vUv).rgb, 0., 1.));
+    cB = mix(cB, cB * .55, rimShadow * (1. - smoothstep(.55, .92, uP)));
+    vec3 col = mix(cA, cB, insideMask);
+    col += goldTint * (outerGold + innerGold) * rimFade;
+    float aOut = 1. - smoothstep(.86, .99, uP);
+    o = vec4(toSrgb(clamp(col, 0., 1.)) * aOut, aOut);
+    return;
+  }
+
+  // 无 tB：窗框内部 100% 透明直通真实 3D 战场，仅留边框柔和过渡
+  float outerAlpha = (1. - insideMask) * (1. - smoothstep(.70, .95, uP));
+  float rimAlpha = clamp((outerGold + innerGold + rimShadow) * rimFade, 0., 1.);
+  float aOut = clamp(max(outerAlpha, rimAlpha), 0., 1.);
+  vec3 outCol = mix(goldTint * .4, cA, outerAlpha / max(aOut, .001));
+  outCol += goldTint * (outerGold + innerGold) * rimFade;
+  o = vec4(toSrgb(clamp(outCol, 0., 1.)) * aOut, aOut);
+}`;
+
+// ── 3. daybreak（5MB 40-tap 黄金角猫眼散景 + 暖金浮光散景粒子）──
+const DAYBREAK_FRAG = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 o;
+uniform sampler2D tA, tB;
+uniform float uP, uAsp, uHasB;
+${GLSL_SHARED}
+float ss(float a, float b, float x){ return smoothstep(a, b, x); }
+vec3 bokehSample(sampler2D tex, vec2 uv, float r, float hiBoost, float expBoost, vec2 drift){
+  if (r <= .0015) return toLin(clamp(texture(tex, uv).rgb, 0., 1.));
+  float j = hash12(gl_FragCoord.xy) * 6.2831;
+  vec2 fc = uv - .5;
+  float cat = clamp(length(fc * vec2(1., .8)) * 1.15, 0., .75);
+  vec2 cd = normalize(fc + 1e-5);
+  vec3 s = vec3(0.); float w = 0.;
+  for (int i = 0; i < 40; i++) {
+    float f = (float(i) + .5) / 40., a = float(i) * 2.399963 + j;
+    vec2 d = vec2(cos(a), sin(a)) * sqrt(f);
+    d -= cd * dot(d, cd) * cat * .45;
+    vec3 c = toLin(clamp(texture(tex, clamp(uv + drift + d * r * vec2(1. / uAsp, 1.), 0., 1.)).rgb, 0., 1.));
+    float l = luma(c), k = 1. + hiBoost * l * l * l;
+    c *= 1. + expBoost * l * l;
+    s += c * k; w += k;
+  }
+  return s / max(w, 1e-4);
+}
+void main(){
+  if (uP <= .001) { o = texture(tA, vUv); return; }
+  if (uP >= .995) { o = vec4(0.); return; }
+  float p = uP;
+  float t1 = clamp((p - .03) / .47, 0., 1.), blurA = t1 * t1 * t1 * (t1 * (t1 * 6. - 15.) + 10.);
+  float t2 = clamp((p - .50) / .48, 0., 1.), blurB = 1. - t2 * t2 * t2 * (t2 * (t2 * 6. - 15.) + 10.);
+  float radA = .072 * blurA, radB = .058 * blurB;
+  float wA = 1. - ss(.24, .64, p), wB = ss(.40, .82, p);
+  vec3 c = vec3(0.);
+  if (wA > 0.) c += bokehSample(tA, vUv, radA, 14. * blurA, 1.1 * blurA, vec2(-.018 * blurA, 0.)) * wA * mix(1., .65, ss(.2, .6, p));
+  if (wB > 0. && uHasB > .5) c += bokehSample(tB, vUv, radB, 18. * blurB, 3.2 * blurB, vec2(.012 * blurB, 0.)) * wB;
+  float glowEnv = ss(.04, .34, p) * (1. - ss(.34, .75, p));
+  for (int layer = 0; layer < 2; layer++) {
+    float scale = layer == 0 ? 5.2 : 9.6;
+    vec2 uvG = (vUv * vec2(uAsp, 1.) + vec2(-p * (.06 + .04 * float(layer)), -p * (.09 + .05 * float(layer)))) * scale;
+    vec2 gid = floor(uvG), gf = fract(uvG) - .5;
+    vec2 h = hash22(gid + float(layer) * 31.7 + 13.0);
+    vec2 h2 = hash22(gid + float(layer) * 19.3 + 5.1);
+    if (h.x > (layer == 0 ? .58 : .64)) {
+      vec2 ce = (h2 - .5) * .62;
+      vec2 dv = gf - ce;
+      vec2 fc = vUv - .5;
+      float cat = clamp(length(fc * vec2(1., .8)) * 1.05, 0., .55);
+      vec2 cd = normalize(fc + 1e-5);
+      dv += cd * dot(dv, cd) * cat * .45;
+      float d = length(dv);
+      float life = sin(clamp((p - .05 * h.y) / .82, 0., 1.) * 3.14159);
+      float rad = (layer == 0 ? .24 + .18 * h.y : .14 + .14 * h.y) * life;
+      float bokeh = ss(rad, rad * .08, d) * (.68 + .32 * ss(rad * .52, rad * .90, d));
+      vec3 spCol = mix(vec3(1.0, .82, .42), vec3(.62, .94, .88), h2.x * .65);
+      c += spCol * bokeh * (layer == 0 ? .72 : .95) * glowEnv * (.45 + .55 * h2.y);
+    }
+  }
+  c += vec3(1.0, .86, .58) * .14 * glowEnv;
+  float k = ss(0., .12, p) * (1. - ss(.86, .985, p));
+  vec3 soft = c / (1. + max(max(c.r, max(c.g, c.b)) - .82, 0.));
+  c = mix(c, min(soft, 1.), k);
+  float aOut = clamp(uHasB > .5 ? (1. - ss(.82, .98, p)) : (1. - ss(.24, .78, p)), 0., 1.);
+  o = vec4(toSrgb(clamp(c, 0., 1.)) * aOut, aOut);
+}`;
+
+// ── 4. wash（战败结算专用：青绿水墨冲刷 + Worley 泡沫蕾丝 + 清晰不折叠折射）──
 const WASH_FRAG = `#version 300 es
 precision highp float;
 in vec2 vUv;
@@ -169,335 +510,6 @@ void main(){
   o = vec4(toSrgb(min(outC, vec3(1.))) * aOut, aOut);
 }`;
 
-// ── 2. slam（雕版重印冲击：压印前变焦空气暗角 + 宣纸吃墨前沿 + 湿墨边缘 + 辐射墨尘 + 纸纤维）──
-const SLAM_FRAG = `#version 300 es
-precision highp float;
-in vec2 vUv;
-out vec4 o;
-uniform sampler2D tA, tB;
-uniform float uP, uAsp, uHasB;
-${GLSL_SHARED}
-float sm5(float t){ t = clamp(t, 0., 1.); return t * t * t * (t * (t * 6. - 15.) + 10.); }
-vec3 paperTone(vec2 p){
-  float f = fbm(p * vec2(70., 64.)) - .5, g = vnoise(p * 430.) - .5;
-  return vec3(.86, .835, .78) * (1. + f * .05 + g * .03);
-}
-float fibre(vec2 q, float n, float seed, float tau, float px){
-  float a = atan(q.y, q.x), u = (a / 6.28318 + .5) * n, acc = 0.;
-  for (int j = -1; j <= 1; j++) {
-    float id = mod(floor(u) + float(j), n);
-    vec2 h = hash22(vec2(id, seed)), h2 = hash22(vec2(id + 40., seed * 3.));
-    float rr = .05 + (.25 + 1.25 * h.x) * (1. - exp(-tau * (2.2 + 2. * h2.y)));
-    float an = ((id + .2 + .6 * h.y) / n - .5) * 6.28318 + (h2.x - .5) * .25 * tau;
-    vec2 d = q - rr * vec2(cos(an), sin(an));
-    float ro = an + (h2.y - .5) * 3. + tau * (h.y - .5) * 16.;
-    d = mat2(cos(ro), sin(ro), -sin(ro), cos(ro)) * d;
-    float len = .006 + .020 * h2.x * h2.x, w = .0012 + .0008 * h2.y;
-    float s = smoothstep(w + px, w - px * .4, abs(d.y)) * smoothstep(len, len * .6, abs(d.x));
-    acc = max(acc, s * (.4 + .6 * h.y));
-  }
-  return acc;
-}
-void main(){
-  if (uP <= .001) { o = texture(tA, vUv); return; }
-  if (uP >= .995) { o = vec4(0.); return; }
-  const float IMP = .285;
-  vec2 asp = vec2(uAsp, 1.), uC = vec2(.5, .48);
-  float preK = clamp(uP / IMP, 0., 1.);
-  float tau = (uP - IMP) * 1.35;
-  if (tau < 0.) {
-    vec2 d = vUv - uC;
-    float z = 1. + .16 * preK * preK + .52 * preK * preK * preK * preK;
-    float blur = .15 * preK * preK * preK;
-    vec3 c = vec3(0.); float j = hash12(gl_FragCoord.xy);
-    for (int i = 0; i < 10; i++) {
-      float f = (float(i) + j) / 10. - .5;
-      c += toLin(clamp(texture(tA, clamp(uC + d / (z * (1. + blur * f)), 0., 1.)).rgb, 0., 1.));
-    }
-    c *= .1 * (1. - .62 * sm5(preK) * smoothstep(.22, .78, length(d * vec2(1., .8))));
-    float face = smoothstep(.42, 1., preK) * smoothstep(.65, .05, length(d * asp));
-    c = mix(c, paperTone(d * asp * (1.5 - .5 * preK)), face * .65);
-    o = vec4(toSrgb(c), 1.);
-    return;
-  }
-  float decay = exp(-tau * 6.5), phase = tau * 34.;
-  vec2 shake = vec2(sin(phase + .4) * .007 * decay, cos(phase * 1.27) * .013 * decay);
-  float rot = sin(phase * .9 + 1.) * .006 * decay, zoom = 1. + .035 * exp(-tau * 9.) * cos(tau * 26.);
-  vec2 d0 = (vUv - .5) * asp;
-  d0 = mat2(cos(rot), sin(rot), -sin(rot), cos(rot)) * d0 / zoom;
-  vec2 uv = d0 / asp + .5 + shake, q = (uv - uC) * asp;
-  float r = length(q); vec2 dir = q / max(r, 1e-4);
-  float uRing = .06 + 1.75 * (1. - exp(-tau * 2.3)), uDust = 2.9 * (1. - exp(-tau * 2.6)) - .42;
-  float uEnd = smoothstep(.82, .97, uP);
-  float x = r - uRing, env = exp(-x * x * 38.) * exp(-tau * 2.6), wob = sin(x * 34.) * env;
-  float g = (cos(x * 34.) * 34. - 2. * 38. * x * sin(x * 34.)) * env / 34.;
-  vec2 bu = clamp(uv - dir * g * .0085 / asp, 0., 1.);
-  float endFade = 1. - smoothstep(.62, .96, uP);
-  if (uHasB < .5) {
-    vec3 aCol = toLin(clamp(texture(tA, bu).rgb, 0., 1.));
-    vec3 pt0 = paperTone(q);
-    float n0 = fbm(q * 9.) * .5 + vnoise(q * 120.) * .25 + vnoise(q * 330.) * .25;
-    float age0 = (uDust - r) * 2.1 + .55;
-    float wave = smoothstep(n0 - .12, n0 + .34, age0 - .12);
-    float revealA = clamp((1. - mix(wave, 1., uEnd)) * endFade, 0., 1.);
-    vec3 col0 = mix(aCol, pt0, clamp(wave * .35, 0., .35)) * (1. - .12 * wave * (1. - n0) + wob * .04);
-    float fFade = exp(-tau * 1.5) * (1. - smoothstep(.65, .95, tau));
-    if (fFade > .01) {
-      float pxr = 1.2 / 720.;
-      col0 = mix(col0, vec3(.52, .48, .44), max(fibre(q, 61., 3., tau, pxr), fibre(q, 37., 11., tau * .8, pxr)) * fFade * .85);
-    }
-    o = vec4(toSrgb(clamp(col0, 0., 1.)) * revealA, revealA);
-    return;
-  }
-  vec3 b = toLin(clamp(texture(tB, bu).rgb, 0., 1.));
-  vec3 pt = paperTone(q);
-  float n = fbm(q * 9.) * .5 + vnoise(q * 120.) * .25 + vnoise(q * 330.) * .25;
-  float age = (uDust - r) * 2.1 + .55;
-  float press = mix(smoothstep(n - .10, n + .34, age - .12), 1., uEnd);
-  float take = mix(press, smoothstep(0., .7, press), 1. - luma(b));
-  vec3 c = mix(pt, b, take);
-  float fresh = press * (1. - smoothstep(.55, 2.1, age)) * (1. - uEnd);
-  c *= 1. - .12 * fresh * (1. - n) + dot(dir, normalize(vec2(-.5, .85))) * g * .16 + wob * .03;
-  float dr = .16 + 1.5 * (1. - exp(-tau * 2.4)), dx = (r - dr) / (.10 + .34 * tau);
-  float re = exp(-dx * dx * (dx > 0. ? 3.2 : 1.1)) * exp(-tau * 2.7) * (1. - uEnd);
-  if (re > .006) {
-    float a = atan(q.y, q.x); vec2 pol = vec2(cos(a), sin(a)) * 2.2;
-    float dn = fbm3(vec3(pol * 1.6, r * 5. - tau * 3.5));
-    c = mix(c, vec3(.34, .30, .24) * (.7 + .7 * dn), clamp(re * smoothstep(.30, .72, dn) * .85, 0., .8));
-  }
-  float fade = exp(-tau * 1.5) * (1. - smoothstep(.65, .95, tau));
-  if (fade > .01) {
-    float pxr = 1.2 / 720.;
-    c = mix(c, vec3(.52, .48, .44), max(fibre(q, 61., 3., tau, pxr), fibre(q, 37., 11., tau * .8, pxr)) * fade * .9);
-  }
-  float alpha = 1. - smoothstep(.78, .98, uP);
-  float aOut = clamp(alpha, 0., 1.);
-  o = vec4(toSrgb(clamp(c, 0., 1.)) * aOut, aOut);
-}`;
-
-// ── 3. tear（3D 双半宣纸撕裂卷边 + 透光纤维撕牙 + 36 片飞散纸屑 + 双层柔影）──
-const TEAR_COMMON = `
-uniform float uAsp, uP, uYf, uW2;
-const float CAM = 3.0;
-float slow(float y){ return .075 * sin(y * 2.1 + .8) + .034 * sin(y * 5.3 + 2.) + .012 * sin(y * 13. + .5); }
-float openAt(float y){ return max(0., y - uYf); }
-vec3 curl(vec2 P, float sg, out float phi, out float over){
-  float h = openAt(P.y), d = (P.x - slow(P.y)) * sg;
-  float R = .21 + .10 * smoothstep(0., 1.6, uW2) + .03 * P.y;
-  float w = .36 * pow(h, 1.5) + uW2 * smoothstep(0., .3, h) * (1. + sg * .045 + .10 * P.y);
-  float s = w - d, pull = sg * (.010 * smoothstep(0., .10, h) + .050 * h + .02 * h * h);
-  float x = P.x, z = 0.; phi = 0.;
-  over = exp(-max(d - w, 0.) / (R * .9)) * smoothstep(.15, 1.5, w / R);
-  if (s > 0.) {
-    phi = s / R;
-    float xc = slow(P.y) + sg * w;
-    if (phi < 3.14159) { x = xc - sg * R * sin(phi); z = R * (1. - cos(phi)); }
-    else { x = xc + sg * (s - 3.14159 * R); z = 2. * R + .06 * (s - 3.14159 * R); phi = 3.14159; }
-  }
-  z += .02 * sin(P.y * 4. + uP * 17. + sg) * smoothstep(0., 1., max(s, 0.)) * 1.5;
-  return vec3(x + pull, P.y - .02 * max(s, 0.) * smoothstep(.2, 1., h), z);
-}
-vec4 proj(vec3 w){ float k = (CAM - w.z) / CAM; return vec4(w.x / uAsp, w.y, 0., k); }
-`;
-
-const TEAR_SHEET_VERT = `#version 300 es
-precision highp float;
-in vec3 aPos;
-out vec2 vP;
-out float vPhi, vOver;
-flat out float vSg;
-${TEAR_COMMON}
-void main(){
-  float sg = aPos.z, y = mix(-1., 1., aPos.y);
-  float outer = sg * uAsp, inner = slow(y) - sg * .085;
-  vP = vec2(mix(outer, inner, aPos.x), y);
-  vSg = sg;
-  gl_Position = proj(curl(vP, sg, vPhi, vOver));
-}`;
-
-const TEAR_SHEET_FRAG = `#version 300 es
-precision highp float;
-in vec2 vP;
-in float vPhi, vOver;
-flat in float vSg;
-out vec4 o;
-uniform sampler2D tA;
-${GLSL_SHARED}
-${TEAR_COMMON}
-float tearFine(float y){ return .022*(fbm(vec2(y*9.,3.))-.5)*2. + .007*(vnoise(vec2(y*60.,7.))-.5); }
-float fibres(float e, float y, float px, float seed){
-  float a = 0.;
-  for (int L = 0; L < 2; L++) {
-    float n = L == 0 ? 70. : 160., c = floor(y * n);
-    for (int j = -2; j <= 2; j++) {
-      float id = c + float(j);
-      vec2 h = hash22(vec2(id, seed + float(L) * 7.)), h2 = hash22(vec2(id + 31., seed + float(L) * 3.));
-      float len = (L == 0 ? .030 : .014) * h.y * h.y * (.4 + .6 * h2.y);
-      float y0 = (id + h.x) / n, k = clamp(-e / max(len, 1e-4), 0., 1.);
-      float yy = y0 + (h2.x - .5) * len * 1.3 * k + (h2.y - .5) * len * 1.6 * k * k;
-      float wd = (L == 0 ? .0013 : .0008) * (1. - .75 * k);
-      a = max(a, smoothstep(px * .7, -px * .5, abs(y - yy) - wd) * smoothstep(0., .0025, len + e));
-    }
-  }
-  return a;
-}
-void main(){
-  float y = vP.y, h = openAt(y);
-  float op = h > 0. ? smoothstep(.002, .05, h + .006 * (vnoise(vec2(y * 40., 1.)) - .5)) : 0.;
-  float e0 = (vP.x - slow(y)) * vSg;
-  bool nr = e0 < .15, front = gl_FrontFacing;
-  vec2 uv = vec2(vP.x / uAsp, y) * .5 + .5;
-  float e = nr ? (vP.x - slow(y) - tearFine(y)) * vSg : e0;
-  float px = max(fwidth(e0), 1e-5);
-  float al = 1.;
-  if (e < .16) {
-    float f = e < .004 ? fibres(e, y, max(px, fwidth(y)), vSg * 5.) : 0.;
-    al = max(smoothstep(-px * .7, px * .7, e + mix(.02, 0., smoothstep(0., .012, h))), f * op);
-  }
-  if (al <= .003) discard;
-  vec3 n = vec3(vSg * sin(vPhi), 0., cos(vPhi));
-  const vec3 L = normalize(vec3(-.38, .42, .82));
-  float core = 0.;
-  if (nr && op > 0.) {
-    float share = smoothstep(.38, .62, fbm(vec2(y * 5.5, 11.)));
-    float wide = .008 + .052 * (vSg < 0. ? share : 1. - share) * (.55 + .9 * fbm(vec2(y * 14., vSg * 5.)));
-    core = (wide + .010 * (fbm(vec2(y * 38., vSg * 9.)) - .5)) * op;
-    if (!front) core *= .45;
-  }
-  vec3 ink = front ? toLin(clamp(texture(tA, uv).rgb, 0., 1.)) : vec3(.14, .12, .09) * (.75 + .5 * fbm(vP * vec2(70., 55.)));
-  float edge = core > 0. ? smoothstep(-px, px, e - core) : 1.;
-  vec3 c = ink; float tone = 1.;
-  if (e < core + .02 && op > 0.) {
-    float q = clamp(e / max(core, .001), 0., 1.);
-    float str = vnoise(vec2(e * 70., y * 280.)) * .5 + vnoise(vec2(e * 150., y * 500.)) * .5;
-    vec3 w = vec3(.95, .92, .84) * (.82 + .16 * str) * mix(.90, 1., smoothstep(0., .5, q));
-    w *= 1. - .28 * exp(-max(core - e, 0.) / .0045);
-    c = mix(w, ink, edge);
-    tone = mix(1., 0., edge);
-  }
-  vec3 N = front ? n : -n;
-  float dl = max(dot(N, L), 0.);
-  c *= front ? mix(1., (.36 + .64 * dl / L.z), smoothstep(0., .25, vPhi)) : (.22 + 1.15 * dl * dl);
-  c += vec3(1., .96, .88) * pow(max(dot(N, normalize(L + vec3(0., 0., 1.))), 0.), front ? 26. : 14.) * smoothstep(0., .35, vPhi) * .08 * (1. - tone * .75);
-  c *= 1. - .72 * vOver * (1. - smoothstep(0., .9, vPhi));
-  al *= 1. - smoothstep(.90, .99, uP);
-  o = vec4(toSrgb(clamp(c, 0., 1.)) * al, al);
-}`;
-
-const TEAR_SCRAPS = 36;
-const TEAR_SCRAP_VERT = `#version 300 es
-precision highp float;
-in vec2 aPos;
-out vec2 vQ;
-flat out vec4 vS;
-out float vK;
-uniform float uT;
-${GLSL_SHARED}
-${TEAR_COMMON}
-void main(){
-  float i = float(gl_InstanceID);
-  vec2 h = hash21(i * 1.7 + 2.), h2 = hash21(i * 3.1 + 9.), h3 = hash21(i * 5.7 + 4.);
-  float y0 = mix(-.98, 1.02, (i + h.x) / ${TEAR_SCRAPS}.);
-  float t0 = (.02 + .54 * clamp((1.08 - y0) / 2.4, 0., 1.)) * 1.45 + h.y * .10;
-  float t = uT - t0;
-  if (t <= 0.) { gl_Position = vec4(2.); return; }
-  float sz = mix(.009, .036, h2.x * h2.x), drag = 1. - exp(-t * 1.6);
-  vec3 c = vec3(slow(y0) + (h2.y - .5) * 1.1 * drag, y0 + (.25 * h3.x + .05) * drag - (.55 + .5 * h3.y) * t * t, .05 + .5 * h3.x * drag);
-  float a1 = t * (4. + 9. * h3.y) * (h.x > .5 ? 1. : -1.) + i, a2 = t * (5. + 8. * h.y) + i * 2.;
-  vec2 q = aPos * sz * vec2(1., .75);
-  float ca = cos(a1), sa = sin(a1), cb = cos(a2), sb = sin(a2);
-  vec3 P = vec3(q.x * ca - q.y * sa, (q.x * sa + q.y * ca) * cb, (q.x * sa + q.y * ca) * sb);
-  gl_Position = proj(c + P);
-  vQ = aPos; vS = vec4(h, h2); vK = sb;
-}`;
-
-const TEAR_SCRAP_FRAG = `#version 300 es
-precision highp float;
-in vec2 vQ;
-flat in vec4 vS;
-in float vK;
-out vec4 o;
-uniform float uP;
-${GLSL_SHARED}
-void main(){
-  float a = atan(vQ.y, vQ.x), r = length(vQ), sd = 3. + floor(vS.z * 2.99);
-  float R = .50 / cos(mod(a + vS.w * 6.28, 6.2832 / sd) - 3.14159 / sd) + .24 * (vnoise(vec2(cos(a), sin(a)) * 2. + vS.xy * 40.) - .5);
-  float px = fwidth(r), al = smoothstep(R + px, R - px, r) * (1. - smoothstep(.86, .99, uP));
-  if (al < .01) discard;
-  vec3 w = vec3(.93, .90, .82) * (.82 + .18 * vnoise(vQ * 9.));
-  vec3 c = w * (.62 + .38 * abs(vK) + .25 * max(vK, 0.));
-  o = vec4(c * al, al);
-}`;
-
-// ── 4. daybreak（破晓 40-tap 猫眼散景 + 暖金浮光散景粒子）──
-const DAYBREAK_FRAG = `#version 300 es
-precision highp float;
-in vec2 vUv;
-out vec4 o;
-uniform sampler2D tA, tB;
-uniform float uP, uAsp, uHasB;
-${GLSL_SHARED}
-float ss(float a, float b, float x){ return smoothstep(a, b, x); }
-vec3 bokehSample(sampler2D tex, vec2 uv, float r, float hiBoost, float expBoost, vec2 drift){
-  if (r <= .0015) return toLin(clamp(texture(tex, uv).rgb, 0., 1.));
-  float j = hash12(gl_FragCoord.xy) * 6.2831;
-  vec2 fc = uv - .5;
-  float cat = clamp(length(fc * vec2(1., .8)) * 1.15, 0., .75);
-  vec2 cd = normalize(fc + 1e-5);
-  vec3 s = vec3(0.); float w = 0.;
-  for (int i = 0; i < 40; i++) {
-    float f = (float(i) + .5) / 40., a = float(i) * 2.399963 + j;
-    vec2 d = vec2(cos(a), sin(a)) * sqrt(f);
-    d -= cd * dot(d, cd) * cat * .45;
-    vec3 c = toLin(clamp(texture(tex, clamp(uv + drift + d * r * vec2(1. / uAsp, 1.), 0., 1.)).rgb, 0., 1.));
-    float l = luma(c), k = 1. + hiBoost * l * l * l;
-    c *= 1. + expBoost * l * l;
-    s += c * k; w += k;
-  }
-  return s / max(w, 1e-4);
-}
-void main(){
-  if (uP <= .001) { o = texture(tA, vUv); return; }
-  if (uP >= .995) { o = vec4(0.); return; }
-  float p = uP;
-  float t1 = clamp((p - .03) / .47, 0., 1.), blurA = t1 * t1 * t1 * (t1 * (t1 * 6. - 15.) + 10.);
-  float t2 = clamp((p - .50) / .48, 0., 1.), blurB = 1. - t2 * t2 * t2 * (t2 * (t2 * 6. - 15.) + 10.);
-  float radA = .072 * blurA, radB = .058 * blurB;
-  float wA = 1. - ss(.24, .64, p), wB = ss(.40, .82, p);
-  vec3 c = vec3(0.);
-  if (wA > 0.) c += bokehSample(tA, vUv, radA, 14. * blurA, 1.1 * blurA, vec2(-.018 * blurA, 0.)) * wA * mix(1., .65, ss(.2, .6, p));
-  if (wB > 0. && uHasB > .5) c += bokehSample(tB, vUv, radB, 18. * blurB, 3.2 * blurB, vec2(.012 * blurB, 0.)) * wB;
-  float glowEnv = ss(.04, .34, p) * (1. - ss(.34, .75, p));
-  // 两层错频错位猫眼散景柔光晕（柔边、口径蚀、随亮度淡出，取代规则网格小圆点）
-  for (int layer = 0; layer < 2; layer++) {
-    float scale = layer == 0 ? 5.2 : 9.6;
-    vec2 uvG = (vUv * vec2(uAsp, 1.) + vec2(-p * (.06 + .04 * float(layer)), -p * (.09 + .05 * float(layer)))) * scale;
-    vec2 gid = floor(uvG), gf = fract(uvG) - .5;
-    vec2 h = hash22(gid + float(layer) * 31.7 + 13.0);
-    vec2 h2 = hash22(gid + float(layer) * 19.3 + 5.1);
-    if (h.x > (layer == 0 ? .58 : .64)) {
-      vec2 ce = (h2 - .5) * .62;
-      vec2 dv = gf - ce;
-      vec2 fc = vUv - .5;
-      float cat = clamp(length(fc * vec2(1., .8)) * 1.05, 0., .55);
-      vec2 cd = normalize(fc + 1e-5);
-      dv += cd * dot(dv, cd) * cat * .45;
-      float d = length(dv);
-      float life = sin(clamp((p - .05 * h.y) / .82, 0., 1.) * 3.14159);
-      float rad = (layer == 0 ? .24 + .18 * h.y : .14 + .14 * h.y) * life;
-      float bokeh = ss(rad, rad * .08, d) * (.68 + .32 * ss(rad * .52, rad * .90, d));
-      vec3 spCol = mix(vec3(1.0, .82, .42), vec3(.62, .94, .88), h2.x * .65);
-      c += spCol * bokeh * (layer == 0 ? .72 : .95) * glowEnv * (.45 + .55 * h2.y);
-    }
-  }
-  c += vec3(1.0, .86, .58) * .14 * glowEnv;
-  float k = ss(0., .12, p) * (1. - ss(.86, .985, p));
-  vec3 soft = c / (1. + max(max(c.r, max(c.g, c.b)) - .82, 0.));
-  c = mix(c, min(soft, 1.), k);
-  float aOut = clamp(uHasB > .5 ? (1. - ss(.82, .98, p)) : (1. - ss(.24, .78, p)), 0., 1.);
-  o = vec4(toSrgb(clamp(c, 0., 1.)) * aOut, aOut);
-}`;
-
 interface ProgramRecord {
   prog: WebGLProgram;
   vao: WebGLVertexArrayObject;
@@ -505,22 +517,26 @@ interface ProgramRecord {
 }
 
 const DURATIONS: Record<TransitionKind, number> = {
+  flaps: 880,
+  daybreak: 1050,
+  portal: 820,
   wash: 920,
-  slam: 950,
-  tear: 1350,
-  daybreak: 1180,
 };
 
 let overlayCanvas: HTMLCanvasElement | null = null;
 let gl: WebGL2RenderingContext | null = null;
 let texA: WebGLTexture | null = null;
 let texB: WebGLTexture | null = null;
-let programs: Partial<Record<TransitionKind | 'tearScrap', ProgramRecord>> = {};
-let tearSheetVertCount = 0;
-let tearSheetIndexCount = 0;
+let programs: Partial<Record<TransitionKind | 'flapsLeaf', ProgramRecord>> = {};
 let activeRaf = 0;
 let activeStop: (() => void) | null = null;
 const imgCache = new Map<string, HTMLImageElement>();
+
+function normalizeKind(kind: TransitionKindOrAlias): TransitionKind {
+  if (kind === 'slam') return 'flaps';
+  if (kind === 'tear') return 'portal';
+  return kind;
+}
 
 function preloadImage(src: string): HTMLImageElement | null {
   if (!src) return null;
@@ -558,7 +574,7 @@ function compileShader(g: WebGL2RenderingContext, type: number, src: string): We
   return s;
 }
 
-function linkProgram(g: WebGL2RenderingContext, vsSrc: string, fsSrc: string, uniformNames: string[]): WebGLProgram {
+function linkProgram(g: WebGL2RenderingContext, vsSrc: string, fsSrc: string): WebGLProgram {
   const vs = compileShader(g, g.VERTEX_SHADER, vsSrc);
   const fs = compileShader(g, g.FRAGMENT_SHADER, fsSrc);
   const prog = g.createProgram()!;
@@ -570,7 +586,6 @@ function linkProgram(g: WebGL2RenderingContext, vsSrc: string, fsSrc: string, un
   if (!g.getProgramParameter(prog, g.LINK_STATUS)) {
     throw new Error(`[tangsongTransitions] link error: ${g.getProgramInfoLog(prog)}`);
   }
-  void uniformNames;
   return prog;
 }
 
@@ -593,49 +608,12 @@ function createFullscreenVao(g: WebGL2RenderingContext, prog: WebGLProgram): Web
   return vao;
 }
 
-function createTearSheetVao(g: WebGL2RenderingContext, prog: WebGLProgram): WebGLVertexArrayObject {
-  const segX = 90;
-  const segY = 72;
-  const verts: number[] = [];
-  const indices: number[] = [];
-  for (const sg of [-1, 1]) {
-    const base = verts.length / 3;
-    for (let ix = 0; ix <= segX; ix++) {
-      for (let iy = 0; iy <= segY; iy++) verts.push(ix / segX, iy / segY, sg);
-    }
-    for (let ix = 0; ix < segX; ix++) {
-      for (let iy = 0; iy < segY; iy++) {
-        const s = base + ix * (segY + 1) + iy;
-        const m = s + segY + 1;
-        if (sg < 0) indices.push(s, m, m + 1, s, m + 1, s + 1);
-        else indices.push(s, m + 1, m, s, s + 1, m + 1);
-      }
-    }
-  }
-  tearSheetVertCount = verts.length / 3;
-  tearSheetIndexCount = indices.length;
-
+function createFlapLeafVao(g: WebGL2RenderingContext, prog: WebGLProgram): WebGLVertexArrayObject {
   const vao = g.createVertexArray()!;
   g.bindVertexArray(vao);
   const vbo = g.createBuffer()!;
   g.bindBuffer(g.ARRAY_BUFFER, vbo);
-  g.bufferData(g.ARRAY_BUFFER, new Float32Array(verts), g.STATIC_DRAW);
-  const loc = g.getAttribLocation(prog, 'aPos');
-  g.enableVertexAttribArray(loc);
-  g.vertexAttribPointer(loc, 3, g.FLOAT, false, 0, 0);
-  const ibo = g.createBuffer()!;
-  g.bindBuffer(g.ELEMENT_ARRAY_BUFFER, ibo);
-  g.bufferData(g.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), g.STATIC_DRAW);
-  g.bindVertexArray(null);
-  return vao;
-}
-
-function createTearScrapVao(g: WebGL2RenderingContext, prog: WebGLProgram): WebGLVertexArrayObject {
-  const vao = g.createVertexArray()!;
-  g.bindVertexArray(vao);
-  const vbo = g.createBuffer()!;
-  g.bindBuffer(g.ARRAY_BUFFER, vbo);
-  g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, 1]), g.STATIC_DRAW);
+  g.bufferData(g.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]), g.STATIC_DRAW);
   const loc = g.getAttribLocation(prog, 'aPos');
   g.enableVertexAttribArray(loc);
   g.vertexAttribPointer(loc, 2, g.FLOAT, false, 0, 0);
@@ -653,7 +631,17 @@ function createTex(g: WebGL2RenderingContext): WebGLTexture {
   g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
   g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
   g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
-  g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, 2, 2, 0, g.RGBA, g.UNSIGNED_BYTE, new Uint8Array([14, 24, 26, 255, 14, 24, 26, 255, 14, 24, 26, 255, 14, 24, 26, 255]));
+  g.texImage2D(
+    g.TEXTURE_2D,
+    0,
+    g.RGBA,
+    2,
+    2,
+    0,
+    g.RGBA,
+    g.UNSIGNED_BYTE,
+    new Uint8Array([14, 24, 26, 255, 14, 24, 26, 255, 14, 24, 26, 255, 14, 24, 26, 255]),
+  );
   return tex;
 }
 
@@ -674,45 +662,52 @@ function ensureGl(): boolean {
     texA = createTex(gl);
     texB = createTex(gl);
 
-    const washProg = linkProgram(gl, VERT_FULL, WASH_FRAG, []);
-    programs.wash = {
-      prog: washProg,
-      vao: createFullscreenVao(gl, washProg),
-      uniforms: getLocations(gl, washProg, ['tA', 'tB', 'uP', 'uAsp', 'uHasB', 'uMood']),
+    const flapsBgProg = linkProgram(gl, VERT_FULL, FLAPS_BG_FRAG);
+    programs.flaps = {
+      prog: flapsBgProg,
+      vao: createFullscreenVao(gl, flapsBgProg),
+      uniforms: getLocations(gl, flapsBgProg, ['tA', 'tB', 'uGrid', 'uT', 'uRes', 'uHasB']),
     };
 
-    const slamProg = linkProgram(gl, VERT_FULL, SLAM_FRAG, []);
-    programs.slam = {
-      prog: slamProg,
-      vao: createFullscreenVao(gl, slamProg),
-      uniforms: getLocations(gl, slamProg, ['tA', 'tB', 'uP', 'uAsp', 'uHasB']),
+    const flapsLeafProg = linkProgram(gl, FLAPS_LEAF_VERT, FLAPS_LEAF_FRAG);
+    programs.flapsLeaf = {
+      prog: flapsLeafProg,
+      vao: createFlapLeafVao(gl, flapsLeafProg),
+      uniforms: getLocations(gl, flapsLeafProg, ['tA', 'tB', 'uGrid', 'uT', 'uAsp', 'uRes', 'uHasB']),
     };
 
-    const tearProg = linkProgram(gl, TEAR_SHEET_VERT, TEAR_SHEET_FRAG, []);
-    programs.tear = {
-      prog: tearProg,
-      vao: createTearSheetVao(gl, tearProg),
-      uniforms: getLocations(gl, tearProg, ['tA', 'uAsp', 'uP', 'uYf', 'uW2']),
+    const portalProg = linkProgram(gl, VERT_FULL, PORTAL_FRAG);
+    programs.portal = {
+      prog: portalProg,
+      vao: createFullscreenVao(gl, portalProg),
+      uniforms: getLocations(gl, portalProg, ['tA', 'tB', 'uP', 'uAsp', 'uHasB']),
     };
 
-    const scrapProg = linkProgram(gl, TEAR_SCRAP_VERT, TEAR_SCRAP_FRAG, []);
-    programs.tearScrap = {
-      prog: scrapProg,
-      vao: createTearScrapVao(gl, scrapProg),
-      uniforms: getLocations(gl, scrapProg, ['uAsp', 'uP', 'uYf', 'uW2', 'uT']),
-    };
-
-    const dayProg = linkProgram(gl, VERT_FULL, DAYBREAK_FRAG, []);
+    const dayProg = linkProgram(gl, VERT_FULL, DAYBREAK_FRAG);
     programs.daybreak = {
       prog: dayProg,
       vao: createFullscreenVao(gl, dayProg),
       uniforms: getLocations(gl, dayProg, ['tA', 'tB', 'uP', 'uAsp', 'uHasB']),
     };
+
+    const washProg = linkProgram(gl, VERT_FULL, WASH_FRAG);
+    programs.wash = {
+      prog: washProg,
+      vao: createFullscreenVao(gl, washProg),
+      uniforms: getLocations(gl, washProg, ['tA', 'tB', 'uP', 'uAsp', 'uHasB', 'uMood']),
+    };
   }
   return true;
 }
 
-function drawCoverImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number, posX = 0.5, posY = 0.5): void {
+function drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+  posX = 0.5,
+  posY = 0.5,
+): void {
   if (!img.complete || img.naturalWidth <= 0) return;
   const ir = img.naturalWidth / img.naturalHeight;
   const cr = w / h;
@@ -761,7 +756,10 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   };
 
   const bg = preloadImage(artMap[snap.scene]);
-  if (bg) drawCoverImage(ctx, bg, w, h, snap.scene === 'lobby' || snap.scene === 'matchmake' ? (portrait ? 0.74 : 0.62) : 0.5, snap.scene === 'lobby' || snap.scene === 'matchmake' ? (portrait ? 0.5 : 0.38) : 0.5);
+  if (bg) {
+    const isLobby = snap.scene === 'lobby' || snap.scene === 'matchmake';
+    drawCoverImage(ctx, bg, w, h, isLobby ? (portrait ? 0.74 : 0.62) : 0.5, isLobby ? (portrait ? 0.5 : 0.38) : 0.5);
+  }
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   grad.addColorStop(0, 'rgba(10, 14, 16, 0.45)');
@@ -771,23 +769,31 @@ export function buildSceneSnapshotCanvas(snap: SnapshotContext): HTMLCanvasEleme
   ctx.fillRect(0, 0, w, h);
 
   if (snap.scene === 'matchmake') {
-    ctx.fillStyle = 'rgba(8, 14, 16, 0.74)';
+    ctx.fillStyle = 'rgba(8, 14, 16, 0.78)';
     ctx.fillRect(0, 0, w, h);
-    const cw = portrait ? w * 0.9 : 560;
-    const ch = portrait ? 350 : 380;
+    const cw = portrait ? w * 0.88 : 560;
+    const ch = portrait ? 410 : 350;
     const cx = (w - cw) / 2;
     const cy = (h - ch) / 2;
-    ctx.fillStyle = 'rgba(18, 28, 30, 0.96)';
+    ctx.fillStyle = 'rgba(16, 28, 30, 0.96)';
     ctx.fillRect(cx, cy, cw, ch);
-    ctx.strokeStyle = 'rgba(233, 189, 98, 0.65)';
+    ctx.strokeStyle = 'rgba(233, 189, 98, 0.58)';
     ctx.lineWidth = 2;
     ctx.strokeRect(cx, cy, cw, ch);
     ctx.fillStyle = '#fce3a6';
     ctx.textAlign = 'center';
     ctx.font = 'bold 28px serif';
     ctx.fillText('汴京寻将 · 十方齐聚', w / 2, cy + 54);
-    ctx.fillStyle = '#e9bd62';
-    ctx.fillRect(cx + 26, cy + 84, cw - 52, 5);
+    ctx.fillStyle = 'rgba(233, 189, 98, 0.85)';
+    ctx.fillRect(cx + 30, cy + 84, cw - 60, 4);
+    const seatW = (cw - 88) / 2;
+    for (let i = 0; i < 5; i++) {
+      const sy = cy + 114 + i * 44;
+      ctx.fillStyle = 'rgba(42, 108, 128, 0.38)';
+      ctx.fillRect(cx + 28, sy, seatW, 32);
+      ctx.fillStyle = 'rgba(166, 56, 48, 0.38)';
+      ctx.fillRect(cx + cw - 28 - seatW, sy, seatW, 32);
+    }
   } else if (snap.scene === 'lobby') {
     ctx.fillStyle = '#fff4d9';
     if (portrait) {
@@ -880,12 +886,6 @@ function uploadTex(g: WebGL2RenderingContext, tex: WebGLTexture, source: HTMLCan
   g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, source);
 }
 
-const invLerp = (a: number, b: number, v: number) => Math.max(0, Math.min(1, (v - a) / (b - a)));
-const smoothstep = (t: number) => {
-  const x = Math.max(0, Math.min(1, t));
-  return x * x * (3 - 2 * x);
-};
-
 function renderTransitionFrame(kind: TransitionKind, p: number, hasB: boolean, mood = 0): void {
   if (!gl || !overlayCanvas) return;
   const w = overlayCanvas.width;
@@ -897,36 +897,41 @@ function renderTransitionFrame(kind: TransitionKind, p: number, hasB: boolean, m
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-  if (kind === 'tear') {
-    let s = invLerp(0.02, 0.56, p);
-    s = s + (smoothstep(s) - s) * 0.55;
-    s += (0.012 * Math.sin(s * 26) + 0.005 * Math.sin(s * 61)) * Math.sin(Math.PI * s);
-    const yf = 1.08 - 2.4 * s;
-    const open = invLerp(0.37, 0.995, p);
-    const w2 = (asp + 0.98) * Math.pow(open, 2.1) * (1.35 - 0.35 * open);
+  if (kind === 'flaps') {
+    const rows = asp < 1 ? 12 : 9;
+    const cols = asp < 1 ? Math.max(5, Math.round(asp * rows)) : Math.max(6, Math.round((asp * rows) / (16 / 9) * 1.45));
+    const uT = p * FLAPS_DUR_SEC;
 
-    // 双半投影叠加柔底阴影在实机战场画布上方
-    const pr = programs.tear!;
-    gl.useProgram(pr.prog);
-    gl.bindVertexArray(pr.vao);
+    const bg = programs.flaps!;
+    gl.useProgram(bg.prog);
+    gl.bindVertexArray(bg.vao);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texA);
-    gl.uniform1i(pr.uniforms.tA, 0);
-    gl.uniform1f(pr.uniforms.uAsp, asp);
-    gl.uniform1f(pr.uniforms.uP, p);
-    gl.uniform1f(pr.uniforms.uYf, yf);
-    gl.uniform1f(pr.uniforms.uW2, w2);
-    gl.drawElements(gl.TRIANGLES, tearSheetIndexCount, gl.UNSIGNED_INT, 0);
+    gl.uniform1i(bg.uniforms.tA, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB);
+    gl.uniform1i(bg.uniforms.tB, 1);
+    gl.uniform2f(bg.uniforms.uGrid, cols, rows);
+    gl.uniform1f(bg.uniforms.uT, uT);
+    gl.uniform2f(bg.uniforms.uRes, w, h);
+    gl.uniform1f(bg.uniforms.uHasB, hasB ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    const sc = programs.tearScrap!;
-    gl.useProgram(sc.prog);
-    gl.bindVertexArray(sc.vao);
-    gl.uniform1f(sc.uniforms.uAsp, asp);
-    gl.uniform1f(sc.uniforms.uP, p);
-    gl.uniform1f(sc.uniforms.uYf, yf);
-    gl.uniform1f(sc.uniforms.uW2, w2);
-    gl.uniform1f(sc.uniforms.uT, p * 1.45);
-    gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, TEAR_SCRAPS);
+    const leaf = programs.flapsLeaf!;
+    gl.useProgram(leaf.prog);
+    gl.bindVertexArray(leaf.vao);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texA);
+    gl.uniform1i(leaf.uniforms.tA, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texB);
+    gl.uniform1i(leaf.uniforms.tB, 1);
+    gl.uniform2f(leaf.uniforms.uGrid, cols, rows);
+    gl.uniform1f(leaf.uniforms.uT, uT);
+    gl.uniform1f(leaf.uniforms.uAsp, asp);
+    gl.uniform2f(leaf.uniforms.uRes, w, h);
+    gl.uniform1f(leaf.uniforms.uHasB, hasB ? 1 : 0);
+    gl.drawElementsInstanced(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0, cols * rows);
     gl.bindVertexArray(null);
     return;
   }
@@ -965,7 +970,8 @@ export function stopActiveTransition(): void {
   if (overlayCanvas) overlayCanvas.style.display = 'none';
 }
 
-export function playTangSongTransition(kind: TransitionKind, opts: PlayTransitionOptions): Promise<void> {
+export function playTangSongTransition(rawKind: TransitionKindOrAlias, opts: PlayTransitionOptions): Promise<void> {
+  const kind = normalizeKind(rawKind);
   if (typeof window === 'undefined' || (!opts.force && !cinematicFlowEnabled())) {
     return Promise.resolve();
   }
@@ -1025,17 +1031,21 @@ export function installTransitionDebugHandle(): void {
   if (typeof window === 'undefined') return;
   warmTransitionImages();
   (window as { __tsTransition?: unknown }).__tsTransition = {
-    preview(kind: TransitionKind, p: number, opts?: Partial<PlayTransitionOptions>) {
+    preview(rawKind: TransitionKindOrAlias, p: number, opts?: Partial<PlayTransitionOptions>) {
+      const kind = normalizeKind(rawKind);
       const hasExplicitTo = opts ? Object.prototype.hasOwnProperty.call(opts, 'to') : false;
       return playTangSongTransition(kind, {
-        from: opts?.from ?? { scene: kind === 'tear' ? 'loading' : kind === 'daybreak' ? 'match' : kind === 'slam' ? 'select' : 'lobby', heroId: 'sushi' },
-        to: hasExplicitTo ? opts!.to : { scene: kind === 'wash' ? 'select' : kind === 'slam' ? 'loading' : 'result', heroId: 'sushi', win: true },
+        from:
+          opts?.from ?? {
+            scene: kind === 'portal' ? 'loading' : kind === 'daybreak' ? 'select' : kind === 'flaps' ? 'matchmake' : 'match',
+            heroId: 'sushi',
+          },
+        to: hasExplicitTo ? opts!.to : undefined,
         holdProgress: p,
         mood: opts?.mood ?? 0,
         force: true,
       });
     },
     stop: stopActiveTransition,
-    clearTexCount: () => void tearSheetVertCount,
   };
 }

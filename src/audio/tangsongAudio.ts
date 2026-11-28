@@ -136,7 +136,7 @@ export type BgmTrackId = (typeof BGM_TRACK_IDS)[number];
 const MENU_BGM_GAIN = 0.36;
 const BATTLE_BGM_GAIN = 0.11;
 const BATTLE_BGM_DUCKED = 0.048;
-const BGM_GAP_MS = 1200;
+const BGM_GAP_MS = 5000;
 
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 const safeHz = (f: number) => Math.max(24, Math.min(18000, f));
@@ -465,6 +465,8 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
   let mp3RetriedForSong = false;
   let battleBgmEnabled = true;
   let curIntensity = 0;
+  let fadingOutEnd = false;
+  let freshEntryFade = true;
   let gapTimer: ReturnType<typeof setTimeout> | null = null;
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -532,6 +534,8 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
 
   const attemptPlay = (songId: BgmTrackId) => {
     if (!audioEl || disposed || curTrack === 'none') return;
+    const entryTau = freshEntryFade ? 0.75 : 0.25;
+    freshEntryFade = false;
     try {
       const result = audioEl.play();
       if (result && typeof result.then === 'function') {
@@ -539,7 +543,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
           .then(() => {
             if (!disposed && currentSongId === songId && curTrack !== 'none') {
               needsRetry = false;
-              applyMixProfile(0.25);
+              applyMixProfile(entryTau);
             }
           })
           .catch(() => {
@@ -549,7 +553,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
           });
       } else {
         needsRetry = false;
-        applyMixProfile(0.25);
+        applyMixProfile(entryTau);
       }
     } catch {
       needsRetry = true;
@@ -559,12 +563,19 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
   const playSong = (songId: BgmTrackId) => {
     if (disposed || !audioEl) return;
     clearTimers();
+    fadingOutEnd = false;
     currentSongId = songId;
     mp3RetriedForSong = false;
     playedCount++;
     audioEl.src = resolveUrl(songId);
     audioEl.currentTime = 0;
-    applyMixProfile(0.28);
+    if (bgmGain && mixer.ctx && freshEntryFade) {
+      const now = mixer.now();
+      bgmGain.gain.cancelScheduledValues(now);
+      bgmGain.gain.setValueAtTime(0.0001, now);
+    } else {
+      applyMixProfile(0.28);
+    }
     attemptPlay(songId);
   };
 
@@ -591,6 +602,9 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
   const onEnded = () => {
     if (disposed || curTrack === 'none') return;
     clearTimers();
+    fadingOutEnd = false;
+    freshEntryFade = true;
+    rampGain(0, 0.06);
     gapTimer = setTimeout(() => {
       gapTimer = null;
       if (!disposed && curTrack !== 'none') {
@@ -745,6 +759,13 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
       if (disposed || curTrack === 'none' || !audioEl) return;
       const hidden = typeof document !== 'undefined' && document.hidden;
       if (hidden || mixer.ctx?.state !== 'running') return;
+      if (!audioEl.paused && Number.isFinite(audioEl.duration) && audioEl.duration > 8) {
+        const rem = audioEl.duration - audioEl.currentTime;
+        if (!fadingOutEnd && rem > 0 && rem <= 1.6) {
+          fadingOutEnd = true;
+          rampGain(0, 0.45);
+        }
+      }
       if (needsRetry) {
         needsRetry = false;
         if (currentSongId) {
@@ -755,6 +776,7 @@ export function createTangSongMusic(mixer: AudioMixerLike): MusicController {
       }
     },
     nextSong() {
+      freshEntryFade = false;
       return startNextShuffled();
     },
     fork(otherMixer: AudioMixerLike) {
@@ -1568,6 +1590,12 @@ export function attachTangSongSfx(
     cue(CUE_KEYS['stealth-in'], { len: 0.65, gap: 0.45, rev: 0.3 }, (p) => {
       p.noise({ k: 'pink', flt: 'bandpass', fc: 1950, fc1: 880, fct: 0.24, q: 1.4, t: 0, a: 0.015, h: 0.05, d: 0.2, g: 0.11 });
       playXiao(p, midi(86), 0.02, 0.36, 0.22);
+    });
+    // 硬控爆发（击飞 / 眩晕 / 击退 / 聚拢）：沉稳建鼓低频重砸 + 编钟清脆震音，加强打击确认感
+    cue('fx_cc_impact', { len: 0.55, gap: 0.16, poly: 2, prio: 2, rev: 0.14, range: 36, jitter: 0.06 }, (p) => {
+      playWarDrum(p, 0, 0.72, 1.12);
+      playBianzhong(p, midi(79), 0.012, 0.24, 0.48);
+      p.noise({ k: 'pink', flt: 'bandpass', fc: 1750, q: 1.1, t: 0, a: 0.002, d: 0.07, g: 0.24 });
     });
   }
 

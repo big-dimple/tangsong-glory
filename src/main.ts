@@ -95,6 +95,7 @@ import { mountTeamCommands, teamTactics, type TeamState } from './engine/teamTac
 import { hasTeamSight, teamVision } from './visuals/teamVision';
 import { RenderResolution } from './visuals/renderResolution';
 import { beginEntryShot, filmFrame, patchFinalShader, pulseUltExposure } from './visuals/tangsongFilm';
+import { TANGSONG_IMPACT_API } from './visuals/tangsongImpact';
 import {
   installTransitionDebugHandle,
   playTangSongTransition,
@@ -317,6 +318,7 @@ bootTangSongGlory({
     api: SpriteAtlasApi,
   ) => patchTangSongSpriteAtlas(vb, Ft, api),
   combatFeel: TANGSONG_COMBAT_FEEL,
+  impact: TANGSONG_IMPACT_API,
   items: TANGSONG_ITEMS_API,
   teamTactics,
   heroes3D: {
@@ -356,7 +358,7 @@ bootTangSongGlory({
       onAudioUi,
       onComplete: () => {
         onDone();
-        void playTangSongTransition('wash', {
+        void playTangSongTransition('flaps', {
           from: { scene: 'matchmake', heroId },
         });
       },
@@ -365,14 +367,15 @@ bootTangSongGlory({
   mountDraftBar: (el: HTMLElement, heroId: string, getPortraitUrl: (id: string) => string): DraftBarHandle =>
     mountTangSongDraftBar(el, heroId, getPortraitUrl),
   onBeforeSelectConfirm: (heroId: string) => {
-    void playTangSongTransition('slam', {
+    void playTangSongTransition('daybreak', {
       from: { scene: 'select', heroId },
+      durationMs: 780,
     });
   },
   consumeMatchSeed: () => consumePendingMatchSeed(),
   getMatchHandle: (team: number, slot: number, isMe: boolean) => getSessionHandle(team, slot, isMe),
   onBeforeMatchReveal: (choice: { heroId: string }, matchTeams: { blue: string[]; red: string[] }) => {
-    void playTangSongTransition('tear', {
+    void playTangSongTransition('portal', {
       from: { scene: 'loading', heroId: choice.heroId, teams: matchTeams },
     });
   },

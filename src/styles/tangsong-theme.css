@@ -2109,3 +2109,27 @@ body .sf-root .sf-hud__shop-list {
     font-size: 9px;
   }
 }
+
+/* ── 16. 公屏播报英文尊称副标（王者同款播报排面，兼顾横竖屏） ── */
+.ts-banner-en {
+  margin-top: 1px;
+  margin-bottom: 2px;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: max(9px, 10u);
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: rgba(255, 232, 178, 0.94);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+}
+.sf-hud__banner.is-foe .ts-banner-en {
+  color: rgba(255, 186, 172, 0.95);
+}
+@media (orientation: landscape) and (max-height: 480px) {
+  .ts-banner-en {
+    font-size: 8px;
+    letter-spacing: 0.18em;
+  }
+}
